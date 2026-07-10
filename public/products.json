@@ -1,0 +1,641 @@
+{
+  "source": "מחירון יוני +אחוזים.xlsx",
+  "count": 127,
+  "products": [
+    {
+      "sku": "FJ-32UIL900",
+      "description": "FUJICOM 32\" SMART TV FJ-32UIL900",
+      "price": 475.0
+    },
+    {
+      "sku": "FJ-43UIL900",
+      "description": "FUJICOM FRAMELESS  43\"  FJ-43UIL900  SMART WEBOS TV",
+      "price": 750.0
+    },
+    {
+      "sku": "FJ-50UILQ950",
+      "description": "FUJICOM 50\"  QLED FJ-50UILQ950  SMART TV",
+      "price": 975.0
+    },
+    {
+      "sku": "FJ-55UILQ950",
+      "description": "55\" QLED FUJICOM   SMART  TV FJ-55UILQ950",
+      "price": 1125.0
+    },
+    {
+      "sku": "FJ-65Q10X",
+      "description": "FUJICOM FRAMELESS  65\"  QLED  FJ-65Q10X  SMART WEBOS TV",
+      "price": 1550.0
+    },
+    {
+      "sku": "FJ-75UILQ950",
+      "description": "FUJICOM  75\"  QLED FJ-75UILQ950  SMART  TV",
+      "price": 2150.0
+    },
+    {
+      "sku": "FJ-MW20LW",
+      "description": "מיקרוגל  מכני 20 ליטר לבן  FJ-MW20LW",
+      "price": 252.14
+    },
+    {
+      "sku": "FJ-MW25LB",
+      "description": "מיקרוגל דיגיטלי 25 ליטר שחור FJ-MW25LB",
+      "price": 352.99
+    },
+    {
+      "sku": "FJ-B957E",
+      "description": "מקרר אנטגרלי 294 ליטר",
+      "price": 2190.0
+    },
+    {
+      "sku": "FJ-BFNF927E",
+      "description": "מקפיא אינטגרלי 197 ליטר NF",
+      "price": 2190.0
+    },
+    {
+      "sku": "FJ-BINF410",
+      "description": "מקרר  אינטגרלי מקפיא תחתון 70 ס\"מ 403 ליטר NF",
+      "price": 3590.0
+    },
+    {
+      "sku": "FJ-BIOV980",
+      "description": "תנור בנוי מכני 73 ליטר שחור",
+      "price": 690.0
+    },
+    {
+      "sku": "FJ-BIOV990W",
+      "description": "תנור בנוי מכני 73 ליטר לבן",
+      "price": 690.0
+    },
+    {
+      "sku": "FJ-BIOVRT90W",
+      "description": "תנור בנוי כפרי  רטרו  73 ליטר צבע שמנת",
+      "price": 1145.0
+    },
+    {
+      "sku": "FJ-BIRT8B",
+      "description": "תנור בנוי כפרי 80 ליטר שמנת",
+      "price": 1145.0
+    },
+    {
+      "sku": "FJ-BIRT9CK",
+      "description": "תנור בנוי כפרי 80 ליטר שחור מט",
+      "price": 1145.0
+    },
+    {
+      "sku": "FJ-BO770T",
+      "description": "תנור בנוי 72 ליטר מסך מגע שחור",
+      "price": 1250.0
+    },
+    {
+      "sku": "FJ-BO797BL",
+      "description": "תנור בנוי דיגטלי 70 ליטר שחור",
+      "price": 1150.0
+    },
+    {
+      "sku": "FJ-BOMW245BL",
+      "description": "תנור בנוי  44 ליטר משולב מיקרו 45 ס\"מ שחור",
+      "price": 1800.0
+    },
+    {
+      "sku": "FJ-CHRT60B",
+      "description": "קולט אדים 60 ס\"מ  שמנת  כפרי",
+      "price": 680.0
+    },
+    {
+      "sku": "FJ-CHRT70CK",
+      "description": "קולט אדים 60 ס\"מ  שחור מט כפרי",
+      "price": 680.0
+    },
+    {
+      "sku": "FJ-CHRT91B",
+      "description": "קולט אדים 90 ס\"מ  שמנת  כפרי",
+      "price": 899.0
+    },
+    {
+      "sku": "FJ-CHRT92CK",
+      "description": "קולט אדים 90 ס\"מ ע שחור מט  כפרי",
+      "price": 899.0
+    },
+    {
+      "sku": "FJ-CHT11BL",
+      "description": "קולט  אדים מרובע 60 ס\"מ זכוכית שחורה",
+      "price": 595.0
+    },
+    {
+      "sku": "FJ-CHT13W",
+      "description": "קולט אדים מרובע 60 ס\"מ זכוכית לבנה",
+      "price": 595.0
+    },
+    {
+      "sku": "FJ-CHT50W",
+      "description": "קולט  אדים זכוכית כפולה 60 ס\"מ  זכוכית לבנה",
+      "price": 595.0
+    },
+    {
+      "sku": "FJ-CHT60BL",
+      "description": "קולט אדים זכוכית כפולה 60 ס\"מ זכוכית שחורה",
+      "price": 595.0
+    },
+    {
+      "sku": "FJ-CHT74W",
+      "description": "קולט אדים זכוכית כפולה 90 ס\"מ זכוכית לבנה",
+      "price": 695.0
+    },
+    {
+      "sku": "FJ-CHT90BL",
+      "description": "קולט אדים זכוכית כפולה 90 ס\"מ  זכוכית שחורה",
+      "price": 695.0
+    },
+    {
+      "sku": "FJ-DF117WE",
+      "description": "מקרר משרדי 86 ל'  לבן",
+      "price": 390.0
+    },
+    {
+      "sku": "FJ-DF177S",
+      "description": "מקרר משרדי  DE-FROST  כסוף 86 ליטר",
+      "price": 410.0
+    },
+    {
+      "sku": "FJ-DF28WE",
+      "description": "מקרר מקפיא עליון 206 ליטר DF  לבן",
+      "price": 700.0
+    },
+    {
+      "sku": "FJ-DF300W",
+      "description": "מקפיא/מקרר שוכב תעשייתי  293 ליטר לבן",
+      "price": 990.0
+    },
+    {
+      "sku": "FJ-DF35XE",
+      "description": "מקרר מקפיא עליון 206 ליטר DF כסוף",
+      "price": 700.0
+    },
+    {
+      "sku": "FJ-DF400W",
+      "description": "מקפיא תעשייתי שוכב  DE-FROST  392 ליטר לבן",
+      "price": 1190.0
+    },
+    {
+      "sku": "FJ-DF46L",
+      "description": "מקרר קוביה  46 ליטר  לבן",
+      "price": 375.0
+    },
+    {
+      "sku": "FJ-DHP909",
+      "description": "מייבש כביסה 9 ק\"ג Heat Pump",
+      "price": 1800.0
+    },
+    {
+      "sku": "FJ-DW20W",
+      "description": "מדיח כלים 8 תוכניות  לבן",
+      "price": 950.0
+    },
+    {
+      "sku": "FJ-DW22X",
+      "description": "מדיח כלים 8 תוכניות  נירוסטה",
+      "price": 1090.0
+    },
+    {
+      "sku": "FJ-DW24BK",
+      "description": "מדיח כלים 8 תוכניות  שחור",
+      "price": 1150.0
+    },
+    {
+      "sku": "FJ-DW6T",
+      "description": "מדיח כלים על השיש 7 תוכניות  לבן",
+      "price": 690.0
+    },
+    {
+      "sku": "FJ-DWB8817",
+      "description": "מדיח כלים אינטגרלי מלא",
+      "price": 1290.0
+    },
+    {
+      "sku": "FJ-DWIGBK",
+      "description": "מדיח כלים 14 מערכות דלת זכוכית שחור FJ-DWIGBK",
+      "price": 1190.0
+    },
+    {
+      "sku": "FJ-FDF155W",
+      "description": "מקפיא  4  מגירות 91 ליטר DE FROST  לבן",
+      "price": 650.0
+    },
+    {
+      "sku": "FJ-FNF212BI",
+      "description": "מקפיא אינטגרלי 212 ליטר  NO-FROST",
+      "price": 2190.0
+    },
+    {
+      "sku": "FJ-FNF226W",
+      "description": "מקפיא 6 מגירות 213 ליטר NO-FROST לבן",
+      "price": 1190.0
+    },
+    {
+      "sku": "FJ-FNF377WE",
+      "description": "מקפיא 7 מגירות 280 ליטר NF  לבן",
+      "price": 1675.0
+    },
+    {
+      "sku": "FJ-FNF488W",
+      "description": "מקפיא 8 תאים 273 ליטר NO FROST  לבן",
+      "price": 1550.0
+    },
+    {
+      "sku": "FJ-FNF588X",
+      "description": "מקפיא 8 תאים 273 ליטר NO FROST  נירוסטה",
+      "price": 1650.0
+    },
+    {
+      "sku": "FJ-FS6365W",
+      "description": "תנור עומד משולב 60 ליטר כולל כיריים גז לבן",
+      "price": 1090.0
+    },
+    {
+      "sku": "FJ-FS8065X",
+      "description": "תנור עומד משולב 60 ליטר כולל כיריים גז  נירוסטה",
+      "price": 1245.0
+    },
+    {
+      "sku": "FJ-FSC75BK",
+      "description": "תנור עומד משולב 60 ליטר כולל כיריים גז שחור",
+      "price": 1185.0
+    },
+    {
+      "sku": "FJ-FSC9060B",
+      "description": "תנור משולב 90 ס\"מ כפרי מכסה עליון נירוסטה  5 מבערים  שמנת",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-FSC9095BK",
+      "description": "תנור משולב 90 ס\"מ כפרי מכסה עליון נירוסטה  5 מבערים שחור מט",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-FSRT60BG",
+      "description": "תנור עומד  רטרו 60 ס\"מ בצבע שמנת כולל כיריים",
+      "price": 1490.0
+    },
+    {
+      "sku": "FJ-FSRT66MB",
+      "description": "תנור עומד  רטרו 60 ס\"מ צבע שחור מט כולל כיריים",
+      "price": 1490.0
+    },
+    {
+      "sku": "FJ-GH755W",
+      "description": "כיריים גז 4 מבערים זכוכית לבנה",
+      "price": 579.0
+    },
+    {
+      "sku": "FJ-GH840BK",
+      "description": "כיריים גז 4 מבערים - זכוכית שחורה",
+      "price": 500.0
+    },
+    {
+      "sku": "FJ-GH950W",
+      "description": "כיריים גז 4 מבערים - זכוכית לבנה",
+      "price": 500.0
+    },
+    {
+      "sku": "FJ-GHRT13BG",
+      "description": "כיריים גז 4 מבערים כפרי רטרו  צבע שמנת",
+      "price": 620.0
+    },
+    {
+      "sku": "FJ-GHRT4B",
+      "description": "כיריים גז 4 מבערים  כפרי שמנת",
+      "price": 620.0
+    },
+    {
+      "sku": "FJ-GHRT7CK",
+      "description": "כיריים גז 4 מבערים כפרי  שחור מט",
+      "price": 620.0
+    },
+    {
+      "sku": "FJ-HP1010",
+      "description": "מייבש כביסה 10 ק\"ג    heat pump",
+      "price": 1450.0
+    },
+    {
+      "sku": "FJ-HP88",
+      "description": "מייבש כביסה 8 ק\"ג    heat pump",
+      "price": 1150.0
+    },
+    {
+      "sku": "FJ-HP99",
+      "description": "מייבש כביסה 9 ק\"ג    heat pump",
+      "price": 1250.0
+    },
+    {
+      "sku": "FJ-IDZ150",
+      "description": "כיריים אינדוקציה מולטי זון  תלת פאזי שחור",
+      "price": 699.0
+    },
+    {
+      "sku": "FJ-KS90BG",
+      "description": "מקרר משרדי 86 ליטר-  דלת זכוכית שחורה",
+      "price": 475.0
+    },
+    {
+      "sku": "FJ-KS93WG",
+      "description": "מקרר משרדי 86 ליטר- דלת זכוכית לבנה",
+      "price": 475.0
+    },
+    {
+      "sku": "FJ-NF241BI",
+      "description": "מקרר  אינטגרלי מקפיא תחתון  NO FROST 248 ליטר",
+      "price": 2190.0
+    },
+    {
+      "sku": "FJ-NF295W",
+      "description": "מקרר מקפיא עליון 276 ליטר NF  לבן",
+      "price": 1090.0
+    },
+    {
+      "sku": "FJ-NF304BI",
+      "description": "מקרר אינטגרלי    304 ליטר   NO-FROST",
+      "price": 2190.0
+    },
+    {
+      "sku": "FJ-NF323WG",
+      "description": "מקרר מקפיא תחתון 320 ליטר NF - זכוכית לבנה",
+      "price": 1790.0
+    },
+    {
+      "sku": "FJ-NF325BG",
+      "description": "מקרר מקפיא תחתון 320 ליטר NF - זכוכית שחורה",
+      "price": 1790.0
+    },
+    {
+      "sku": "FJ-NF338W",
+      "description": "מקרר מקפיא עליון 329 ליטר לבן",
+      "price": 1390.0
+    },
+    {
+      "sku": "FJ-NF340X",
+      "description": "מקרר מקפיא עליון 329 ליטר NF  נירוסטה",
+      "price": 1390.0
+    },
+    {
+      "sku": "FJ-NF365X",
+      "description": "מקרר מקפיא תחתון 320 ליטר NF -  נירוסטה",
+      "price": 1690.0
+    },
+    {
+      "sku": "FJ-NF3672",
+      "description": "מקרר מקפיא תחתון אינטגרלי 233 ליטר NF",
+      "price": 2290.0
+    },
+    {
+      "sku": "FJ-NF374DX",
+      "description": "מקרר מקפיא תחתון 320 ליטר NF -  נירוסטה מושחרת",
+      "price": 1590.0
+    },
+    {
+      "sku": "FJ-NF394LBM",
+      "description": "מקרר NF  מקפיא תחתון 60ס\"מ שחור מט פתיחה לשמאל",
+      "price": 2200.0
+    },
+    {
+      "sku": "FJ-NF423W",
+      "description": "מקרר מקפיא עליון 423 ליטר NO-FROST - לבן",
+      "price": 1690.0
+    },
+    {
+      "sku": "FJ-NF433X",
+      "description": "מקרר מקפיא עליון 423 ליטר NO-FROST  נירוסטה",
+      "price": 1790.0
+    },
+    {
+      "sku": "FJ-NF493GBE",
+      "description": "מקרר  מקפיא תחתחון 331 ליטר  זכוכית שחורה",
+      "price": 2290.0
+    },
+    {
+      "sku": "FJ-NF500BK",
+      "description": "מקרר 4 דלתות מקפיא תחתון 475 ליטר NO-FROST  זכוכית שחורה",
+      "price": 2200.0
+    },
+    {
+      "sku": "FJ-NF513XBF",
+      "description": "מקרר  מקפיא תחתון 499 ליטר NF נירוסטה",
+      "price": 2590.0
+    },
+    {
+      "sku": "FJ-NF513XBFIC",
+      "description": "מקרר  מקפיא תחתון 499 ליטר NF נירוסטה + מייצר קרח אוטומטי",
+      "price": 2790.0
+    },
+    {
+      "sku": "FJ-NF514DXBF",
+      "description": "מקרר  מקפיא תחתון 499 ליטר NF נירוסטה מושחרת",
+      "price": 2590.0
+    },
+    {
+      "sku": "FJ-NF514DXBFIC",
+      "description": "מקרר  מקפיא תחתון 499 ליטר NF נירוסטה מושחרת+מייצר קרח אוט'",
+      "price": 2790.0
+    },
+    {
+      "sku": "FJ-NF515W",
+      "description": "מקרר 4 דלתות מקפיא תחתון 475 ליטר NO-FROST  זכוכית לבנה",
+      "price": 2350.0
+    },
+    {
+      "sku": "FJ-NF516WBF",
+      "description": "מקרר  מקפיא תחתון 499 ליטר NF לבן",
+      "price": 2590.0
+    },
+    {
+      "sku": "FJ-NF516WBFIC",
+      "description": "מקרר  מקפיא תחתון 499 ליטר NF לבן + מייצר קרח אוטומטי",
+      "price": 2790.0
+    },
+    {
+      "sku": "FJ-NF530GDBL",
+      "description": "מקרר 4 דלתות 505 ליטר NF  זכוכית שחורה",
+      "price": 3290.0
+    },
+    {
+      "sku": "FJ-NF549W",
+      "description": "מקרר מקפיא עליון 401 ליטר NF לבן",
+      "price": 1690.0
+    },
+    {
+      "sku": "FJ-NF560DX",
+      "description": "מקרר 4 דלתות 505 ליטר NF  נירוסטה מושחרת",
+      "price": 3090.0
+    },
+    {
+      "sku": "FJ-NF590GDW",
+      "description": "מקרר 4 דלתות 505 ליטר NF  זכוכית לבנה",
+      "price": 3290.0
+    },
+    {
+      "sku": "FJ-NF600BK",
+      "description": "מקרר 4 דלתות מקפיא תחתון 539 ליטר NO-FROST זכוכית שחורה",
+      "price": 2490.0
+    },
+    {
+      "sku": "FJ-NF615W",
+      "description": "מקרר 4 דלתות מקפיא תחתון 539 ליטר NO-FROST זכוכית לבנה",
+      "price": 2490.0
+    },
+    {
+      "sku": "FJ-NF645W",
+      "description": "מקרר מקפיא עליון  497 ליטר NF -  לבן",
+      "price": 1890.0
+    },
+    {
+      "sku": "FJ-NF655BGE",
+      "description": "מקרר מקפיא תחתון 588 ליטר NO-FROST שמנת",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF676LBM",
+      "description": "מקרר  מקפיא תחתון 331 ליטר NF שחור מט (פתיחה הפוכה)",
+      "price": 2290.0
+    },
+    {
+      "sku": "FJ-NF681W",
+      "description": "מקרר מקפיא תחתון  NO-FROST 680 ליטר לבן",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF682X",
+      "description": "מקרר מקפיא תחתון  NO-FROST 680 ליטר נירוסטה",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF683DX",
+      "description": "מקרר מקפיא תחתון  NO-FROST 680 ליטר נירוסטה מושחרת",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF696RBM",
+      "description": "מקרר  מקפיא תחתון 331 ליטר NF שחור מט (פתיחה רגילה )",
+      "price": 2290.0
+    },
+    {
+      "sku": "FJ-NF70X",
+      "description": "מקרר מקפיא תחתון 435 ליטר NO  FROST  נירוסטה",
+      "price": 2190.0
+    },
+    {
+      "sku": "FJ-NF745DX",
+      "description": "מקרר מקפיא עליון 497 ליטר NF -  נירוסטה מושחרת",
+      "price": 1990.0
+    },
+    {
+      "sku": "FJ-NF766WE",
+      "description": "מקרר מקפיא תחתון 588 ליטר NO-FROST לבן",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF777XE",
+      "description": "מקרר מקפיא תחתון 588 ליטר NO-FROST נירוסטה",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF800BK",
+      "description": "מקרר 4 דלתות מקפיא תחתון 600 ליטר NO-FROST זכוכית שחורה",
+      "price": 3800.0
+    },
+    {
+      "sku": "FJ-NF815W",
+      "description": "מקרר 4 דלתות מקפיא תחתון 600 ליטר NO-FROST זכוכית לבנה",
+      "price": 3800.0
+    },
+    {
+      "sku": "FJ-NF820DX",
+      "description": "מקרר NO FROST  4 דלתות 600 ליטר נירוסטה מושחרת  FJ-NF820DX",
+      "price": 3800.0
+    },
+    {
+      "sku": "FJ-NF836DXE",
+      "description": "מקרר מקפיא תחתון 588 ליטר NO-FROST נירוסטה מושחרת",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF838RDXE",
+      "description": "מקרר מקפיא תחתון 331 ליטר NF נירוסטה מושחרת ( פתיחה רגילה)",
+      "price": 1990.0
+    },
+    {
+      "sku": "FJ-NF888BME",
+      "description": "מקרר מקפיא תחתון  588 ליטר NO-FROST שחור מט",
+      "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF949RXE",
+      "description": "מקרר  מקפיא תחתון 331 ליטר NF נירוסטה (פתיחה רגילה )",
+      "price": 1990.0
+    },
+    {
+      "sku": "FJ-NFRT325BK",
+      "description": "מקרר NF  רטרו  שחור  FJ-NFRT325BK  310L",
+      "price": 1790.0
+    },
+    {
+      "sku": "FJ-V107TE",
+      "description": "מקרר משרדי DF  ויטרינה מסחרי 93 ליטר",
+      "price": 500.0
+    },
+    {
+      "sku": "FJ-V375",
+      "description": "מקרר ויטרינה מסחרי 350 ליטר",
+      "price": 1450.0
+    },
+    {
+      "sku": "FJ-V65TE",
+      "description": "מקרר קוביה DF ויטרינה מסחרי 46 ליטר",
+      "price": 400.0
+    },
+    {
+      "sku": "FJ-WC118",
+      "description": "מקרר יין 116 ל'  49 בקבוקים מדפי עץ",
+      "price": 990.0
+    },
+    {
+      "sku": "FJ-WM1014W",
+      "description": "מכונת כביסה 10 ק\"ג 1400 סל\"ד אינוורטר",
+      "price": 1290.0
+    },
+    {
+      "sku": "FJ-WM1215W",
+      "description": "מכונת כביסה  12 ק\"ג  1400 סל\"ד",
+      "price": 1250.0
+    },
+    {
+      "sku": "FJ-WM69",
+      "description": "מכונת כביסה 6 ק\"ג 1000 סל\"ד",
+      "price": 690.0
+    },
+    {
+      "sku": "FJ-WM72",
+      "description": "מכונת כביסה 7 ק\"ג  1200 סל\"ד INVERTER",
+      "price": 790.0
+    },
+    {
+      "sku": "FJ-WM86",
+      "description": "מכונת כביסה 8 ק\"ג  1400 סל\"ד INVERTER",
+      "price": 890.0
+    },
+    {
+      "sku": "FJ-WM912W",
+      "description": "מכונת כביסה 9 ק\"ג 1200 סל\"ד INVERTER",
+      "price": 990.0
+    },
+    {
+      "sku": "IT-170L",
+      "description": "מקרר מקפיא תחתון  170 ליטר  DE-FROST  לבן",
+      "price": 550.0
+    },
+    {
+      "sku": "IT-CF244",
+      "description": "מקפיא  מסחרי שוכב 244 ליטר DE-FROST לבן",
+      "price": 690.0
+    }
+  ]
+}

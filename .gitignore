@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.npm-cache/
+.vercel/
+verification/
+backups/
+tmp/
+.DS_Store
+.localized
+~$*
+*.log
+.vercel
+.env*

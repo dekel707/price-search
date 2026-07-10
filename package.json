@@ -1,0 +1,24 @@
+{
+  "name": "price-search-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:specs": "node scripts/generate-spec-manifest.mjs",
+    "predev": "npm run generate:specs",
+    "dev": "vite --host 0.0.0.0",
+    "prebuild": "npm run generate:specs",
+    "build": "vite build",
+    "prepreview": "npm run generate:specs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.3",
+    "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.4.0",
+    "pdfjs-dist": "^6.1.200",
+    "read-excel-file": "^9.2.0"
+  }
+}

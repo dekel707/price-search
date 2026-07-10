@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071211" />
+    <meta name="description" content="חיפוש מחירון לפי מק״ט או דגם" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>מחירון מהיר</title>
+  </head>
+  <body>
+    <section class="auth-gate" id="authGate" aria-label="כניסה למערכת">
+      <form class="auth-card" id="authForm">
+        <img class="auth-logo" src="/fujicom_logo.svg" alt="Fujicom" />
+        <div>
+          <p class="eyebrow">כניסה מאובטחת</p>
+          <h1 class="auth-title">מחירון והזמנות</h1>
+        </div>
+        <label class="field-wrap">
+          <span>קוד כניסה</span>
+          <input
+            id="pinInput"
+            type="password"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="4"
+            pattern="[0-9]{4}"
+            placeholder="••••"
+          />
+        </label>
+        <label class="remember-row">
+          <input id="rememberMe" type="checkbox" checked />
+          <span>זכור אותי במכשיר הזה</span>
+        </label>
+        <button class="file-button" id="loginButton" type="submit">כניסה</button>
+        <p class="auth-error" id="authError" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <main class="app-shell" id="appShell" hidden>
+      <header class="topbar">
+        <div class="brand-block">
+          <img class="brand-logo" src="/fujicom_logo.svg" alt="Fujicom" />
+          <div>
+            <p class="eyebrow">מחירון</p>
+            <h1>מחירון והזמנות</h1>
+          </div>
+        </div>
+        <div class="metadata" id="metadata">טוען מחירון...</div>
+      </header>
+
+      <nav class="tabs" aria-label="ניווט">
+        <button class="tab-button active" type="button" data-tab="search">חיפוש</button>
+        <button class="tab-button" type="button" data-tab="dashboard">דאשבורד</button>
+        <button class="tab-button" type="button" data-tab="cart">סל</button>
+        <button class="tab-button" type="button" data-tab="sold-products">מוצרים נמכרים</button>
+        <button class="tab-button" type="button" data-tab="customer-sales">לקוחות מובילים</button>
+        <button class="tab-button" type="button" data-tab="monthly-sales">מכר חודשי</button>
+        <button class="tab-button" type="button" data-tab="collections">גיול</button>
+        <button class="tab-button" type="button" data-tab="customers">לקוחות</button>
+        <button class="tab-button" type="button" data-tab="reservations">שריונים</button>
+        <button class="tab-button" type="button" data-tab="reminders">תזכורות</button>
+        <button class="tab-button" type="button" data-tab="categories">קטגוריות</button>
+        <button class="tab-button" type="button" data-tab="drafts">טיוטות</button>
+        <button class="tab-button" type="button" data-tab="orders">הזמנות</button>
+        <button class="tab-button" type="button" data-tab="tomorrow-orders">הזמנות למחר</button>
+      </nav>
+
+      <section class="tab-panel active" data-tab-panel="search">
+        <section class="search-panel" aria-label="חיפוש מחירון">
+          <label class="search-label" for="searchInput">מק״ט, דגם או תיאור</label>
+          <div class="search-box">
+            <input
+              id="searchInput"
+              type="search"
+              inputmode="search"
+              autocomplete="off"
+              placeholder="התחל להקליד..."
+            />
+            <button class="icon-button" id="clearSearch" type="button" aria-label="נקה חיפוש">×</button>
+          </div>
+
+          <label class="field-wrap">
+            <span>סינון קטגוריה</span>
+            <select id="categoryFilter"></select>
+          </label>
+
+          <p class="status" id="status" aria-live="polite"></p>
+        </section>
+
+        <section class="results" id="results" aria-live="polite"></section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="dashboard">
+        <section class="dashboard-panel" aria-label="דאשבורד">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">תמונת מצב</p>
+              <h2>דאשבורד</h2>
+            </div>
+            <div class="cart-summary" id="dashboardPeriod">החודש הנוכחי</div>
+          </div>
+          <div class="dashboard-stats" id="dashboardStats"></div>
+          <div class="dashboard-insights" id="dashboardInsights"></div>
+          <div class="dashboard-grid">
+            <section class="dashboard-section" aria-label="הזמנות אחרונות">
+              <div class="dashboard-section-header"><h3>הזמנות אחרונות</h3><button type="button" data-dashboard-tab="orders">הצג הכל</button></div>
+              <div id="dashboardRecentOrders"></div>
+            </section>
+            <section class="dashboard-section" aria-label="יתרות שריון נמוכות">
+              <div class="dashboard-section-header"><h3>יחידה אחרונה בשריון</h3><button type="button" data-dashboard-tab="reservations">ניהול שריונים</button></div>
+              <div id="dashboardLowReservations"></div>
+            </section>
+            <section class="dashboard-section" aria-label="המוצרים הנמכרים ביותר">
+              <div class="dashboard-section-header"><h3>המוצרים הנמכרים ביותר</h3><button type="button" data-dashboard-tab="sold-products">חיפוש מוצר</button></div>
+              <div id="dashboardTopProducts"></div>
+            </section>
+            <section class="dashboard-section" aria-label="תזכורות פתוחות">
+              <div class="dashboard-section-header"><h3>תזכורות פתוחות</h3><button type="button" data-dashboard-tab="reminders">הצג הכל</button></div>
+              <div id="dashboardOpenReminders"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="cart">
+        <section class="cart-panel" aria-label="סל הזמנה">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">סל קניות</p>
+              <h2 id="cartTitle">הזמנה נוכחית</h2>
+            </div>
+            <div class="cart-summary" id="cartSummary">0 פריטים</div>
+          </div>
+
+          <fieldset class="order-type-control">
+            <legend>סוג הזמנה</legend>
+            <label>
+              <input type="radio" name="orderType" value="delivery" checked />
+              <span>אספקה ללקוח</span>
+            </label>
+            <label>
+              <input type="radio" name="orderType" value="reservation" />
+              <span>רכישה לשריון</span>
+            </label>
+          </fieldset>
+
+          <label class="report-date-toggle">
+            <input id="reportTomorrow" type="checkbox" />
+            <span>
+              <strong>הזנת ההזמנה למחר</strong>
+              <small>אחרי 15:00 זה קורה אוטומטית. חמישי אחרי 15:00 ושישי/שבת עוברים ליום ראשון.</small>
+            </span>
+          </label>
+
+          <label class="report-date-toggle draft-save-toggle">
+            <input id="saveAsDraft" type="checkbox" />
+            <span>
+              <strong>שמור כטיוטה</strong>
+              <small>הטיוטה לא תיכנס למכירות ולא תשנה שריונים עד שתכניס אותה מהלשונית טיוטות.</small>
+            </span>
+          </label>
+
+          <label class="field-wrap">
+            <span>שם לקוח</span>
+            <input id="customerName" type="text" list="customerOptions" autocomplete="off" placeholder="בחר או הקלד לקוח" />
+            <datalist id="customerOptions"></datalist>
+            <small class="customer-hint" id="customerHint"></small>
+          </label>
+
+          <label class="field-wrap">
+            <span>מספר וואטסאפ קבוע לשליחת הזמנות</span>
+            <input id="whatsappNumber" type="tel" inputmode="tel" autocomplete="tel" placeholder="לדוגמה 0501234567" />
+          </label>
+
+          <div class="cart-items" id="cartItems"></div>
+
+          <div class="cart-footer">
+            <div class="cart-total" id="cartTotal">סה״כ ₪0</div>
+            <div class="cart-actions">
+              <button class="secondary-button" id="clearCart" type="button">נקה סל</button>
+              <button class="secondary-button" id="saveOrder" type="button">שמור הזמנה</button>
+              <a class="whatsapp-button disabled" id="sendWhatsApp" href="#" target="_blank" rel="noreferrer">שלח וואטסאפ</a>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="sold-products">
+        <section class="sold-products-panel" aria-label="מוצרים נמכרים">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">היסטוריית מוצרים</p>
+              <h2>מוצרים נמכרים</h2>
+            </div>
+            <div class="cart-summary" id="soldProductsSummary">0 מוצרים</div>
+          </div>
+
+          <label class="field-wrap sold-products-search-field">
+            <span>חיפוש מוצר שנמכר</span>
+            <input id="soldProductsSearch" type="search" autocomplete="off" placeholder="מק״ט, דגם, תיאור או לקוח" />
+          </label>
+
+          <div class="sold-products-stats" id="soldProductsStats"></div>
+          <div class="sold-products-list" id="soldProductsList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="customer-sales">
+        <section class="customer-sales-panel" aria-label="לקוחות מובילים">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">דירוג לקוחות</p>
+              <h2>לקוחות לפי קנייה בכסף</h2>
+            </div>
+            <div class="cart-summary" id="customerSalesSummary">0 לקוחות</div>
+          </div>
+
+          <label class="field-wrap">
+            <span>חיפוש לקוח</span>
+            <input id="customerSalesSearch" type="search" autocomplete="off" placeholder="שם לקוח, קוד או טלפון" />
+          </label>
+
+          <div class="customer-sales-stats" id="customerSalesStats"></div>
+          <div class="customer-sales-list" id="customerSalesList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="monthly-sales">
+        <section class="monthly-sales-panel" aria-label="מכר לפי חודש">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">מכר חודשי</p>
+              <h2>מכר לפי כל חודש</h2>
+            </div>
+            <div class="cart-summary" id="monthlySalesSummary">0 חודשים</div>
+          </div>
+
+          <div class="monthly-sales-stats" id="monthlySalesStats"></div>
+          <div class="monthly-sales-list" id="monthlySalesList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="collections">
+        <section class="collections-panel" aria-label="ניהול גיול">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">מעקב חובות</p>
+              <h2>גיול</h2>
+            </div>
+            <div class="cart-summary" id="collectionsSummary">₪0 פתוח</div>
+          </div>
+
+          <div class="collections-stats" id="collectionsStats"></div>
+
+          <div class="collection-import-actions">
+            <label class="secondary-button" for="collectionReportInput">ייבוא דוח גיול</label>
+            <input id="collectionReportInput" type="file" accept=".pdf,application/pdf" />
+            <span id="collectionImportStatus">מעדכן את דוח הגיול לפי PDF.</span>
+          </div>
+
+          <form class="collection-form" id="collectionForm">
+            <input id="collectionId" type="hidden" />
+            <label class="field-wrap collection-customer-field">
+              <span>לקוח</span>
+              <input id="collectionCustomer" type="text" list="collectionCustomerOptions" autocomplete="off" required placeholder="בחר לקוח" />
+              <datalist id="collectionCustomerOptions"></datalist>
+            </label>
+            <label class="field-wrap">
+              <span>סכום חוב</span>
+              <input id="collectionAmount" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0" />
+            </label>
+            <label class="field-wrap">
+              <span>תזכורת בלשונית תזכורות</span>
+              <input id="collectionDueDate" type="date" />
+            </label>
+            <label class="field-wrap collection-note-field">
+              <span>הערה</span>
+              <input id="collectionNote" type="text" autocomplete="off" placeholder="אופציונלי" />
+            </label>
+            <div class="collection-form-actions">
+              <button class="file-button" type="submit">שמור גיול</button>
+              <button class="secondary-button" id="cancelCollectionEdit" type="button">נקה</button>
+            </div>
+          </form>
+
+          <div class="collection-filters">
+            <label class="field-wrap">
+              <span>חיפוש</span>
+              <input id="collectionSearch" type="search" autocomplete="off" placeholder="שם לקוח, סכום או הערה" />
+            </label>
+            <label class="field-wrap">
+              <span>מצב</span>
+              <select id="collectionStatusFilter">
+                <option value="open">פתוחים</option>
+                <option value="all">הכל</option>
+                <option value="paid">שולמו</option>
+              </select>
+            </label>
+            <label class="field-wrap">
+              <span>חודש חוב פתוח</span>
+              <select id="collectionMonthFilter">
+                <option value="">כל החודשים</option>
+              </select>
+            </label>
+            <label class="field-wrap">
+              <span>סינון לפי צבע</span>
+              <select id="collectionColorFilter">
+                <option value="">כל הצבעים</option>
+                <option value="green">ירוק - לפני גבייה</option>
+                <option value="orange">כתום - עבר חודש</option>
+                <option value="red">אדום - עברו חודשיים</option>
+                <option value="none">ללא צבע</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="collections-list" id="collectionsList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="customers">
+        <section class="customers-panel" aria-label="לקוחות">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">ניהול</p>
+              <h2>לקוחות</h2>
+            </div>
+            <div class="customer-header-actions">
+              <button class="secondary-button" id="newCustomer" type="button">לקוח חדש</button>
+              <div class="cart-summary" id="customersSummary">0 לקוחות</div>
+            </div>
+          </div>
+
+          <label class="field-wrap">
+            <span>חיפוש לקוח</span>
+            <input id="customerSearch" type="search" autocomplete="off" placeholder="שם, קוד או טלפון" />
+          </label>
+
+          <form class="customer-form" id="customerForm">
+            <input id="customerId" type="hidden" />
+            <label class="field-wrap">
+              <span>קוד לקוח</span>
+              <input id="customerCode" type="text" autocomplete="off" placeholder="אופציונלי" />
+            </label>
+            <label class="field-wrap">
+              <span>שם לקוח</span>
+              <input id="customerFormName" type="text" autocomplete="off" required placeholder="שם לקוח" />
+            </label>
+            <label class="field-wrap">
+              <span>טלפון</span>
+              <input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="אופציונלי" />
+            </label>
+            <div class="customer-form-actions">
+              <button class="file-button" id="saveCustomer" type="submit">שמור לקוח</button>
+              <button class="secondary-button" id="cancelCustomerEdit" type="button">נקה</button>
+            </div>
+          </form>
+
+          <div class="customers-list" id="customersList"></div>
+
+          <section class="customer-history" aria-label="היסטוריית לקוח">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">היסטוריה</p>
+                <h2 id="customerHistoryTitle">הזמנות לקוח</h2>
+              </div>
+            </div>
+            <div class="orders-list" id="customerOrders"></div>
+          </section>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="reservations">
+        <section class="reservations-panel" aria-label="ניהול שריונים">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">מלאי לקוחות</p>
+              <h2>ניהול שריונים</h2>
+            </div>
+            <div class="cart-summary" id="reservationsSummary">0 יחידות</div>
+          </div>
+
+          <div class="reservation-stats" id="reservationStats"></div>
+
+          <div class="reservation-filters">
+            <label class="field-wrap">
+              <span>לקוח</span>
+              <select id="reservationCustomerFilter"></select>
+            </label>
+            <label class="field-wrap">
+              <span>חיפוש דגם</span>
+              <input id="reservationSearch" type="search" autocomplete="off" placeholder="מק״ט או תיאור" />
+            </label>
+          </div>
+
+          <div class="reservation-report-actions">
+            <button class="secondary-button" id="exportLowReservations" type="button">דוח פחות מ־2 כללי</button>
+            <button class="secondary-button" id="exportLowCustomerReservations" type="button">דוח פחות מ־2 ללקוח</button>
+            <button class="secondary-button" id="exportFilteredReservations" type="button">דוח שריון ללקוח</button>
+          </div>
+
+          <details class="reservation-create">
+            <summary>הוסף מוצר לשריון</summary>
+            <form class="reservation-form" id="reservationForm">
+              <label class="field-wrap">
+                <span>לקוח</span>
+                <select id="reservationCustomer" required></select>
+              </label>
+              <label class="field-wrap">
+                <span>דגם</span>
+                <input id="reservationProduct" type="text" list="reservationProductOptions" autocomplete="off" required placeholder="הקלד מק״ט" />
+                <datalist id="reservationProductOptions"></datalist>
+              </label>
+              <label class="field-wrap">
+                <span>כמות</span>
+                <input id="reservationQuantity" type="number" inputmode="numeric" min="1" step="1" value="1" required />
+              </label>
+              <button class="file-button" type="submit">הוסף לשריון</button>
+            </form>
+          </details>
+
+          <div class="reservations-list" id="reservationsList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="reminders">
+        <section class="reminders-panel" aria-label="תזכורות">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">משימות ומעקב</p>
+              <h2>תזכורות</h2>
+            </div>
+            <div class="reminder-header-actions">
+              <button class="secondary-button" id="showAllReminders" type="button">הצג את כל התזכורות</button>
+              <div class="cart-summary" id="remindersSummary">0 פתוחות</div>
+            </div>
+          </div>
+
+          <form class="reminder-form" id="reminderForm">
+            <input id="reminderId" type="hidden" />
+            <label class="field-wrap reminder-title-field">
+              <span>תזכורת</span>
+              <input id="reminderTitle" type="text" autocomplete="off" required placeholder="מה צריך לזכור?" />
+            </label>
+            <label class="field-wrap">
+              <span>תאריך</span>
+              <input id="reminderDueDate" type="date" />
+            </label>
+            <label class="field-wrap">
+              <span>שיוך ללקוח</span>
+              <select id="reminderCustomer"></select>
+            </label>
+            <div class="reminder-form-actions">
+              <button class="file-button" type="submit">שמור תזכורת</button>
+              <button class="secondary-button" id="cancelReminderEdit" type="button">נקה</button>
+            </div>
+          </form>
+
+          <div class="reminder-filters">
+            <label class="field-wrap">
+              <span>מצב</span>
+              <select id="reminderStatusFilter">
+                <option value="open">לא בוצע</option>
+                <option value="all">הכל</option>
+                <option value="done">בוצע</option>
+              </select>
+            </label>
+            <label class="field-wrap">
+              <span>לקוח</span>
+              <select id="reminderCustomerFilter"></select>
+            </label>
+          </div>
+
+          <div class="reminders-list" id="remindersList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="categories">
+        <section class="categories-panel" aria-label="קטגוריות">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">ניהול</p>
+              <h2>קטגוריות</h2>
+            </div>
+          </div>
+
+          <div class="category-create">
+            <input id="categoryInput" type="text" autocomplete="off" placeholder="קטגוריה חדשה" />
+            <button id="addCategory" class="secondary-button" type="button">הוסף</button>
+          </div>
+
+          <div class="category-list" id="categoriesList"></div>
+
+          <section class="category-products" aria-label="שיוך מוצרים לקטגוריות">
+            <div class="panel-header compact-panel-header">
+              <div>
+                <p class="eyebrow">שיוך</p>
+                <h2>מוצרים וקטגוריות</h2>
+              </div>
+            </div>
+            <label class="field-wrap">
+              <span>חיפוש מוצר לשיוך</span>
+              <input id="categoryProductSearch" type="search" autocomplete="off" placeholder="מק״ט, דגם או תיאור" />
+            </label>
+            <div class="category-product-list" id="categoryProductsList"></div>
+          </section>
+
+          <details class="maintenance-panel">
+            <summary>תחזוקת מחירון</summary>
+            <p>עדכון תקופתי מקובץ Excel או חזרה למחירון המקורי.</p>
+            <div class="actions">
+              <label class="file-button" for="fileInput">עדכון מאקסל</label>
+              <input id="fileInput" type="file" accept=".xlsx" />
+              <label class="secondary-button" for="stockFileInput">עדכון מלאי מאקסל</label>
+              <input id="stockFileInput" type="file" accept=".xlsx" />
+              <button class="secondary-button" id="resetData" type="button">איפוס מחירון</button>
+            </div>
+          </details>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="drafts">
+        <section class="drafts-panel" aria-label="טיוטות">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">הזמנות שלא נכנסו</p>
+              <h2>טיוטות</h2>
+            </div>
+            <div class="cart-summary" id="draftsSummary">0 טיוטות</div>
+          </div>
+
+          <label class="field-wrap">
+            <span>חיפוש טיוטה</span>
+            <input id="draftSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
+          </label>
+
+          <div class="drafts-list" id="draftsList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="orders">
+        <section class="orders-panel" aria-label="הזמנות שמורות">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">היסטוריה</p>
+              <h2>הזמנות שמורות</h2>
+            </div>
+          </div>
+          <label class="field-wrap">
+            <span>חיפוש הזמנה</span>
+            <input id="orderSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
+          </label>
+          <div class="orders-list" id="ordersList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="tomorrow-orders">
+        <section class="orders-panel" aria-label="הזמנות למחר">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">דוחות מחר</p>
+              <h2>הזמנות למחר</h2>
+            </div>
+          </div>
+          <label class="field-wrap">
+            <span>חיפוש בהזמנות למחר</span>
+            <input id="tomorrowOrderSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
+          </label>
+          <div class="orders-list" id="tomorrowOrdersList"></div>
+        </section>
+      </section>
+
+    </main>
+
+    <section class="modal-backdrop" id="cartCustomerDialog" role="dialog" aria-modal="true" aria-labelledby="cartCustomerTitle" hidden>
+      <form class="customer-dialog" id="cartCustomerForm">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">הוספה להזמנה</p>
+            <h2 id="cartCustomerTitle">פרטי המוצר</h2>
+          </div>
+          <button class="dialog-close" id="cancelCartCustomerTop" type="button" aria-label="סגור">×</button>
+        </div>
+
+        <div class="pending-product" id="pendingProductSummary"></div>
+
+        <div class="dialog-product-fields">
+          <label class="field-wrap compact-field">
+            <span>כמות</span>
+            <input id="cartProductQuantity" type="number" inputmode="numeric" min="1" step="1" value="1" required />
+          </label>
+          <label class="field-wrap compact-field">
+            <span id="cartProductPriceLabel">מחיר ליחידה</span>
+            <input id="cartProductPrice" type="number" inputmode="decimal" min="0" step="0.01" required />
+          </label>
+        </div>
+        <div class="quick-prices dialog-quick-prices" id="cartProductQuickPrices"></div>
+
+        <label class="reservation-toggle dialog-reservation-toggle" id="dialogReservationOption" hidden>
+          <input id="cartProductReservation" type="checkbox" />
+          <span id="dialogReservationLabel">מהשריון</span>
+        </label>
+
+        <label class="field-wrap">
+          <span>שם לקוח</span>
+          <input
+            id="cartCustomerInput"
+            type="text"
+            list="cartCustomerOptions"
+            autocomplete="off"
+            required
+            placeholder="הקלד או בחר לקוח"
+          />
+          <datalist id="cartCustomerOptions"></datalist>
+          <small class="customer-hint" id="cartCustomerFeedback"></small>
+        </label>
+
+        <div class="dialog-actions">
+          <button class="secondary-button" id="cancelCartCustomer" type="button">ביטול</button>
+          <button class="file-button" id="confirmCartCustomer" type="submit">הוסף לסל</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="modal-backdrop" id="noteDialog" role="dialog" aria-modal="true" aria-labelledby="noteDialogTitle" hidden>
+      <form class="customer-dialog" id="noteForm">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">הערת מוצר</p>
+            <h2 id="noteDialogTitle">הוספה או עריכת הערה</h2>
+          </div>
+          <button class="dialog-close" id="cancelNoteTop" type="button" aria-label="סגור">×</button>
+        </div>
+        <div class="pending-product" id="noteProductSummary"></div>
+        <label class="field-wrap">
+          <span>הערה</span>
+          <textarea id="noteInput" rows="4" placeholder="כתוב הערה לפריט"></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button class="danger-button" id="deleteNote" type="button">מחק הערה</button>
+          <button class="secondary-button" id="cancelNote" type="button">ביטול</button>
+          <button class="file-button" type="submit">שמור הערה</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="modal-backdrop" id="arrivalDialog" role="dialog" aria-modal="true" aria-labelledby="arrivalDialogTitle" hidden>
+      <form class="customer-dialog" id="arrivalForm">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">מלאי צפוי</p>
+            <h2 id="arrivalDialogTitle">תאריך הגעה למלאי</h2>
+          </div>
+          <button class="dialog-close" id="cancelArrivalTop" type="button" aria-label="סגור">×</button>
+        </div>
+        <div class="pending-product" id="arrivalProductSummary"></div>
+        <label class="field-wrap">
+          <span>תאריך הגעה</span>
+          <input id="arrivalDateInput" type="date" />
+        </label>
+        <div class="dialog-actions">
+          <button class="danger-button" id="deleteArrival" type="button">מחק תאריך</button>
+          <button class="secondary-button" id="cancelArrival" type="button">ביטול</button>
+          <button class="file-button" type="submit">שמור תאריך</button>
+        </div>
+      </form>
+    </section>
+
+    <button class="floating-cart" id="floatingCart" type="button" hidden aria-label="פתח סל הזמנה">
+      <span class="floating-cart-count" id="floatingCartCount">0</span>
+      <span class="floating-cart-label">סל</span>
+      <span class="floating-cart-total" id="floatingCartTotal">₪0</span>
+    </button>
+
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
