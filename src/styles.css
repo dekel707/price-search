@@ -3782,3 +3782,481 @@ h2 {
     min-width: 116px;
   }
 }
+
+/* Refined palette: softer contrast and calmer status colours across the app. */
+:root {
+  --ps-background: #101a18;
+  --ps-surface: #172521;
+  --ps-surface-raised: #1b2c27;
+  --ps-control: #14221e;
+  --ps-control-hover: #1d302a;
+  --ps-border: rgba(184, 213, 202, 0.2);
+  --ps-border-strong: rgba(184, 213, 202, 0.3);
+  --ps-text: #eef7f2;
+  --ps-muted: #a7bab3;
+  --ps-subtle: #778d85;
+  --ps-accent: #75c5b0;
+  --ps-accent-strong: #4ca68d;
+  --ps-accent-wash: rgba(117, 197, 176, 0.13);
+  --ps-amber: #e3c275;
+  --ps-amber-wash: rgba(227, 194, 117, 0.12);
+  --ps-blue: #9bc9e8;
+  --ps-blue-wash: rgba(106, 164, 204, 0.13);
+  --ps-violet: #c6b6e6;
+  --ps-violet-wash: rgba(157, 132, 207, 0.13);
+  --ps-green: #9ed9ae;
+  --ps-green-wash: rgba(104, 183, 124, 0.13);
+  --ps-orange: #efc08b;
+  --ps-orange-wash: rgba(216, 142, 77, 0.14);
+  --ps-red: #eca0a8;
+  --ps-red-wash: rgba(201, 100, 111, 0.15);
+  color: var(--ps-text);
+  background: var(--ps-background);
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% -8%, rgba(117, 197, 176, 0.2), transparent 34%),
+    radial-gradient(circle at 96% 16%, rgba(106, 164, 204, 0.13), transparent 31%),
+    linear-gradient(180deg, #101a18 0%, #14211e 52%, #17201f 100%);
+}
+
+::selection {
+  background: rgba(117, 197, 176, 0.32);
+  color: #ffffff;
+}
+
+.modal-backdrop {
+  background: rgba(7, 14, 13, 0.68);
+}
+
+.customer-dialog,
+.auth-card,
+.search-panel,
+.cart-panel,
+.orders-panel,
+.drafts-panel,
+.categories-panel,
+.customers-panel,
+.customer-sales-panel,
+.monthly-sales-panel,
+.collections-panel,
+.reservations-panel,
+.reminders-panel,
+.sold-products-panel,
+.dashboard-panel {
+  border-color: var(--ps-border-strong);
+  background: rgba(23, 37, 33, 0.94);
+  box-shadow: 0 18px 48px rgba(3, 10, 8, 0.24);
+}
+
+.tabs {
+  border-color: var(--ps-border);
+  background: rgba(15, 27, 24, 0.78);
+}
+
+.tab-button,
+.metadata,
+.status,
+.dashboard-stat span,
+.dashboard-card-action small,
+.dashboard-money-value small,
+.dashboard-insights span,
+.dashboard-list-row span,
+.sold-products-stat span,
+.sold-products-stat small,
+.sold-product-customer span,
+.sold-products-more,
+.reminder-check,
+.reminder-body span,
+.reservation-stats span,
+.reservation-stats small,
+.reservation-customer-header span,
+.reservation-product small,
+.report-date-toggle small,
+.customer-body span,
+.customer-body small,
+.customer-totals span,
+.customer-totals b small,
+.customer-display-dates > div,
+.customer-display-more,
+.customer-order-details summary small,
+.customer-order-item small,
+.customer-sales-stat span,
+.customer-sales-money-toggle small,
+.customer-sales-title span,
+.customer-sales-month-row span,
+.monthly-sales-stat span,
+.monthly-sales-money-toggle small,
+.monthly-sales-title span,
+.monthly-sales-customer-row span,
+.collection-stat span,
+.collection-import-actions span,
+.collection-check,
+.collection-body span,
+.collection-values span,
+.collection-month-summary small,
+.collection-month small,
+.collection-invoice-head,
+.collection-invoice-row small,
+.maintenance-panel,
+.customer-hint,
+.category-empty,
+.dashboard-empty {
+  color: var(--ps-muted);
+}
+
+.eyebrow,
+.dashboard-section-header button,
+.sku,
+.cart-line-title strong,
+.order-body strong,
+.sold-product-title strong,
+.reservation-product strong,
+.customer-order-item strong,
+.customer-display-item summary strong,
+.category-product-details strong,
+.customer-order-details summary::before,
+.reservation-customer-header::after {
+  color: var(--ps-accent);
+}
+
+.tab-button.active,
+.customer-card[aria-selected="true"],
+.dashboard-link-stat:hover,
+.dashboard-link-stat:focus-visible,
+.reservation-create,
+.reservation-customer-header,
+.collection-status-button,
+.collection-month-panel[open] {
+  border-color: rgba(117, 197, 176, 0.52);
+  background: var(--ps-accent-wash);
+}
+
+.tab-button.active,
+.customer-card[aria-selected="true"],
+.collection-status-button,
+.collection-details summary,
+.reservation-create summary {
+  color: var(--ps-text);
+}
+
+.dashboard-stat,
+.sold-products-stat,
+.sold-product-card,
+.reminder-row,
+.reservation-stats > div,
+.reservation-customer-card,
+.collection-stat,
+.collection-row,
+.collection-month-panel,
+.collection-month,
+.customer-card,
+.customer-period-total,
+.customer-display-item,
+.customer-order-details,
+.customer-sales-stat,
+.customer-sales-card,
+.monthly-sales-stat,
+.monthly-sales-card,
+.category-product-row,
+.result-row,
+.cart-line,
+.order-card,
+.empty-state,
+.empty-cart-action,
+.maintenance-panel {
+  border-color: var(--ps-border);
+  background: rgba(20, 33, 29, 0.8);
+}
+
+.customer-history-totals,
+.dashboard-section,
+.dashboard-insights,
+.customer-totals,
+.customer-display-sales,
+.customer-sales-months,
+.monthly-sales-customers,
+.sold-product-buyers,
+.collection-details,
+.reservation-customer-header,
+.reminder-filters,
+.collection-filters,
+.category-products {
+  border-color: var(--ps-border);
+}
+
+.dashboard-list-row,
+.customer-sales-month-row,
+.monthly-sales-customer-row,
+.sold-product-buyer-row,
+.collection-invoice-row,
+.customer-order-item,
+.reservation-row {
+  border-color: rgba(184, 213, 202, 0.12);
+}
+
+.dashboard-stat strong,
+.dashboard-insights strong,
+.dashboard-section h3,
+.dashboard-list-row strong,
+.sold-product-title span,
+.sold-product-customer strong,
+.reminder-body strong,
+.reservation-stats strong,
+.reservation-customer-header strong,
+.reservation-product span,
+.report-date-toggle strong,
+.customer-body strong,
+.customer-period-total strong,
+.customer-display-dates b,
+.customer-order-details summary strong,
+.customer-order-item span,
+.customer-sales-title strong,
+.customer-sales-month-row strong,
+.monthly-sales-title strong,
+.monthly-sales-customer-row strong,
+.collection-body strong,
+.collection-month-summary b,
+.collection-month span,
+.collection-invoice-row b,
+.category-product-details span,
+.description,
+.cart-line-title span,
+.order-body span,
+.order-text-details p,
+.empty-cart-action strong,
+h1,
+h2 {
+  color: var(--ps-text);
+}
+
+.search-box input,
+.category-create input,
+.field-wrap input,
+.field-wrap select,
+.field-wrap textarea,
+.reservation-row-controls input,
+.category-product-row select,
+.secondary-button,
+.icon-text-button,
+.category-chip,
+.order-type-control,
+.dialog-close {
+  border-color: var(--ps-border-strong);
+  background: var(--ps-control);
+  color: var(--ps-text);
+}
+
+.search-box input:focus,
+.category-create input:focus,
+.field-wrap input:focus,
+.field-wrap select:focus,
+.field-wrap textarea:focus,
+.reservation-row-controls input:focus {
+  border-color: var(--ps-accent);
+  background: var(--ps-control-hover);
+  box-shadow: 0 0 0 4px rgba(117, 197, 176, 0.15);
+}
+
+.search-box input::placeholder,
+.category-create input::placeholder,
+.field-wrap textarea::placeholder {
+  color: var(--ps-subtle);
+}
+
+.secondary-button:hover,
+.secondary-button:focus-visible,
+.icon-text-button:hover,
+.icon-text-button:focus-visible,
+.dialog-close:hover,
+.dialog-close:focus-visible,
+.icon-button:hover,
+.icon-button:focus-visible {
+  border-color: rgba(117, 197, 176, 0.56);
+  background: var(--ps-control-hover);
+  color: var(--ps-accent);
+}
+
+.file-button {
+  border-color: #67bca5;
+  background: linear-gradient(135deg, #4ea88f, #66bda6);
+  color: #092019;
+  box-shadow: 0 8px 20px rgba(40, 119, 97, 0.2);
+}
+
+.file-button:hover,
+.file-button:focus-visible {
+  background: linear-gradient(135deg, #5ab49b, #78c8b2);
+}
+
+.whatsapp-button,
+.collection-whatsapp-button,
+.floating-cart {
+  border-color: #61bd88;
+  background: linear-gradient(135deg, #57ad7c, #70c792);
+  color: #092017;
+}
+
+.whatsapp-button:hover,
+.whatsapp-button:focus-visible,
+.collection-whatsapp-button:hover,
+.collection-whatsapp-button:focus-visible {
+  border-color: #82d6a5;
+  background: linear-gradient(135deg, #66bb87, #83d3a4);
+}
+
+.floating-cart-count {
+  background: #17392c;
+  color: #f4fff9;
+}
+
+.pending-product,
+.reservation-toggle,
+.reservation-price-field strong,
+.reservation-cart-badge,
+.quick-prices button,
+.add-cart-button,
+.price,
+.cart-total,
+.order-type-badge,
+.customer-display-title,
+.category-chip[aria-pressed="true"] {
+  border-color: rgba(227, 194, 117, 0.54);
+  background: var(--ps-amber-wash);
+  color: var(--ps-amber);
+}
+
+.quick-prices .display-discount-button,
+.display-discount-badge,
+.spec-button,
+.arrival-date-label,
+.arrival-date-button,
+.order-report-badge,
+.order-details-meta {
+  border-color: rgba(155, 201, 232, 0.52);
+  background: var(--ps-blue-wash);
+  color: var(--ps-blue);
+}
+
+.spec-button:hover,
+.spec-button:focus-visible,
+.quick-prices .display-discount-button.active,
+.quick-prices .display-discount-button[aria-pressed="true"] {
+  background: rgba(106, 164, 204, 0.23);
+  color: #c8e5f6;
+}
+
+.danger-button,
+.auth-error,
+.stock-low,
+.reminder-row.overdue,
+.reservation-stats .low,
+.collection-row.due,
+.collection-payment-alert.red,
+.reservation-row.low-stock {
+  border-color: rgba(236, 160, 168, 0.55);
+  background: var(--ps-red-wash);
+  color: var(--ps-red);
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  border-color: rgba(236, 160, 168, 0.75);
+  background: rgba(201, 100, 111, 0.24);
+}
+
+.stock-medium,
+.draft-reminder-badge,
+.collection-payment-alert.orange,
+.collection-row.payment-alert-orange {
+  border-color: rgba(239, 192, 139, 0.55);
+  background: var(--ps-orange-wash);
+  color: var(--ps-orange);
+}
+
+.stock-high,
+.draft-badge,
+.collection-payment-alert.green,
+.collection-row.payment-alert-green,
+.collection-row.paid .collection-status-button,
+.collection-month-panel.paid .collection-status-button {
+  border-color: rgba(158, 217, 174, 0.48);
+  background: var(--ps-green-wash);
+  color: var(--ps-green);
+}
+
+.dashboard-stat.sales { border-color: rgba(117, 197, 176, 0.48); }
+.dashboard-stat.sales strong,
+.sold-products-stat strong { color: var(--ps-accent); }
+.dashboard-stat.today-orders,
+.dashboard-stat.orders,
+.dashboard-stat.collections { border-color: rgba(227, 194, 117, 0.48); }
+.dashboard-stat.today-orders strong,
+.dashboard-stat.orders strong,
+.dashboard-stat.collections strong,
+.collection-stat strong,
+.collection-values b,
+.collection-month-summary > strong,
+.collection-month b,
+.collection-invoice-row strong,
+.customer-totals b,
+.customer-display-item summary > b,
+.customer-order-details summary > b,
+.customer-order-item > b,
+.customer-order-footer > strong,
+.customer-sales-kpi-money strong,
+.customer-sales-month-values b,
+.monthly-sales-kpi-money strong,
+.monthly-sales-customer-money strong { color: var(--ps-amber); }
+.dashboard-stat.tomorrow-orders { border-color: rgba(198, 182, 230, 0.48); }
+.dashboard-stat.tomorrow-orders strong,
+.dashboard-stat.reservations strong { color: var(--ps-violet); }
+.dashboard-stat.sunday-orders,
+.dashboard-stat.today-drafts,
+.dashboard-stat.customers { border-color: rgba(158, 217, 174, 0.46); }
+.dashboard-stat.sunday-orders strong,
+.dashboard-stat.today-drafts strong,
+.dashboard-stat.customers strong,
+.collection-row.paid .collection-values b,
+.collection-month-panel.paid .collection-month-summary > strong,
+.collection-month.paid b,
+.customer-sales-stat strong { color: var(--ps-green); }
+.dashboard-stat.today-sales { border-color: rgba(117, 197, 176, 0.48); }
+.dashboard-stat.today-sales strong { color: var(--ps-accent); }
+.dashboard-stat.lifetime,
+.dashboard-stat.stock-arrivals { border-color: rgba(155, 201, 232, 0.46); }
+.dashboard-stat.lifetime strong,
+.dashboard-stat.stock-arrivals strong,
+.monthly-sales-stat strong { color: var(--ps-blue); }
+.dashboard-stat.reminders,
+.dashboard-stat.collection-due,
+.dashboard-stat.today-reminders { border-color: rgba(236, 160, 168, 0.48); }
+.dashboard-stat.reminders strong,
+.dashboard-stat.collection-due strong,
+.dashboard-stat.today-reminders strong,
+.dashboard-list-row.alert strong,
+.dashboard-list-row.alert b,
+.reminder-row.overdue .reminder-body span,
+.low-stock .reservation-product small,
+.collection-row.due .collection-body span { color: var(--ps-red); }
+
+.remember-row input,
+.reservation-toggle input,
+.report-date-toggle input,
+.collection-check input,
+.collection-month input,
+.reminder-check input,
+.reservation-row-controls input,
+.field-wrap input[type="checkbox"] {
+  accent-color: var(--ps-accent-strong);
+}
+
+.dashboard-link-stat:focus-visible,
+.dashboard-card-action:focus-visible,
+.dashboard-money-value:focus-visible,
+.customer-sales-money-toggle:focus-visible,
+.monthly-sales-money-toggle:focus-visible {
+  outline-color: var(--ps-accent);
+}
