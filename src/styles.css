@@ -4260,3 +4260,726 @@ h2 {
 .monthly-sales-money-toggle:focus-visible {
   outline-color: var(--ps-accent);
 }
+
+/* Application dashboard redesign — based on the Fujicom management reference. */
+:root {
+  --ps-background: #07111f;
+  --ps-surface: #0d1b2d;
+  --ps-surface-raised: #11243a;
+  --ps-control: #0b192a;
+  --ps-control-hover: #142b43;
+  --ps-border: rgba(141, 174, 205, 0.16);
+  --ps-border-strong: rgba(141, 174, 205, 0.27);
+  --ps-text: #f1f7ff;
+  --ps-muted: #8fa3b9;
+  --ps-subtle: #64788f;
+  --ps-accent: #43d5c1;
+  --ps-accent-strong: #23b9a6;
+  --ps-accent-wash: rgba(67, 213, 193, 0.12);
+  --ps-amber: #f6c765;
+  --ps-amber-wash: rgba(246, 199, 101, 0.12);
+  --ps-blue: #6dc7ff;
+  --ps-blue-wash: rgba(109, 199, 255, 0.12);
+  --ps-violet: #a99af8;
+  --ps-violet-wash: rgba(169, 154, 248, 0.12);
+  --ps-green: #5fdaa8;
+  --ps-green-wash: rgba(95, 218, 168, 0.12);
+  --ps-orange: #ffad6e;
+  --ps-orange-wash: rgba(255, 173, 110, 0.12);
+  --ps-red: #fb8496;
+  --ps-red-wash: rgba(251, 132, 150, 0.12);
+  font-family: "Rubik", "Heebo", "Arial", system-ui, sans-serif;
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% -12%, rgba(73, 148, 245, 0.2), transparent 33%),
+    radial-gradient(circle at 96% 6%, rgba(38, 201, 183, 0.13), transparent 29%),
+    linear-gradient(155deg, #07111f 0%, #0a1728 48%, #0b1b2c 100%);
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(140, 172, 205, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 172, 205, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  content: "";
+}
+
+::selection {
+  background: rgba(67, 213, 193, 0.36);
+}
+
+h1 {
+  font-size: clamp(1.72rem, 3.3vw, 2.35rem);
+  letter-spacing: -0.035em;
+}
+
+h2 {
+  font-size: 1.28rem;
+  letter-spacing: -0.02em;
+}
+
+.auth-gate {
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-gate::before,
+.auth-gate::after {
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  filter: blur(18px);
+  opacity: 0.34;
+  content: "";
+}
+
+.auth-gate::before {
+  top: -180px;
+  right: -120px;
+  background: #167d9f;
+}
+
+.auth-gate::after {
+  bottom: -210px;
+  left: -110px;
+  background: #157c6a;
+}
+
+.auth-card,
+.customer-dialog {
+  position: relative;
+  border-color: rgba(137, 179, 219, 0.25);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(15, 33, 53, 0.97), rgba(10, 24, 40, 0.95));
+  box-shadow: 0 28px 78px rgba(1, 7, 17, 0.48);
+}
+
+.auth-card {
+  gap: 18px;
+  padding: 28px;
+}
+
+.auth-logo {
+  width: 132px;
+}
+
+.app-shell {
+  width: min(100%, 1480px);
+  padding: 20px 24px 50px;
+}
+
+.topbar {
+  min-height: 78px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.brand-block {
+  gap: 16px;
+}
+
+.brand-logo {
+  width: clamp(102px, 13vw, 142px);
+  filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.22));
+}
+
+.eyebrow {
+  margin-bottom: 5px;
+  color: var(--ps-accent);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+
+.owner-status {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 24px;
+  margin: 8px 0 0;
+  padding: 3px 9px;
+  border: 1px solid rgba(110, 166, 207, 0.19);
+  border-radius: 999px;
+  background: rgba(13, 36, 57, 0.58);
+  color: #9bb4cb;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.owner-status::before {
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: var(--ps-accent);
+  box-shadow: 0 0 10px rgba(67, 213, 193, 0.85);
+  content: "";
+}
+
+.metadata {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--ps-border);
+  border-radius: 999px;
+  background: rgba(11, 27, 45, 0.68);
+  color: var(--ps-muted);
+  font-size: 0.78rem;
+}
+
+.tabs {
+  border-color: rgba(124, 163, 200, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(15, 35, 57, 0.96), rgba(10, 25, 42, 0.92));
+  box-shadow: 0 18px 38px rgba(2, 9, 20, 0.22);
+}
+
+.tab-button {
+  position: relative;
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border-radius: 10px;
+  color: #94a9bf;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-align: right;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.tab-button::before {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 7px;
+  color: #7e97b1;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  content: "○";
+}
+
+.tab-button[data-tab="search"]::before { content: "⌕"; }
+.tab-button[data-tab="dashboard"]::before { content: "▦"; }
+.tab-button[data-tab="cart"]::before { content: "□"; }
+.tab-button[data-tab="sold-products"]::before { content: "↗"; }
+.tab-button[data-tab="customer-sales"]::before { content: "♙"; }
+.tab-button[data-tab="monthly-sales"]::before { content: "▥"; }
+.tab-button[data-tab="collections"]::before { content: "₪"; }
+.tab-button[data-tab="customers"]::before { content: "♧"; }
+.tab-button[data-tab="reservations"]::before { content: "◇"; }
+.tab-button[data-tab="reminders"]::before { content: "◷"; }
+.tab-button[data-tab="categories"]::before { content: "▱"; }
+.tab-button[data-tab="drafts"]::before { content: "✎"; }
+.tab-button[data-tab="orders"]::before { content: "≡"; }
+.tab-button[data-tab="tomorrow-orders"]::before { content: "→"; }
+
+.tab-button:hover {
+  background: rgba(89, 141, 190, 0.1);
+  color: var(--ps-text);
+  transform: translateX(-2px);
+}
+
+.tab-button.active {
+  border-color: rgba(67, 213, 193, 0.28);
+  background: linear-gradient(90deg, rgba(47, 195, 179, 0.18), rgba(47, 195, 179, 0.06));
+  box-shadow: inset 3px 0 0 var(--ps-accent);
+  color: #efffff;
+}
+
+.tab-button.active::before {
+  color: var(--ps-accent);
+}
+
+.search-panel,
+.cart-panel,
+.orders-panel,
+.drafts-panel,
+.categories-panel,
+.customers-panel,
+.customer-sales-panel,
+.monthly-sales-panel,
+.collections-panel,
+.reservations-panel,
+.reminders-panel,
+.sold-products-panel,
+.dashboard-panel {
+  gap: 18px;
+  border-color: rgba(128, 167, 206, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(15, 34, 55, 0.94), rgba(10, 25, 42, 0.91));
+  box-shadow: 0 20px 48px rgba(2, 9, 20, 0.2);
+}
+
+.search-panel,
+.cart-panel,
+.orders-panel,
+.drafts-panel,
+.categories-panel,
+.customers-panel,
+.customer-sales-panel,
+.monthly-sales-panel,
+.collections-panel,
+.reservations-panel,
+.reminders-panel,
+.sold-products-panel {
+  padding: 20px;
+}
+
+.dashboard-panel {
+  padding: 20px;
+}
+
+.panel-header {
+  min-height: 40px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(143, 177, 209, 0.13);
+}
+
+.cart-summary {
+  border-color: rgba(93, 198, 224, 0.24);
+  border-radius: 999px;
+  background: rgba(64, 168, 207, 0.09);
+  color: #a9dfff;
+  font-size: 0.8rem;
+}
+
+.search-label,
+.field-wrap span {
+  color: #b9c9d9;
+  font-size: 0.8rem;
+}
+
+.search-box input,
+.category-create input,
+.field-wrap input,
+.field-wrap select,
+.field-wrap textarea,
+.reservation-row-controls input,
+.category-product-row select {
+  min-height: 46px;
+  border-color: rgba(132, 169, 203, 0.22);
+  border-radius: 10px;
+  background: rgba(6, 19, 34, 0.65);
+}
+
+.search-box input:focus,
+.category-create input:focus,
+.field-wrap input:focus,
+.field-wrap select:focus,
+.field-wrap textarea:focus,
+.reservation-row-controls input:focus {
+  border-color: rgba(67, 213, 193, 0.82);
+  background: rgba(10, 30, 47, 0.93);
+  box-shadow: 0 0 0 4px rgba(67, 213, 193, 0.13);
+}
+
+.file-button,
+.secondary-button,
+.danger-button,
+.whatsapp-button,
+.add-cart-button,
+.spec-button,
+.icon-text-button {
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+
+.file-button {
+  border-color: #36d3bd;
+  background: linear-gradient(135deg, #24bca9, #49dac5);
+  box-shadow: 0 10px 22px rgba(28, 183, 163, 0.2);
+  color: #04201f;
+}
+
+.file-button:hover,
+.file-button:focus-visible {
+  background: linear-gradient(135deg, #35cbb7, #69e3d0);
+}
+
+.secondary-button,
+.icon-text-button,
+.category-chip,
+.order-type-control,
+.dialog-close {
+  border-color: rgba(132, 169, 203, 0.22);
+  border-radius: 10px;
+  background: rgba(13, 32, 52, 0.82);
+}
+
+.secondary-button:hover,
+.secondary-button:focus-visible,
+.icon-text-button:hover,
+.icon-text-button:focus-visible,
+.dialog-close:hover,
+.dialog-close:focus-visible {
+  border-color: rgba(89, 198, 232, 0.65);
+  background: rgba(22, 53, 80, 0.98);
+  color: #b9f8ef;
+}
+
+.dashboard-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-stat,
+.sold-products-stat,
+.customer-sales-stat,
+.monthly-sales-stat,
+.collection-stat,
+.reservation-stats > div {
+  position: relative;
+  min-height: 108px;
+  padding: 15px;
+  overflow: hidden;
+  border-color: rgba(135, 171, 205, 0.17);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(18, 43, 68, 0.9), rgba(10, 28, 47, 0.86));
+  box-shadow: inset 0 1px 0 rgba(199, 229, 255, 0.025);
+}
+
+.dashboard-stat::after,
+.sold-products-stat::after,
+.customer-sales-stat::after,
+.monthly-sales-stat::after,
+.collection-stat::after,
+.reservation-stats > div::after {
+  position: absolute;
+  top: -24px;
+  left: -20px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.045;
+  content: "";
+}
+
+.dashboard-stat span,
+.sold-products-stat span,
+.customer-sales-stat span,
+.monthly-sales-stat span,
+.collection-stat span,
+.reservation-stats span {
+  color: #91a8c0;
+}
+
+.dashboard-stat strong {
+  font-size: clamp(1.25rem, 2vw, 1.62rem);
+}
+
+.dashboard-insights {
+  padding: 13px 0;
+  border-color: rgba(143, 177, 209, 0.13);
+}
+
+.dashboard-insights > div {
+  border-color: rgba(143, 177, 209, 0.13);
+}
+
+.dashboard-grid {
+  gap: 14px;
+}
+
+.dashboard-section {
+  min-height: 244px;
+  padding: 16px;
+  border: 1px solid rgba(132, 169, 203, 0.16);
+  border-radius: 14px;
+  background: rgba(8, 23, 39, 0.58);
+}
+
+.dashboard-section-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(143, 177, 209, 0.12);
+}
+
+.dashboard-section h3 {
+  color: #e9f4ff;
+  font-size: 0.98rem;
+}
+
+.dashboard-section-header button {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(67, 213, 193, 0.2);
+  border-radius: 8px;
+  background: rgba(67, 213, 193, 0.08);
+  color: var(--ps-accent);
+  font-size: 0.74rem;
+}
+
+.dashboard-list-row,
+.sold-product-buyer-row,
+.customer-sales-month-row,
+.monthly-sales-customer-row,
+.collection-invoice-row,
+.customer-order-item,
+.reservation-row {
+  border-color: rgba(143, 177, 209, 0.1);
+}
+
+.result-row,
+.cart-line,
+.order-card,
+.customer-card,
+.customer-sales-card,
+.monthly-sales-card,
+.sold-product-card,
+.reservation-customer-card,
+.reminder-row,
+.collection-row,
+.collection-month-panel,
+.category-product-row,
+.customer-order-details {
+  border-color: rgba(132, 169, 203, 0.17);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(13, 32, 52, 0.84), rgba(8, 24, 40, 0.72));
+  box-shadow: none;
+}
+
+.result-row:hover,
+.customer-card:hover,
+.order-card:hover,
+.sold-product-card:hover {
+  border-color: rgba(90, 191, 223, 0.34);
+}
+
+.sku,
+.cart-line-title strong,
+.order-body strong,
+.sold-product-title strong,
+.reservation-product strong,
+.customer-order-item strong,
+.customer-display-item summary strong,
+.category-product-details strong {
+  color: #5ce3d0;
+}
+
+.price,
+.cart-total,
+.quick-prices button,
+.add-cart-button,
+.reservation-cart-badge,
+.reservation-price-field strong {
+  border-radius: 10px;
+}
+
+.category-chip,
+.category-label,
+.stock-label,
+.draft-badge,
+.draft-reminder-badge,
+.order-type-badge,
+.order-report-badge,
+.customer-display-title {
+  border-radius: 999px;
+}
+
+.floating-cart {
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  border-radius: 14px;
+  background: linear-gradient(135deg, #24bca9, #4cd7c4);
+  box-shadow: 0 14px 30px rgba(13, 186, 163, 0.32);
+}
+
+.modal-backdrop {
+  background: rgba(1, 8, 18, 0.75);
+  backdrop-filter: blur(14px);
+}
+
+@media (min-width: 980px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 216px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0 18px;
+    align-items: start;
+  }
+
+  .topbar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .tabs {
+    position: sticky;
+    top: 18px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: calc(100vh - 36px);
+    margin: 0;
+    padding: 10px;
+    overflow: auto;
+  }
+
+  .tab-button {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 9px;
+  }
+
+  .tab-panel.active {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .cart-panel,
+  .orders-panel,
+  .drafts-panel,
+  .categories-panel,
+  .customers-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .sold-products-panel,
+  .dashboard-panel {
+    margin-top: 0;
+  }
+
+  .dashboard-panel {
+    padding: 22px;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 720px) and (max-width: 979px) {
+  .app-shell {
+    width: min(100%, 1120px);
+    padding-inline: 22px;
+  }
+
+  .tabs {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 719px) {
+  .app-shell {
+    padding: 14px 12px 102px;
+  }
+
+  .topbar {
+    min-height: 58px;
+    margin-bottom: 12px;
+  }
+
+  .brand-logo {
+    width: 92px;
+  }
+
+  .owner-status {
+    min-height: 21px;
+    margin-top: 5px;
+    padding: 2px 7px;
+    font-size: 0.61rem;
+  }
+
+  .owner-status::before {
+    width: 5px;
+    height: 5px;
+    margin-inline-end: 5px;
+  }
+
+  .metadata {
+    max-width: 43%;
+    min-height: 30px;
+    padding-inline: 9px;
+    overflow: hidden;
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+  }
+
+  .tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    padding: 6px;
+    border-radius: 13px;
+  }
+
+  .tab-button {
+    min-height: 39px;
+    justify-content: center;
+    gap: 0;
+    padding: 0 4px;
+    font-size: 0.72rem;
+  }
+
+  .tab-button::before {
+    display: none;
+  }
+
+  .tab-button:hover {
+    transform: none;
+  }
+
+  .tab-button.active {
+    box-shadow: inset 0 -2px 0 var(--ps-accent);
+  }
+
+  .search-panel,
+  .cart-panel,
+  .orders-panel,
+  .drafts-panel,
+  .categories-panel,
+  .customers-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .sold-products-panel,
+  .dashboard-panel {
+    gap: 14px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .dashboard-stat {
+    min-height: 96px;
+    padding: 12px;
+  }
+
+  .dashboard-section {
+    min-height: 0;
+    padding: 13px;
+  }
+}
