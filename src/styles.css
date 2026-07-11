@@ -1013,6 +1013,41 @@ h2 {
   min-width: 160px;
 }
 
+.reservation-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px;
+  border: 1px solid rgba(94, 214, 195, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(120deg, rgba(18, 96, 87, 0.18), rgba(8, 18, 17, 0.58));
+}
+
+.reservation-import > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.reservation-import strong {
+  color: #c6fff4;
+}
+
+.reservation-import span,
+.reservation-import-status {
+  color: #91aaa3;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.reservation-import-status {
+  grid-column: 1 / -1;
+  min-height: 1.2em;
+  margin: 0;
+}
+
 .reservations-list {
   display: grid;
   gap: 12px;
@@ -3612,6 +3647,7 @@ h2 {
   .reservation-form,
   .reservation-filters,
   .reservation-report-actions,
+  .reservation-import,
   .reservation-row,
   .reminder-form,
   .reminder-filters,
@@ -3685,6 +3721,14 @@ h2 {
 
   .reservation-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reservation-import {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-import .file-button {
+    width: 100%;
   }
 
   .reservation-low-count {
