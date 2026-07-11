@@ -3920,12 +3920,12 @@ function renderDashboard() {
   );
   const monthlyReleaseValue = getMonthlyReservationReleaseValue(now);
   dom.dashboardInsights.innerHTML = `
-    <div><span>ממוצע להזמנה החודש</span><strong>${escapeHtml(formatPrice(averageOrder))}</strong></div>
-    <div><span>יחידות שהוזמנו החודש</span><strong>${monthUnits.toLocaleString("he-IL")}</strong></div>
-    <div><span>לקוח מוביל החודש</span><strong>${escapeHtml(leadingCustomer?.name || "אין עדיין")}</strong></div>
-    <div><span>יחידות בשריון כעת</span><strong>${activeReservationUnits.toLocaleString("he-IL")}</strong></div>
-    <div><span>יחידות שיצאו משריון החודש</span><strong>${reservationOrderUnits.toLocaleString("he-IL")}</strong></div>
-    <div><span>שווי יציאות משריון החודש</span><strong>${escapeHtml(formatPrice(monthlyReleaseValue))}</strong></div>
+    ${dashboardInsight("ממוצע להזמנה החודש", formatPrice(averageOrder), "receipt")}
+    ${dashboardInsight("יחידות שהוזמנו החודש", monthUnits.toLocaleString("he-IL"), "orders")}
+    ${dashboardInsight("לקוח מוביל החודש", leadingCustomer?.name || "אין עדיין", "customers")}
+    ${dashboardInsight("יחידות בשריון כעת", activeReservationUnits.toLocaleString("he-IL"), "reservations")}
+    ${dashboardInsight("יחידות שיצאו משריון החודש", reservationOrderUnits.toLocaleString("he-IL"), "release")}
+    ${dashboardInsight("שווי יציאות משריון החודש", formatPrice(monthlyReleaseValue), "trend")}
   `;
 
   renderDashboardRecentOrders();
@@ -3949,13 +3949,18 @@ function getActiveArrivalProducts(reference = new Date()) {
 }
 
 function dashboardStat(label, value, tone) {
-  return `<div class="dashboard-stat ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  return `
+    <div class="dashboard-stat ${tone}">
+      ${dashboardStatHeading(label, tone)}
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
 }
 
 function dashboardLinkStat(label, value, tone, tab) {
   return `
     <button type="button" class="dashboard-stat dashboard-link-stat ${tone}" data-dashboard-tab="${tab}">
-      <span>${escapeHtml(label)}</span>
+      ${dashboardStatHeading(label, tone)}
       <strong>${escapeHtml(value)}</strong>
     </button>
   `;
@@ -3964,7 +3969,7 @@ function dashboardLinkStat(label, value, tone, tab) {
 function dashboardActionStat(label, value, tone, action) {
   return `
     <button type="button" class="dashboard-stat dashboard-link-stat ${tone}" data-dashboard-action="${action}">
-      <span>${escapeHtml(label)}</span>
+      ${dashboardStatHeading(label, tone)}
       <strong>${escapeHtml(value)}</strong>
     </button>
   `;
@@ -3977,7 +3982,7 @@ function dashboardTomorrowOrdersStat(orderCount, grossValue) {
   return `
     <div class="dashboard-stat dashboard-link-stat tomorrow-orders dashboard-split-stat">
       <button type="button" class="dashboard-card-action" data-dashboard-action="tomorrow-orders">
-        <span>הזמנות למחר</span>
+        ${dashboardStatHeading("הזמנות למחר", "tomorrow-orders")}
         <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
       </button>
       <button type="button" class="dashboard-money-value dashboard-inline-money" data-toggle-dashboard-vat="tomorrow" aria-pressed="${excludeVat}">
@@ -3995,7 +4000,7 @@ function dashboardSundayOrdersStat(orderCount, grossValue, sundayKey) {
   return `
     <div class="dashboard-stat dashboard-link-stat sunday-orders dashboard-split-stat">
       <button type="button" class="dashboard-card-action" data-dashboard-action="tomorrow-orders">
-        <span>מכירות ליום ראשון</span>
+        ${dashboardStatHeading("מכירות ליום ראשון", "sunday-orders")}
         <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
         <small>${escapeHtml(formatReminderDate(sundayKey))}</small>
       </button>
@@ -4013,13 +4018,74 @@ function dashboardMoneyStat(label, grossValue, tone, period) {
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
   return `
     <div class="dashboard-stat ${tone} dashboard-money-stat">
-      <span>${escapeHtml(label)}</span>
+      ${dashboardStatHeading(label, tone)}
       <button type="button" class="dashboard-money-value" data-toggle-dashboard-vat="${period}" aria-pressed="${excludeVat}">
         <strong>${escapeHtml(formatPrice(displayValue))}</strong>
         <small>${vatLabel}</small>
       </button>
     </div>
   `;
+}
+
+function dashboardInsight(label, value, icon) {
+  return `
+    <div class="dashboard-insight">
+      <div>
+        <span class="dashboard-insight-label">${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </div>
+      ${dashboardIcon(icon)}
+    </div>
+  `;
+}
+
+function dashboardStatHeading(label, tone) {
+  return `
+    <div class="dashboard-stat-heading">
+      <span class="dashboard-stat-label">${escapeHtml(label)}</span>
+      ${dashboardIcon(getDashboardIconName(tone))}
+    </div>
+  `;
+}
+
+function getDashboardIconName(tone) {
+  const icons = {
+    "today-orders": "orders",
+    "tomorrow-orders": "calendar",
+    "sunday-orders": "calendar",
+    "today-sales": "bolt",
+    sales: "trend",
+    orders: "receipt",
+    lifetime: "chart",
+    reservations: "reservations",
+    collections: "wallet",
+    "today-drafts": "draft",
+    "stock-arrivals": "arrival",
+    reminders: "bell",
+    "today-reminders": "bell",
+    customers: "customers",
+  };
+  return icons[tone] || "chart";
+}
+
+function dashboardIcon(name) {
+  const paths = {
+    arrival: '<path d="M3.5 6.5h10v10h-10zM13.5 10.5h3l3 3v3h-6zM7 17v2M17 17v2M5.5 19h3M15.5 19h3" />',
+    bell: '<path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" />',
+    bolt: '<path d="m13 2-9 12h7l-1 8 9-12h-7z" />',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5" />',
+    chart: '<path d="M4 19V5M4 19h16M8 15l3-3 3 2 5-6M15 8h4v4" />',
+    customers: '<path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-4A4.5 4.5 0 0 0 3 18.5V20M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M17 14a4 4 0 0 1 4 4v2M15.5 3.3a3.5 3.5 0 0 1 0 6.7" />',
+    draft: '<path d="M6 3h8l4 4v14H6zM14 3v5h5M9 15l5-5 2 2-5 5-3 1z" />',
+    orders: '<rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" />',
+    receipt: '<path d="M6 3h12v18l-2.5-1.5L12 21l-3.5-1.5L6 21zM9 8h6M9 12h6M9 16h4" />',
+    release: '<path d="M4 7h11v10H4zM15 10h3l2 2v5h-5zM8 17v2M17 17v2M3 19h7M14 19h6M11 3v7M8 7l3 3 3-3" />',
+    reservations: '<path d="m4 7 8-4 8 4-8 4zM4 7v10l8 4V11M20 7v10l-8 4" />',
+    trend: '<path d="M4 19V5M4 19h16M7 15l3-3 3 2 6-7M15 7h4v4" />',
+    wallet: '<path d="M4 7h15a2 2 0 0 1 2 2v10H4zM4 7V5a2 2 0 0 1 2-2h12M21 13h-6v4h6" />',
+  };
+  const path = paths[name] || paths.chart;
+  return `<span class="dashboard-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${path}</svg></span>`;
 }
 
 function renderDashboardRecentOrders() {
