@@ -42,13 +42,19 @@
       <header class="topbar">
         <div class="brand-block">
           <img class="brand-logo" src="/fujicom_logo.svg" alt="Fujicom" />
-          <div>
+          <div class="brand-copy">
             <p class="eyebrow">מחירון</p>
             <h1>מחירון והזמנות</h1>
             <p class="owner-status" id="ownerStatus">דקל אזמי · טוען זמן ישראל...</p>
           </div>
         </div>
-        <div class="metadata" id="metadata">טוען מחירון...</div>
+        <div class="topbar-actions">
+          <button class="header-reminders-button" id="headerReminders" type="button" aria-label="פתח תזכורות" title="תזכורות">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" /></svg>
+            <span class="header-reminders-badge" id="headerRemindersBadge" aria-live="polite" hidden>0</span>
+          </button>
+          <div class="metadata" id="metadata">טוען מחירון...</div>
+        </div>
       </header>
 
       <nav class="tabs" aria-label="ניווט">
