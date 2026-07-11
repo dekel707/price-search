@@ -408,6 +408,16 @@
             <button class="secondary-button" id="exportFilteredReservations" type="button">דוח שריון ללקוח</button>
           </div>
 
+          <section class="reservation-import" aria-label="עדכון שריונים מאקסל">
+            <div>
+              <strong>עדכון שריונים מאקסל</strong>
+              <span>מזהה דוח לפי לקוח, דגם וכמות. דוח מלא שיוצא מהמערכת מחליף את שריוני הלקוח; דוח חלקי מעדכן רק את השורות שבו.</span>
+            </div>
+            <label class="file-button" for="reservationReportInput">העלה דוח Excel</label>
+            <input id="reservationReportInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+            <p class="reservation-import-status" id="reservationImportStatus" aria-live="polite"></p>
+          </section>
+
           <details class="reservation-create">
             <summary>הוסף מוצר לשריון</summary>
             <form class="reservation-form" id="reservationForm">
