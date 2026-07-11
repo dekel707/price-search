@@ -45,6 +45,16 @@ const monthFormatter = new Intl.DateTimeFormat("he-IL", {
   month: "long",
   year: "numeric",
 });
+const israelDateTimeFormatter = new Intl.DateTimeFormat("he-IL", {
+  weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "Asia/Jerusalem",
+});
 
 const DEFAULT_CUSTOMER_NAMES = [
   "משה חיון",
@@ -110,6 +120,7 @@ const dom = {
   loginButton: document.querySelector("#loginButton"),
   authError: document.querySelector("#authError"),
   appShell: document.querySelector("#appShell"),
+  ownerStatus: document.querySelector("#ownerStatus"),
   tabButtons: [...document.querySelectorAll("[data-tab]")],
   tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
   searchInput: document.querySelector("#searchInput"),
@@ -293,6 +304,7 @@ let cloudSaveInFlight = false;
 let cloudSaveAgain = false;
 let cloudSyncState = CLOUD_SYNC_DISABLED ? "local" : "syncing";
 let appStarted = false;
+let israelClockTimer = null;
 
 init();
 
@@ -305,6 +317,7 @@ async function init() {
 async function startApp() {
   if (appStarted) return;
   appStarted = true;
+  startIsraelClock();
   bindEvents();
   defaultProducts = await loadDefaultProducts();
   specManifest = await loadSpecManifest();
@@ -363,6 +376,17 @@ async function startApp() {
   render();
   registerServiceWorker();
   hydrateCloudState();
+}
+
+function startIsraelClock() {
+  updateIsraelClock();
+  if (israelClockTimer) return;
+  israelClockTimer = window.setInterval(updateIsraelClock, 30_000);
+}
+
+function updateIsraelClock() {
+  if (!dom.ownerStatus) return;
+  dom.ownerStatus.textContent = `דקל אזמי · ${israelDateTimeFormatter.format(new Date())}`;
 }
 
 function bindAuthEvents() {
