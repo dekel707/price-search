@@ -4983,3 +4983,338 @@ h2 {
     padding: 13px;
   }
 }
+
+/* Dashboard cards inspired by the dark, outlined management style in the reference. */
+:root {
+  --ps-background: #07111d;
+  --ps-surface: #0b1929;
+  --ps-surface-raised: #102238;
+  --ps-control: #0b1726;
+  --ps-control-hover: #112b44;
+  --ps-border: rgba(90, 150, 191, 0.24);
+  --ps-border-strong: rgba(72, 185, 214, 0.46);
+  --ps-text: #e7edf4;
+  --ps-muted: #9aabba;
+  --ps-subtle: #708496;
+  --ps-accent: #2fd7c1;
+  --ps-accent-strong: #18bca7;
+  --ps-accent-wash: rgba(47, 215, 193, 0.12);
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% -8%, rgba(36, 132, 220, 0.17), transparent 31%),
+    radial-gradient(circle at 94% 2%, rgba(34, 195, 179, 0.12), transparent 27%),
+    linear-gradient(145deg, #06101b 0%, #091727 51%, #0a1928 100%);
+}
+
+.topbar {
+  margin-bottom: 20px;
+}
+
+.tabs,
+.search-panel,
+.cart-panel,
+.orders-panel,
+.drafts-panel,
+.categories-panel,
+.customers-panel,
+.customer-sales-panel,
+.monthly-sales-panel,
+.collections-panel,
+.reservations-panel,
+.reminders-panel,
+.sold-products-panel,
+.dashboard-panel {
+  border-color: rgba(53, 135, 183, 0.28);
+  background: linear-gradient(145deg, rgba(10, 27, 44, 0.97), rgba(7, 19, 33, 0.96));
+}
+
+.tabs {
+  box-shadow: 0 18px 46px rgba(1, 8, 17, 0.26), inset 0 1px 0 rgba(186, 224, 255, 0.025);
+}
+
+.tab-button.active {
+  border-color: rgba(47, 215, 193, 0.36);
+  background: linear-gradient(90deg, rgba(32, 180, 178, 0.2), rgba(33, 124, 167, 0.08));
+}
+
+.dashboard-panel {
+  gap: 20px;
+  border-color: rgba(49, 143, 193, 0.34);
+  background:
+    linear-gradient(145deg, rgba(11, 29, 47, 0.98), rgba(7, 20, 34, 0.98)),
+    var(--ps-surface);
+  box-shadow: 0 24px 62px rgba(0, 6, 16, 0.27), inset 0 1px 0 rgba(184, 228, 255, 0.026);
+}
+
+.panel-header {
+  padding-bottom: 16px;
+  border-color: rgba(86, 153, 196, 0.2);
+}
+
+.dashboard-stats {
+  gap: 14px;
+}
+
+.dashboard-stat {
+  --dashboard-icon: var(--ps-accent);
+  --dashboard-icon-wash: rgba(47, 215, 193, 0.11);
+  display: grid;
+  min-height: 126px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(61, 137, 182, 0.3);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0% 0%, var(--dashboard-icon-wash), transparent 38%),
+    linear-gradient(145deg, rgba(14, 37, 59, 0.97), rgba(8, 24, 40, 0.96));
+  box-shadow: inset 0 1px 0 rgba(202, 234, 255, 0.035), 0 10px 24px rgba(2, 10, 20, 0.12);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.dashboard-link-stat:hover,
+.dashboard-link-stat:focus-visible,
+.dashboard-stat:hover {
+  border-color: color-mix(in srgb, var(--dashboard-icon) 75%, #7ac8e8);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--dashboard-icon) 19%, transparent), transparent 42%),
+    linear-gradient(145deg, rgba(16, 43, 68, 0.99), rgba(8, 25, 42, 0.98));
+  box-shadow: 0 14px 30px rgba(0, 8, 18, 0.24), inset 0 1px 0 rgba(211, 239, 255, 0.045);
+  transform: translateY(-2px);
+}
+
+.dashboard-stat::after {
+  top: -34px;
+  left: -34px;
+  width: 112px;
+  height: 112px;
+  background: var(--dashboard-icon);
+  opacity: 0.07;
+}
+
+.dashboard-stat-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-stat-label,
+.dashboard-insight-label {
+  min-width: 0;
+  color: #b9c7d4 !important;
+  font-size: 0.79rem !important;
+  font-weight: 800 !important;
+  line-height: 1.35;
+}
+
+.dashboard-stat-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--dashboard-icon) 42%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--dashboard-icon) 12%, #0a1929);
+  color: var(--dashboard-icon) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.dashboard-stat-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dashboard-stat strong {
+  align-self: end;
+  color: #eaf4fb;
+  font-size: clamp(1.35rem, 2vw, 1.72rem);
+  letter-spacing: -0.025em;
+}
+
+.dashboard-card-action {
+  gap: 12px;
+}
+
+.dashboard-card-action .dashboard-stat-heading {
+  width: 100%;
+}
+
+.dashboard-inline-money {
+  margin-top: 1px;
+  padding-top: 10px;
+  border-color: rgba(92, 150, 188, 0.2);
+}
+
+.dashboard-money-value {
+  gap: 4px;
+}
+
+.dashboard-money-value strong {
+  color: inherit;
+  font-size: 1.08rem;
+}
+
+.dashboard-stat.today-orders { --dashboard-icon: #4fa9ff; --dashboard-icon-wash: rgba(79, 169, 255, 0.13); }
+.dashboard-stat.tomorrow-orders { --dashboard-icon: #8c8cff; --dashboard-icon-wash: rgba(140, 140, 255, 0.13); }
+.dashboard-stat.sunday-orders { --dashboard-icon: #56cf91; --dashboard-icon-wash: rgba(86, 207, 145, 0.13); }
+.dashboard-stat.today-sales,
+.dashboard-stat.sales { --dashboard-icon: #2fd7c1; --dashboard-icon-wash: rgba(47, 215, 193, 0.13); }
+.dashboard-stat.orders { --dashboard-icon: #f5c960; --dashboard-icon-wash: rgba(245, 201, 96, 0.13); }
+.dashboard-stat.lifetime { --dashboard-icon: #6dc7ff; --dashboard-icon-wash: rgba(109, 199, 255, 0.13); }
+.dashboard-stat.reservations { --dashboard-icon: #b29bff; --dashboard-icon-wash: rgba(178, 155, 255, 0.13); }
+.dashboard-stat.collections { --dashboard-icon: #f6c765; --dashboard-icon-wash: rgba(246, 199, 101, 0.13); }
+.dashboard-stat.today-drafts { --dashboard-icon: #5fdaa8; --dashboard-icon-wash: rgba(95, 218, 168, 0.13); }
+.dashboard-stat.stock-arrivals { --dashboard-icon: #5bbcf3; --dashboard-icon-wash: rgba(91, 188, 243, 0.13); }
+.dashboard-stat.reminders,
+.dashboard-stat.today-reminders { --dashboard-icon: #ff8a98; --dashboard-icon-wash: rgba(255, 138, 152, 0.13); }
+.dashboard-stat.customers { --dashboard-icon: #68d697; --dashboard-icon-wash: rgba(104, 214, 151, 0.13); }
+
+.dashboard-insights {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0;
+  border: 0;
+}
+
+.dashboard-insights > .dashboard-insight {
+  display: flex;
+  min-height: 82px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(64, 133, 178, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 25, 42, 0.64);
+}
+
+.dashboard-insights > .dashboard-insight > div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dashboard-insight .dashboard-stat-icon {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  border-radius: 9px;
+  color: #5fcfde !important;
+}
+
+.dashboard-insight .dashboard-stat-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.dashboard-insights strong {
+  color: #edf5fb;
+  font-size: 0.9rem;
+}
+
+.dashboard-grid {
+  gap: 14px;
+}
+
+.dashboard-section {
+  min-height: 250px;
+  padding: 17px;
+  border-color: rgba(59, 131, 176, 0.24);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(10, 28, 46, 0.78), rgba(7, 21, 35, 0.72));
+}
+
+.dashboard-section-header {
+  padding-bottom: 13px;
+  border-color: rgba(92, 150, 188, 0.18);
+}
+
+.dashboard-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.dashboard-section-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1px solid rgba(47, 215, 193, 0.28);
+  border-radius: 9px;
+  background: rgba(47, 215, 193, 0.09);
+  color: #48d8c5;
+}
+
+.dashboard-section-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dashboard-section-icon.reservation {
+  border-color: rgba(178, 155, 255, 0.3);
+  background: rgba(178, 155, 255, 0.1);
+  color: #c6b8ff;
+}
+
+.dashboard-section-icon.products {
+  border-color: rgba(109, 199, 255, 0.3);
+  background: rgba(109, 199, 255, 0.1);
+  color: #82d2ff;
+}
+
+.dashboard-section-icon.reminders {
+  border-color: rgba(255, 138, 152, 0.3);
+  background: rgba(255, 138, 152, 0.1);
+  color: #ff9ba8;
+}
+
+.dashboard-section-header button {
+  border-color: rgba(47, 215, 193, 0.24);
+  background: rgba(47, 215, 193, 0.08);
+}
+
+@media (max-width: 719px) {
+  .dashboard-panel {
+    gap: 14px;
+  }
+
+  .dashboard-stat {
+    min-height: 112px;
+    gap: 12px;
+    padding: 13px;
+    border-radius: 12px;
+  }
+
+  .dashboard-stat-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 10px;
+  }
+
+  .dashboard-stat-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dashboard-stat strong {
+    font-size: 1.27rem;
+  }
+
+  .dashboard-insights {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-insights > .dashboard-insight {
+    min-height: 68px;
+  }
+}
