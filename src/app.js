@@ -199,6 +199,8 @@ const dom = {
   exportLowReservations: document.querySelector("#exportLowReservations"),
   exportLowCustomerReservations: document.querySelector("#exportLowCustomerReservations"),
   exportFilteredReservations: document.querySelector("#exportFilteredReservations"),
+  reservationReportInput: document.querySelector("#reservationReportInput"),
+  reservationImportStatus: document.querySelector("#reservationImportStatus"),
   reservationsList: document.querySelector("#reservationsList"),
   remindersSummary: document.querySelector("#remindersSummary"),
   showAllReminders: document.querySelector("#showAllReminders"),
@@ -612,6 +614,7 @@ function bindEvents() {
   dom.exportLowReservations.addEventListener("click", exportLowReservationsReport);
   dom.exportLowCustomerReservations.addEventListener("click", exportLowCustomerReservationsReport);
   dom.exportFilteredReservations.addEventListener("click", exportFilteredReservationsReport);
+  dom.reservationReportInput.addEventListener("change", handleReservationReportUpload);
   dom.reservationForm.addEventListener("submit", addReservationFromForm);
   dom.reservationsList.addEventListener("change", (event) => {
     const quantityInput = event.target.closest("[data-reservation-quantity]");
@@ -2682,6 +2685,224 @@ function exportLowReservationsReport() {
     },
   );
   downloadWorkbook(bytes, `שריונים פחות מ-2 - ${date}.xlsx`);
+}
+
+async function handleReservationReportUpload(event) {
+  const [file] = event.target.files || [];
+  if (!file) return;
+
+  if (!/\.xlsx$/i.test(file.name)) {
+    dom.reservationImportStatus.textContent = "אפשר להעלות כאן קובץ Excel מסוג XLSX בלבד.";
+    event.target.value = "";
+    return;
+  }
+
+  dom.reservationImportStatus.textContent = `קורא את ${file.name}...`;
+  dom.status.textContent = "מעדכן שריונים מדוח Excel...";
+
+  try {
+    const report = await parseReservationSpreadsheet(file, dom.reservationCustomerFilter.value);
+    const result = applyReservationReportImport(report);
+    saveReservations();
+    render();
+
+    const syncMode = report.isFullReport ? "דוח מלא סונכרן" : "שורות הדוח עודכנו";
+    const details = [
+      `${syncMode}: ${result.updated.toLocaleString("he-IL")} עודכנו`,
+      `${result.added.toLocaleString("he-IL")} נוספו`,
+    ];
+    if (result.removed) details.push(`${result.removed.toLocaleString("he-IL")} הוסרו כי אינם מופיעים בדוח המלא`);
+    if (report.skippedCustomerNames.length) {
+      details.push(`${report.skippedCustomerNames.length.toLocaleString("he-IL")} לקוחות לא נמצאו במערכת`);
+    }
+    const message = `${details.join(" · ")}.`;
+    dom.reservationImportStatus.textContent = message;
+    dom.status.textContent = message;
+  } catch (error) {
+    console.error("Reservation report import failed", error);
+    const message = error.message || "לא הצלחתי לקרוא את דוח השריונים.";
+    dom.reservationImportStatus.textContent = message;
+    dom.status.textContent = message;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
+  const rows = await readSheet(file);
+  if (!rows.length) throw new Error("לא נמצאו שורות בדוח השריונים.");
+
+  const { columns, headerRowIndex } = detectReservationColumns(rows);
+  const reportCustomerName = getReservationReportCustomerName(rows, headerRowIndex);
+  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null;
+  const reportCustomer = findCustomerByLooseName(reportCustomerName);
+  const fallbackCustomer = reportCustomer || selectedCustomer;
+
+  if (columns.customer === undefined && !fallbackCustomer) {
+    throw new Error("לא נמצא לקוח בדוח. בחר לקוח במסנן לפני העלאת קובץ ללא עמודת לקוח.");
+  }
+
+  const entries = new Map();
+  const skippedCustomerNames = new Set();
+  rows.slice(headerRowIndex + 1).forEach((row) => {
+    const sku = cleanString(row[columns.sku]);
+    const skuKey = getSkuKey(sku);
+    const quantity = parseStockQuantity(row[columns.quantity]);
+    if (!skuKey || quantity === null) return;
+
+    const customerName = columns.customer === undefined ? fallbackCustomer.name : cleanString(row[columns.customer]);
+    const customer = columns.customer === undefined ? fallbackCustomer : findCustomerByLooseName(customerName);
+    if (!customer) {
+      if (customerName) skippedCustomerNames.add(customerName);
+      return;
+    }
+
+    const key = `${customer.id}|${skuKey}`;
+    const current = entries.get(key) || {
+      customer,
+      sku,
+      skuKey,
+      description: columns.description === undefined ? "" : cleanString(row[columns.description]),
+      quantity: 0,
+    };
+    current.quantity += quantity;
+    if (!current.description && columns.description !== undefined) {
+      current.description = cleanString(row[columns.description]);
+    }
+    entries.set(key, current);
+  });
+
+  if (!entries.size) {
+    throw new Error("לא נמצאו בדוח שורות תקינות עם דגם וכמות עבור לקוחות קיימים.");
+  }
+
+  const metadata = rows
+    .slice(0, headerRowIndex)
+    .flat()
+    .map(cleanString)
+    .filter(Boolean)
+    .join(" ");
+  const isFullReport = normalizeSearch(metadata).includes(normalizeSearch("דוח מלאי משוריין"));
+
+  return {
+    entries: [...entries.values()],
+    skippedCustomerNames: [...skippedCustomerNames],
+    isFullReport,
+  };
+}
+
+function detectReservationColumns(rows) {
+  let best = { score: -1, columns: {}, headerRowIndex: -1 };
+
+  rows.slice(0, 30).forEach((row, rowIndex) => {
+    const columns = {};
+    row.forEach((cell, columnIndex) => {
+      const label = normalizeHeader(cell);
+      if (!label) return;
+
+      if (columns.customer === undefined && hasAny(label, ["לקוח", "customer", "client"])) {
+        columns.customer = columnIndex;
+      }
+      if (columns.sku === undefined && hasAny(label, ["מקט", "sku", "item", "part", "מספר פריט", "דגם", "model"])) {
+        columns.sku = columnIndex;
+      }
+      if (
+        columns.description === undefined &&
+        hasAny(label, ["תאור", "תיאור", "מוצר", "description", "desc", "name"])
+      ) {
+        columns.description = columnIndex;
+      }
+      if (
+        columns.quantity === undefined &&
+        hasAny(label, ["כמות", "יתרה", "reserved", "reservation", "remaining", "balance", "quantity", "qty"])
+      ) {
+        columns.quantity = columnIndex;
+      }
+    });
+
+    const score =
+      Number(columns.sku !== undefined) * 2 +
+      Number(columns.quantity !== undefined) * 2 +
+      Number(columns.customer !== undefined) +
+      Number(columns.description !== undefined) * 0.25;
+    if (score > best.score) {
+      best = {
+        score,
+        columns,
+        headerRowIndex: columns.sku !== undefined && columns.quantity !== undefined ? rowIndex : -1,
+      };
+    }
+  });
+
+  if (best.headerRowIndex < 0) {
+    throw new Error("לא מצאתי בדוח עמודת דגם/מק״ט ועמודת כמות או יתרה.");
+  }
+
+  return best;
+}
+
+function getReservationReportCustomerName(rows, headerRowIndex) {
+  for (const row of rows.slice(0, headerRowIndex)) {
+    const labelIndex = row.findIndex((cell) => hasAny(normalizeHeader(cell), ["לקוח", "customer", "client"]));
+    if (labelIndex < 0) continue;
+    const customerName = cleanString(row[labelIndex + 1]);
+    if (customerName) return customerName;
+  }
+  return "";
+}
+
+function applyReservationReportImport(report) {
+  const now = new Date().toISOString();
+  const existingByKey = new Map(reservations.map((reservation) => [`${reservation.customerId}|${reservation.skuKey}`, reservation]));
+  const replacementCustomerIds = report.isFullReport
+    ? new Set(report.entries.map((entry) => entry.customer.id))
+    : new Set();
+  const replacedReservations = reservations.filter((reservation) => replacementCustomerIds.has(reservation.customerId));
+  let updated = 0;
+  let added = 0;
+
+  const importedReservations = report.entries.map((entry) => {
+    const key = `${entry.customer.id}|${entry.skuKey}`;
+    const previous = existingByKey.get(key);
+    if (previous) updated += 1;
+    else added += 1;
+    return createReservationFromImport(entry, previous, now);
+  });
+
+  if (report.isFullReport) {
+    reservations = normalizeReservations([
+      ...reservations.filter((reservation) => !replacementCustomerIds.has(reservation.customerId)),
+      ...importedReservations,
+    ]);
+  } else {
+    const importedByKey = new Map(
+      importedReservations.map((reservation) => [`${reservation.customerId}|${reservation.skuKey}`, reservation]),
+    );
+    reservations = normalizeReservations([
+      ...reservations.filter((reservation) => !importedByKey.has(`${reservation.customerId}|${reservation.skuKey}`)),
+      ...importedReservations,
+    ]);
+  }
+
+  return {
+    updated,
+    added,
+    removed: report.isFullReport ? Math.max(0, replacedReservations.length - updated) : 0,
+  };
+}
+
+function createReservationFromImport(entry, previous, timestamp) {
+  const product = products.find((item) => item.skuKey === entry.skuKey);
+  return {
+    id: previous?.id || createReservationId(entry.customer.id, entry.skuKey),
+    customerId: entry.customer.id,
+    customerName: entry.customer.name,
+    skuKey: entry.skuKey,
+    sku: product?.sku || entry.sku || previous?.sku || entry.skuKey,
+    description: product?.description || entry.description || previous?.description || "",
+    quantity: parseNonNegativeInteger(entry.quantity),
+    updatedAt: timestamp,
+  };
 }
 
 function getLowReservationEntries(customerId = "") {
