@@ -55,6 +55,10 @@ const israelDateTimeFormatter = new Intl.DateTimeFormat("he-IL", {
   hourCycle: "h23",
   timeZone: "Asia/Jerusalem",
 });
+const israelWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  timeZone: "Asia/Jerusalem",
+});
 
 const DEFAULT_CUSTOMER_NAMES = [
   "משה חיון",
@@ -121,6 +125,8 @@ const dom = {
   authError: document.querySelector("#authError"),
   appShell: document.querySelector("#appShell"),
   ownerStatus: document.querySelector("#ownerStatus"),
+  headerReminders: document.querySelector("#headerReminders"),
+  headerRemindersBadge: document.querySelector("#headerRemindersBadge"),
   tabButtons: [...document.querySelectorAll("[data-tab]")],
   tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
   searchInput: document.querySelector("#searchInput"),
@@ -471,6 +477,12 @@ function lockApp(message = "") {
 function bindEvents() {
   dom.tabButtons.forEach((button) => {
     button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+  });
+  dom.headerReminders.addEventListener("click", () => {
+    dom.reminderStatusFilter.value = "open";
+    renderRemindersPanel();
+    setActiveTab("reminders");
+    dom.status.textContent = "נפתחו התזכורות הפתוחות.";
   });
   dom.searchInput.addEventListener("input", render);
   dom.categoryFilter.addEventListener("change", render);
@@ -2830,6 +2842,7 @@ function renderRemindersPanel() {
     });
 
   const openCount = reminders.filter((reminder) => !reminder.completed).length;
+  renderHeaderReminders(openCount);
   const status = dom.reminderStatusFilter.value || "open";
   dom.remindersSummary.textContent = `${openCount.toLocaleString("he-IL")} פתוחות · ${reminders.length.toLocaleString("he-IL")} סה״כ`;
   dom.showAllReminders.textContent = status === "all" ? "מציג הכל" : "הצג את כל התזכורות";
@@ -2850,6 +2863,17 @@ function renderRemindersPanel() {
     return;
   }
   dom.remindersList.replaceChildren(...visible.map(renderReminderRow));
+}
+
+function renderHeaderReminders(openCount) {
+  if (!dom.headerReminders || !dom.headerRemindersBadge) return;
+  const hasOpenReminders = openCount > 0;
+  dom.headerRemindersBadge.hidden = !hasOpenReminders;
+  dom.headerRemindersBadge.textContent = openCount.toLocaleString("he-IL");
+  dom.headerReminders.setAttribute(
+    "aria-label",
+    hasOpenReminders ? `${openCount.toLocaleString("he-IL")} תזכורות פתוחות. פתח תזכורות` : "אין תזכורות פתוחות. פתח תזכורות",
+  );
 }
 
 function renderReminderRow(reminder) {
@@ -3899,7 +3923,7 @@ function renderDashboard() {
   dom.dashboardStats.innerHTML = [
     dashboardStat("הזמנות היום", todayOrders.length.toLocaleString("he-IL"), "today-orders"),
     dashboardTomorrowOrdersStat(tomorrowOrders.length, tomorrowRevenue),
-    dashboardSundayOrdersStat(sundayOrders.length, sundayRevenue, upcomingSundayKey),
+    isSundayInIsrael(now) ? "" : dashboardSundayOrdersStat(sundayOrders.length, sundayRevenue, upcomingSundayKey),
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
     dashboardMoneyStat("מכירות החודש", monthRevenue, "sales", "month"),
     dashboardStat("הזמנות החודש", monthOrders.length.toLocaleString("he-IL"), "orders"),
@@ -4906,6 +4930,10 @@ function getUpcomingSundayLocalDateKey(date) {
   const daysUntilSunday = (7 - sundayDate.getDay()) % 7;
   sundayDate.setDate(sundayDate.getDate() + daysUntilSunday);
   return getLocalDateKey(sundayDate);
+}
+
+function isSundayInIsrael(date = new Date()) {
+  return israelWeekdayFormatter.format(date) === "Sun";
 }
 
 function isOrderReportedTomorrow(order) {
