@@ -59,6 +59,7 @@
 
       <nav class="tabs" aria-label="ניווט">
         <button class="tab-button active" type="button" data-tab="search">חיפוש</button>
+        <button class="tab-button" type="button" data-tab="ai-assistant">עוזר AI</button>
         <button class="tab-button" type="button" data-tab="dashboard">דאשבורד</button>
         <button class="tab-button" type="button" data-tab="cart">סל</button>
         <button class="tab-button" type="button" data-tab="sold-products">מוצרים נמכרים</button>
@@ -110,6 +111,43 @@
         </section>
 
         <section class="results" id="results" aria-live="polite"></section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="ai-assistant">
+        <section class="ai-assistant-panel" aria-label="עוזר הזמנות AI">
+          <div class="panel-header ai-assistant-header">
+            <div class="standard-panel-title">
+              <span class="standard-panel-icon ai-assistant" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z" /></svg>
+              </span>
+              <div>
+                <p class="eyebrow">הזמנות חכמות</p>
+                <h2>עוזר AI</h2>
+              </div>
+            </div>
+            <span class="standard-panel-chip ai">בודק שריונים לפני מחירון</span>
+          </div>
+
+          <p class="ai-assistant-intro">כתוב הזמנה במילים חופשיות. העוזר יאתר את הלקוח והמוצרים, ימשוך קודם מהשריון, ויציג לך הצעה לאישור לפני שמירה או פתיחת WhatsApp.</p>
+
+          <form class="ai-order-form" id="aiOrderForm">
+            <label class="field-wrap" for="aiOrderInput">
+              <span>מה תרצה להכין?</span>
+              <textarea id="aiOrderInput" rows="6" required placeholder="לדוגמה: תשלח לסאפ 3 יחידות מקרר 488, 2 תנור שמנת, 3 מכונה 8 קילו ו־3 מייבשים 9 קילו"></textarea>
+            </label>
+            <div class="ai-order-actions">
+              <button class="file-button" id="aiOrderGenerate" type="submit">הכן הצעת הזמנה</button>
+              <span class="ai-order-status" id="aiOrderStatus" aria-live="polite"></span>
+            </div>
+          </form>
+
+          <div class="ai-order-result" id="aiOrderResult" aria-live="polite">
+            <div class="ai-order-empty">
+              <strong>הצעה תופיע כאן לפני כל פעולה.</strong>
+              <span>לא תישמר הזמנה ולא תיפתח הודעה ב‑WhatsApp ללא לחיצה מפורשת שלך.</span>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section class="tab-panel" data-tab-panel="dashboard">
