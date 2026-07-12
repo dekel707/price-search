@@ -6932,3 +6932,17 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Tomorrow order actions share the calm orange frame; WhatsApp and the tomorrow report badge stay distinct. */
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp) {
+  border-color: rgba(239, 165, 87, 0.66);
+  background: linear-gradient(145deg, rgba(117, 65, 26, 0.82), rgba(63, 39, 28, 0.9));
+  color: #ffe2bc;
+}
+
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):hover,
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):focus-visible {
+  border-color: #ffd194;
+  background: linear-gradient(145deg, #b96c2c, #7a4527);
+  color: #fff8ee;
+}
