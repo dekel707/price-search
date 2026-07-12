@@ -201,6 +201,8 @@ const dom = {
   exportFilteredReservations: document.querySelector("#exportFilteredReservations"),
   reservationReportInput: document.querySelector("#reservationReportInput"),
   reservationImportStatus: document.querySelector("#reservationImportStatus"),
+  reservationPasteInput: document.querySelector("#reservationPasteInput"),
+  importPastedReservations: document.querySelector("#importPastedReservations"),
   reservationsList: document.querySelector("#reservationsList"),
   remindersSummary: document.querySelector("#remindersSummary"),
   showAllReminders: document.querySelector("#showAllReminders"),
@@ -619,6 +621,7 @@ function bindEvents() {
   dom.exportLowCustomerReservations.addEventListener("click", exportLowCustomerReservationsReport);
   dom.exportFilteredReservations.addEventListener("click", exportFilteredReservationsReport);
   dom.reservationReportInput.addEventListener("change", handleReservationReportUpload);
+  dom.importPastedReservations.addEventListener("click", handlePastedReservationReport);
   dom.reservationForm.addEventListener("submit", addReservationFromForm);
   dom.reservationsList.addEventListener("change", (event) => {
     const quantityInput = event.target.closest("[data-reservation-quantity]");
@@ -2714,21 +2717,7 @@ async function handleReservationReportUpload(event) {
 
   try {
     const report = await parseReservationSpreadsheet(file, dom.reservationCustomerFilter.value);
-    const result = applyReservationReportImport(report);
-    saveReservations();
-    render();
-
-    const syncMode = report.isFullReport ? "דוח מלא סונכרן" : "שורות הדוח עודכנו";
-    const details = [
-      `הדוח נבדק פעמיים`,
-      `${syncMode}: ${result.updated.toLocaleString("he-IL")} עודכנו`,
-      `${result.added.toLocaleString("he-IL")} נוספו`,
-    ];
-    if (result.removed) details.push(`${result.removed.toLocaleString("he-IL")} הוסרו כי אינם מופיעים בדוח המלא`);
-    if (report.skippedCustomerNames.length) {
-      details.push(`${report.skippedCustomerNames.length.toLocaleString("he-IL")} לקוחות לא נמצאו במערכת`);
-    }
-    const message = `${details.join(" · ")}.`;
+    const message = saveImportedReservationReport(report);
     dom.reservationImportStatus.textContent = message;
     dom.status.textContent = message;
   } catch (error) {
@@ -2741,6 +2730,49 @@ async function handleReservationReportUpload(event) {
   }
 }
 
+function handlePastedReservationReport() {
+  const text = dom.reservationPasteInput.value.trim();
+  if (!text) {
+    dom.reservationImportStatus.textContent = "הדבק את עמודות הדוח מאקסל לפני הסנכרון.";
+    dom.reservationPasteInput.focus();
+    return;
+  }
+
+  dom.reservationImportStatus.textContent = "בודק את הנתונים המודבקים פעמיים...";
+  dom.status.textContent = "בודק ומעדכן שריונים מהדוח המודבק...";
+  try {
+    const rows = parsePastedReservationRows(text);
+    const report = parseVerifiedReservationRows(rows, dom.reservationCustomerFilter.value);
+    const message = saveImportedReservationReport(report);
+    dom.reservationPasteInput.value = "";
+    dom.reservationImportStatus.textContent = message;
+    dom.status.textContent = message;
+  } catch (error) {
+    console.error("Pasted reservation report import failed", error);
+    const message = error.message || "לא הצלחתי לקרוא את הדוח המודבק.";
+    dom.reservationImportStatus.textContent = message;
+    dom.status.textContent = message;
+  }
+}
+
+function saveImportedReservationReport(report) {
+  const result = applyReservationReportImport(report);
+  saveReservations();
+  render();
+
+  const syncMode = report.isFullReport ? "דוח מלא סונכרן" : "שורות הדוח עודכנו";
+  const details = [
+    "הדוח נבדק פעמיים",
+    `${syncMode}: ${result.updated.toLocaleString("he-IL")} עודכנו`,
+    `${result.added.toLocaleString("he-IL")} נוספו`,
+  ];
+  if (result.removed) details.push(`${result.removed.toLocaleString("he-IL")} הוסרו כי אינם מופיעים בדוח המלא`);
+  if (report.skippedCustomerNames.length) {
+    details.push(`${report.skippedCustomerNames.length.toLocaleString("he-IL")} לקוחות לא נמצאו במערכת`);
+  }
+  return `${details.join(" · ")}.`;
+}
+
 async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
   const firstPass = parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId);
   const secondPass = parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId);
@@ -2748,6 +2780,22 @@ async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
     throw new Error("בדיקת הדוח הכפולה לא התאימה. לא בוצע שינוי בשריונים.");
   }
   return firstPass;
+}
+
+function parseVerifiedReservationRows(rows, selectedCustomerId = "") {
+  const firstPass = parseReservationSpreadsheetRows(rows, selectedCustomerId);
+  const secondPass = parseReservationSpreadsheetRows(rows, selectedCustomerId);
+  if (getReservationReportSignature(firstPass) !== getReservationReportSignature(secondPass)) {
+    throw new Error("בדיקת הדוח הכפולה לא התאימה. לא בוצע שינוי בשריונים.");
+  }
+  return firstPass;
+}
+
+function parsePastedReservationRows(text) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (!lines.length) throw new Error("לא נמצאו שורות בדוח המודבק.");
+  const separator = lines[0].includes("\t") ? "\t" : ",";
+  return lines.map((line) => line.split(separator).map((cell) => cell.trim()));
 }
 
 function parseReservationSpreadsheetRows(rows, selectedCustomerId = "") {
