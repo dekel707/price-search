@@ -2400,7 +2400,14 @@ function findCustomerByLooseName(name) {
   if (exact) return exact;
   const identity = normalizeCustomerIdentity(name);
   if (!identity) return null;
-  return customers.find((customer) => normalizeCustomerIdentity(customer.name) === identity) || null;
+  const identityMatch = customers.find((customer) => normalizeCustomerIdentity(customer.name) === identity);
+  if (identityMatch) return identityMatch;
+  const flexibleIdentity = normalizeCustomerIdentityWithSortedNumbers(name);
+  return (
+    customers.find(
+      (customer) => normalizeCustomerIdentityWithSortedNumbers(customer.name) === flexibleIdentity,
+    ) || null
+  );
 }
 
 function getOrdersForCustomer(customer) {
@@ -2702,8 +2709,8 @@ async function handleReservationReportUpload(event) {
     return;
   }
 
-  dom.reservationImportStatus.textContent = `קורא את ${file.name}...`;
-  dom.status.textContent = "מעדכן שריונים מדוח Excel...";
+  dom.reservationImportStatus.textContent = `קורא ובודק את ${file.name} פעמיים...`;
+  dom.status.textContent = "בודק ומעדכן שריונים מדוח Excel...";
 
   try {
     const report = await parseReservationSpreadsheet(file, dom.reservationCustomerFilter.value);
@@ -2713,6 +2720,7 @@ async function handleReservationReportUpload(event) {
 
     const syncMode = report.isFullReport ? "דוח מלא סונכרן" : "שורות הדוח עודכנו";
     const details = [
+      `הדוח נבדק פעמיים`,
       `${syncMode}: ${result.updated.toLocaleString("he-IL")} עודכנו`,
       `${result.added.toLocaleString("he-IL")} נוספו`,
     ];
@@ -2734,7 +2742,15 @@ async function handleReservationReportUpload(event) {
 }
 
 async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
-  const rows = await readSheet(file);
+  const firstPass = parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId);
+  const secondPass = parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId);
+  if (getReservationReportSignature(firstPass) !== getReservationReportSignature(secondPass)) {
+    throw new Error("בדיקת הדוח הכפולה לא התאימה. לא בוצע שינוי בשריונים.");
+  }
+  return firstPass;
+}
+
+function parseReservationSpreadsheetRows(rows, selectedCustomerId = "") {
   if (!rows.length) throw new Error("לא נמצאו שורות בדוח השריונים.");
 
   const { columns, headerRowIndex } = detectReservationColumns(rows);
@@ -2787,13 +2803,26 @@ async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
     .map(cleanString)
     .filter(Boolean)
     .join(" ");
-  const isFullReport = normalizeSearch(metadata).includes(normalizeSearch("דוח מלאי משוריין"));
+  const headerLabels = (rows[headerRowIndex] || []).map(normalizeHeader).filter(Boolean);
+  const isOutstandingDeliveryReport =
+    columns.customer !== undefined &&
+    headerLabels.some((label) => hasAny(label, ["יתרה לאספקה", "outstanding delivery", "delivery balance"]));
+  const isFullReport =
+    normalizeSearch(metadata).includes(normalizeSearch("דוח מלאי משוריין")) || isOutstandingDeliveryReport;
 
   return {
     entries: [...entries.values()],
     skippedCustomerNames: [...skippedCustomerNames],
     isFullReport,
   };
+}
+
+function getReservationReportSignature(report) {
+  const entries = report.entries
+    .map((entry) => [entry.customer.id, entry.skuKey, entry.description, entry.quantity].join("|"))
+    .sort()
+    .join("\n");
+  return `${report.isFullReport}|${report.skippedCustomerNames.slice().sort().join("|")}|${entries}`;
 }
 
 function detectReservationColumns(rows) {
@@ -7790,6 +7819,13 @@ function findReservationSeedCustomer(name) {
 
 function normalizeCustomerIdentity(value) {
   return normalizeSearch(value).replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+function normalizeCustomerIdentityWithSortedNumbers(value) {
+  const normalized = normalizeSearch(value);
+  const text = normalized.replace(/\d+/g, "").replace(/[^\p{L}\p{N}]/gu, "");
+  const numbers = normalized.match(/\d+/g) || [];
+  return `${text}|${numbers.sort((a, b) => Number(a) - Number(b)).join("|")}`;
 }
 
 function createReservationId(customerId, skuKey) {
