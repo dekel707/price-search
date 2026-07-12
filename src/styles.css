@@ -7927,3 +7927,108 @@ body {
     font-size: 0.66rem;
   }
 }
+
+/* Keep every dashboard summary card compact and identical in height. */
+.dashboard-stats {
+  grid-auto-rows: 112px;
+  align-items: stretch;
+}
+
+.dashboard-stat {
+  height: 112px;
+  min-height: 0;
+  gap: 10px;
+  padding: 14px;
+}
+
+.dashboard-split-stat {
+  display: block;
+}
+
+.dashboard-split-stat .dashboard-card-action {
+  display: block;
+  height: auto;
+  padding: 0;
+}
+
+.dashboard-split-stat .dashboard-card-action > strong,
+.dashboard-split-stat .dashboard-card-action > small,
+.dashboard-split-stat .dashboard-inline-money {
+  position: absolute;
+  z-index: 1;
+}
+
+.dashboard-split-stat .dashboard-card-action > strong {
+  right: 14px;
+  bottom: 14px;
+  color: #eaf4fb;
+  font-size: 1.08rem;
+  line-height: 1.1;
+}
+
+.dashboard-split-stat .dashboard-inline-money {
+  bottom: 13px;
+  left: 14px;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  text-align: left;
+}
+
+.dashboard-split-stat .dashboard-inline-money strong {
+  color: #eaf4fb;
+  font-size: 1.02rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.dashboard-split-stat .dashboard-inline-money small,
+.dashboard-split-stat .dashboard-card-action > small {
+  color: #91a8c0;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.dashboard-split-stat.sunday-orders .dashboard-card-action > strong {
+  bottom: 29px;
+}
+
+.dashboard-split-stat.sunday-orders .dashboard-card-action > small {
+  right: 14px;
+  bottom: 14px;
+}
+
+@media (max-width: 719px) {
+  .dashboard-stats {
+    grid-auto-rows: 104px;
+  }
+
+  .dashboard-stat {
+    height: 104px;
+    min-height: 0;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .dashboard-split-stat .dashboard-card-action > strong {
+    right: 12px;
+    bottom: 12px;
+    font-size: 1rem;
+  }
+
+  .dashboard-split-stat .dashboard-inline-money {
+    bottom: 11px;
+    left: 12px;
+  }
+
+  .dashboard-split-stat.sunday-orders .dashboard-card-action > strong {
+    bottom: 26px;
+  }
+
+  .dashboard-split-stat.sunday-orders .dashboard-card-action > small {
+    right: 12px;
+    bottom: 12px;
+  }
+}
