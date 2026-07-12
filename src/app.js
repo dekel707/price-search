@@ -217,6 +217,14 @@ const dom = {
   reminderStatusFilter: document.querySelector("#reminderStatusFilter"),
   reminderCustomerFilter: document.querySelector("#reminderCustomerFilter"),
   remindersList: document.querySelector("#remindersList"),
+  calendarPrevious: document.querySelector("#calendarPrevious"),
+  calendarNext: document.querySelector("#calendarNext"),
+  calendarGregorianLabel: document.querySelector("#calendarGregorianLabel"),
+  calendarHebrewLabel: document.querySelector("#calendarHebrewLabel"),
+  calendarSummary: document.querySelector("#calendarSummary"),
+  calendarGrid: document.querySelector("#calendarGrid"),
+  calendarEventsCount: document.querySelector("#calendarEventsCount"),
+  calendarEventsList: document.querySelector("#calendarEventsList"),
   dashboardStats: document.querySelector("#dashboardStats"),
   dashboardInsights: document.querySelector("#dashboardInsights"),
   dashboardRecentOrders: document.querySelector("#dashboardRecentOrders"),
@@ -299,6 +307,7 @@ let collections = [];
 let openCollectionDetails = new Set();
 let openReservationCustomerIds = new Set();
 let pendingReservationQuantities = new Map();
+let calendarMonthCursor = startOfLocalMonth(new Date());
 let activeTab = "search";
 let orderType = "delivery";
 let activeCustomerId = "";
@@ -695,6 +704,8 @@ function bindEvents() {
     const deleteButton = event.target.closest("[data-delete-reminder]");
     if (deleteButton) deleteReminder(deleteButton.dataset.deleteReminder);
   });
+  dom.calendarPrevious.addEventListener("click", () => shiftCalendarMonth(-1));
+  dom.calendarNext.addEventListener("click", () => shiftCalendarMonth(1));
   dom.collectionForm.addEventListener("submit", saveCollectionFromForm);
   dom.collectionPaymentForm.addEventListener("submit", saveCollectionPaymentFromForm);
   dom.cancelCollectionEdit.addEventListener("click", resetCollectionForm);
@@ -3306,9 +3317,11 @@ function renderRemindersPanel() {
     dom.remindersList.replaceChildren(
       emptyState(status === "all" ? "אין תזכורות שמורות." : status === "done" ? "אין תזכורות שבוצעו." : "אין תזכורות פתוחות."),
     );
+    renderCalendarPanel();
     return;
   }
   dom.remindersList.replaceChildren(...visible.map(renderReminderRow));
+  renderCalendarPanel();
 }
 
 function renderHeaderReminders(openCount) {
@@ -3436,6 +3449,177 @@ function deleteReminder(reminderId) {
   saveReminders();
   renderRemindersPanel();
   renderDashboard();
+}
+
+function startOfLocalMonth(value) {
+  const date = getSafeDate(value);
+  return new Date(date.getFullYear(), date.getMonth(), 1, 12);
+}
+
+function shiftCalendarMonth(offset) {
+  calendarMonthCursor = new Date(
+    calendarMonthCursor.getFullYear(),
+    calendarMonthCursor.getMonth() + offset,
+    1,
+    12,
+  );
+  renderCalendarPanel();
+}
+
+function renderCalendarPanel() {
+  if (!dom.calendarGrid) return;
+
+  const monthStart = startOfLocalMonth(calendarMonthCursor);
+  const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}`;
+  const todayKey = getLocalDateKey(new Date());
+  const events = getCalendarEvents();
+  const eventsByDate = events.reduce((map, event) => {
+    const dayEvents = map.get(event.dateKey) || [];
+    dayEvents.push(event);
+    map.set(event.dateKey, dayEvents);
+    return map;
+  }, new Map());
+  const monthEvents = events.filter((event) => event.dateKey.startsWith(monthKey));
+
+  dom.calendarGregorianLabel.textContent = monthStart.toLocaleDateString("he-IL", {
+    month: "long",
+    year: "numeric",
+  });
+  dom.calendarHebrewLabel.textContent = monthStart.toLocaleDateString("he-IL-u-ca-hebrew", {
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jerusalem",
+  });
+  dom.calendarSummary.textContent = `${monthEvents.length.toLocaleString("he-IL")} אירועים`;
+  dom.calendarEventsCount.textContent = monthEvents.length
+    ? `${monthEvents.length.toLocaleString("he-IL")} אירועים`
+    : "אין אירועים";
+
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(1 - monthStart.getDay());
+  const days = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    return date;
+  });
+  dom.calendarGrid.replaceChildren(...days.map((date) => renderCalendarDay(date, eventsByDate.get(getLocalDateKey(date)) || [], {
+    currentMonth: date.getMonth() === monthStart.getMonth(),
+    today: getLocalDateKey(date) === todayKey,
+  })));
+
+  if (!monthEvents.length) {
+    const empty = document.createElement("p");
+    empty.className = "calendar-empty";
+    empty.textContent = "אין תזכורות או חזרות למלאי בחודש זה.";
+    dom.calendarEventsList.replaceChildren(empty);
+    return;
+  }
+
+  dom.calendarEventsList.replaceChildren(...monthEvents.map(renderCalendarEventRow));
+}
+
+function getCalendarEvents() {
+  const reminderEvents = reminders
+    .map((reminder) => {
+      const dateKey = normalizeDateInput(reminder.dueDate);
+      if (!dateKey) return null;
+      const customer = getReminderCustomer(reminder);
+      return {
+        id: `reminder-${reminder.id}`,
+        dateKey,
+        type: "reminder",
+        title: reminder.title || "תזכורת",
+        detail: [reminder.completed ? "בוצעה" : "תזכורת", customer?.name || reminder.customerName].filter(Boolean).join(" · "),
+        completed: Boolean(reminder.completed),
+      };
+    })
+    .filter(Boolean);
+
+  const arrivalEvents = products
+    .map((product) => {
+      const dateKey = normalizeDateInput(getAnnotation(product).arrivalDate);
+      if (!dateKey) return null;
+      return {
+        id: `arrival-${product.skuKey}`,
+        dateKey,
+        type: "arrival",
+        title: `חוזר למלאי · ${product.sku || "ללא מק״ט"}`,
+        detail: product.description || "מוצר",
+        completed: false,
+      };
+    })
+    .filter(Boolean);
+
+  return [...reminderEvents, ...arrivalEvents].sort(
+    (a, b) => a.dateKey.localeCompare(b.dateKey) || a.type.localeCompare(b.type) || a.title.localeCompare(b.title, "he"),
+  );
+}
+
+function renderCalendarDay(date, events, options) {
+  const day = document.createElement("article");
+  day.className = "calendar-day";
+  day.classList.toggle("outside-month", !options.currentMonth);
+  day.classList.toggle("today", options.today);
+  day.classList.toggle("has-events", events.length > 0);
+  const dateKey = getLocalDateKey(date);
+  day.setAttribute("aria-label", `${formatReminderDate(dateKey)} · ${formatCalendarHebrewDate(date)}${events.length ? ` · ${events.length} אירועים` : ""}`);
+
+  const heading = document.createElement("div");
+  heading.className = "calendar-day-heading";
+  heading.innerHTML = `
+    <strong>${date.getDate().toLocaleString("he-IL")}</strong>
+    <span>${escapeHtml(formatCalendarHebrewDay(date))}</span>
+  `;
+
+  const dayEvents = document.createElement("div");
+  dayEvents.className = "calendar-day-events";
+  events.slice(0, 2).forEach((event) => {
+    const chip = document.createElement("div");
+    chip.className = `calendar-event-chip ${event.type}${event.completed ? " completed" : ""}`;
+    chip.textContent = event.type === "arrival" ? `מלאי · ${event.title.replace("חוזר למלאי · ", "")}` : event.title;
+    chip.title = `${event.title}${event.detail ? ` · ${event.detail}` : ""}`;
+    dayEvents.append(chip);
+  });
+  if (events.length > 2) {
+    const extra = document.createElement("span");
+    extra.className = "calendar-more-events";
+    extra.textContent = `+${events.length - 2}`;
+    dayEvents.append(extra);
+  }
+
+  day.append(heading, dayEvents);
+  return day;
+}
+
+function renderCalendarEventRow(event) {
+  const row = document.createElement("article");
+  row.className = `calendar-event-row ${event.type}${event.completed ? " completed" : ""}`;
+  const date = getDateFromLocalKey(event.dateKey);
+  row.innerHTML = `
+    <div class="calendar-event-date">
+      <strong>${escapeHtml(formatReminderDate(event.dateKey))}</strong>
+      <span>${escapeHtml(formatCalendarHebrewDate(date))}</span>
+    </div>
+    <div class="calendar-event-copy">
+      <span class="calendar-event-type">${event.type === "arrival" ? "חזרה למלאי" : event.completed ? "תזכורת שבוצעה" : "תזכורת"}</span>
+      <strong>${escapeHtml(event.title)}</strong>
+      ${event.detail ? `<small>${escapeHtml(event.detail)}</small>` : ""}
+    </div>
+  `;
+  return row;
+}
+
+function formatCalendarHebrewDay(date) {
+  return date.toLocaleDateString("he-IL-u-ca-hebrew", { day: "numeric", timeZone: "Asia/Jerusalem" });
+}
+
+function formatCalendarHebrewDate(date) {
+  return date.toLocaleDateString("he-IL-u-ca-hebrew", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Jerusalem",
+  });
 }
 
 function renderCollectionsPanel() {
