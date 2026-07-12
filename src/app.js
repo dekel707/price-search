@@ -157,6 +157,8 @@ const dom = {
   cartProductPriceLabel: document.querySelector("#cartProductPriceLabel"),
   cartProductPrice: document.querySelector("#cartProductPrice"),
   cartProductQuickPrices: document.querySelector("#cartProductQuickPrices"),
+  dialogPromotionOption: document.querySelector("#dialogPromotionOption"),
+  cartProductPromotion: document.querySelector("#cartProductPromotion"),
   dialogReservationOption: document.querySelector("#dialogReservationOption"),
   cartProductReservation: document.querySelector("#cartProductReservation"),
   dialogReservationLabel: document.querySelector("#dialogReservationLabel"),
@@ -558,7 +560,9 @@ function bindEvents() {
   });
   dom.cartProductPrice.addEventListener("input", () => {
     pendingCartPriceSource = "custom";
+    refreshDialogDisplayDiscountPrice();
   });
+  dom.cartProductPromotion.addEventListener("change", updateDialogPromotionState);
   dom.cartProductReservation.addEventListener("change", () => {
     pendingReservationChoiceTouched = true;
     updateDialogReservationPricing();
@@ -775,10 +779,29 @@ function bindEvents() {
       const priceInput = row?.querySelector("[data-add-price]");
       const product = products.find((item) => item.skuKey === displayPriceButton.dataset.useAddDisplayPrice);
       if (priceInput && product) {
-        priceInput.value = String(getDisplayDiscountPrice(product.price));
+        const basePrice = parsePrice(displayPriceButton.dataset.displayBasePrice) ?? product.price;
+        priceInput.value = String(getDisplayDiscountPrice(basePrice));
         priceInput.dataset.priceSource = "display";
         displayPriceButton.setAttribute("aria-pressed", "true");
       }
+      return;
+    }
+
+    const promotionButton = event.target.closest("[data-add-ten-plus-one]");
+    if (promotionButton) {
+      const product = products.find((item) => item.skuKey === promotionButton.dataset.addTenPlusOne);
+      if (!product) return;
+      if (shouldAskForCartCustomer()) {
+        openCartCustomerDialog(product, { promotion: true });
+        return;
+      }
+      const row = promotionButton.closest(".result-row");
+      const priceInput = row?.querySelector("[data-add-price]");
+      const unitPrice = Math.max(0, parsePrice(priceInput?.value) ?? product.price);
+      const priceSource = priceInput?.dataset.priceSource === "display"
+        ? "display"
+        : getProductPriceSource(product, unitPrice);
+      addTenPlusOneToCart(product, { unitPrice, priceSource });
       return;
     }
 
@@ -810,7 +833,11 @@ function bindEvents() {
     const priceInput = event.target.closest("[data-add-price]");
     if (priceInput) {
       delete priceInput.dataset.priceSource;
-      priceInput.closest(".result-row")?.querySelector("[data-use-add-display-price]")?.setAttribute("aria-pressed", "false");
+      const displayButton = priceInput.closest(".result-row")?.querySelector("[data-use-add-display-price]");
+      if (displayButton) {
+        setDisplayDiscountButtonPrice(displayButton, parsePrice(priceInput.value) ?? 0);
+        displayButton.setAttribute("aria-pressed", "false");
+      }
     }
   });
   dom.cartItems.addEventListener("click", (event) => {
@@ -1635,6 +1662,16 @@ function renderResultNodes(items, query, totalMatches) {
       addButton.dataset.addToCart = product.skuKey;
       addButton.textContent = "הוסף לסל";
       actions.append(addButton);
+
+      if (orderType === "delivery") {
+        const promotionButton = document.createElement("button");
+        promotionButton.className = "ten-plus-one-button";
+        promotionButton.type = "button";
+        promotionButton.dataset.addTenPlusOne = product.skuKey;
+        promotionButton.setAttribute("aria-label", `הוסף מבצע 10 ועוד 1 עבור ${product.sku || product.description}`);
+        promotionButton.innerHTML = `${getOrderActionIcon("bonus")}<span>10+1</span>`;
+        actions.append(promotionButton);
+      }
     }
 
     getProductDocuments(product).forEach((productDocument) => {
@@ -1709,6 +1746,7 @@ function renderResultNodes(items, query, totalMatches) {
         if (product.price > 0) {
           const displayButton = createDisplayDiscountButton(product.price);
           displayButton.dataset.useAddDisplayPrice = product.skuKey;
+          setDisplayDiscountButtonPrice(displayButton, product.price);
           inlineQuickPrices.append(displayButton);
         }
         if (Number.isFinite(last?.price)) inlineQuickPrices.append(createLastPriceReference(last.price));
@@ -2252,7 +2290,9 @@ function renderCustomerOrderDetails(order) {
       : roundMoney(item.quantity * item.unitPrice);
     const unitPriceLabel = item.fromReservation
       ? "משריון"
-      : `${formatPrice(item.unitPrice)}${item.priceSource === "display" ? " · תצוגה" : ""}`;
+      : isBonusOrderItem(item)
+        ? "בונוס 10+1 · ₪0"
+        : `${formatPrice(item.unitPrice)}${item.priceSource === "display" ? " · תצוגה" : ""}`;
     const itemTotalLabel = item.fromReservation ? "משריון" : formatPrice(itemTotal);
     row.innerHTML = `
       <div>
@@ -5542,6 +5582,25 @@ function addProductToCart(product, options = {}) {
         : "הפריט נוסף לסל במחיר שהוגדר.";
 }
 
+function addTenPlusOneToCart(product, options = {}) {
+  const unitPrice = Math.max(0, parsePrice(options.unitPrice) ?? product.price);
+  const priceSource = normalizePriceSource(options.priceSource || "list");
+  upsertCartLine(product, 10, {
+    fromReservation: false,
+    unitPrice,
+    priceSource,
+  });
+  upsertCartLine(product, 1, {
+    fromReservation: false,
+    unitPrice: 0,
+    priceSource: "bonus",
+  });
+  cart = orderCartLines(cart);
+  saveCart();
+  render();
+  dom.status.textContent = `מבצע 10+1 נוסף: 10 יח׳ ב־${formatPrice(unitPrice)} ועוד יחידת בונוס ב־₪0.`;
+}
+
 function upsertCartLine(product, quantity, options) {
   const lineKey = createCartLineKey(
     product.skuKey,
@@ -5613,7 +5672,7 @@ function getProductPriceSource(product, unitPrice) {
   return "custom";
 }
 
-function openCartCustomerDialog(product) {
+function openCartCustomerDialog(product, options = {}) {
   pendingCartProduct = product;
   pendingReservationChoiceTouched = false;
   const last = lastPrices[product.skuKey];
@@ -5621,10 +5680,12 @@ function openCartCustomerDialog(product) {
   dom.pendingProductSummary.textContent = `${product.sku || "ללא מק״ט"} · ${product.description || "ללא תיאור"}`;
   dom.cartProductQuantity.value = "1";
   dom.cartProductPrice.value = String(product.price);
+  dom.cartProductPromotion.checked = Boolean(options.promotion);
   dom.cartCustomerInput.value = cleanString(settings.customerName || dom.customerName.value);
   renderCartCustomerFeedback();
   renderDialogQuickPrices(product, last);
   renderDialogReservationOption();
+  updateDialogPromotionState();
   dom.cartCustomerDialog.hidden = false;
   document.body.classList.add("dialog-open");
   window.setTimeout(() => {
@@ -5650,7 +5711,8 @@ function renderDialogQuickPrices(product, last) {
   if (product.price > 0) {
     const displayButton = createDisplayDiscountButton(product.price);
     displayButton.addEventListener("click", () => {
-      dom.cartProductPrice.value = String(getDisplayDiscountPrice(product.price));
+      const basePrice = parsePrice(displayButton.dataset.displayBasePrice) ?? product.price;
+      dom.cartProductPrice.value = String(getDisplayDiscountPrice(basePrice));
       pendingCartPriceSource = "display";
     });
     buttons.push(displayButton);
@@ -5666,8 +5728,11 @@ function closeCartCustomerDialog() {
   dom.cartCustomerDialog.hidden = true;
   dom.cartCustomerInput.value = "";
   dom.cartProductQuantity.value = "1";
+  dom.cartProductQuantity.disabled = false;
   dom.cartProductPrice.value = "";
   dom.cartProductQuickPrices.replaceChildren();
+  dom.cartProductPromotion.checked = false;
+  dom.dialogPromotionOption.hidden = false;
   dom.cartProductReservation.checked = false;
   dom.dialogReservationOption.hidden = true;
   dom.cartProductPriceLabel.textContent = "מחיר ליחידה";
@@ -5707,14 +5772,26 @@ function confirmCartCustomer(event) {
   const fromReservation = orderType === "delivery" && dom.cartProductReservation.checked;
   const unitPrice = Math.max(0, parsePrice(dom.cartProductPrice.value) ?? product?.price ?? 0);
   const priceSource = pendingCartPriceSource;
+  const usePromotion = dom.cartProductPromotion.checked && !dom.dialogPromotionOption.hidden;
   closeCartCustomerDialog();
-  if (product) addProductToCart(product, { quantity, unitPrice, priceSource, fromReservation });
+  if (!product) return;
+  if (usePromotion) {
+    addTenPlusOneToCart(product, { unitPrice, priceSource });
+  } else {
+    addProductToCart(product, { quantity, unitPrice, priceSource, fromReservation });
+  }
 }
 
 function renderDialogReservationOption() {
   const customer = findCustomerByName(dom.cartCustomerInput.value);
   const reservation = pendingCartProduct ? getCustomerReservation(customer, pendingCartProduct.skuKey) : null;
   const available = reservation?.quantity || 0;
+  if (dom.cartProductPromotion.checked) {
+    dom.dialogReservationOption.hidden = true;
+    dom.cartProductReservation.checked = false;
+    updateDialogReservationPricing();
+    return;
+  }
   dom.dialogReservationOption.hidden = orderType === "reservation" || available <= 0;
   dom.dialogReservationLabel.textContent = `מהשריון · נותרו ${available.toLocaleString("he-IL")} יח׳`;
   if (orderType === "reservation" || available <= 0) {
@@ -5730,6 +5807,29 @@ function updateDialogReservationPricing() {
   dom.cartProductPrice.disabled = false;
   dom.cartProductQuickPrices.hidden = false;
   dom.cartProductPriceLabel.textContent = fromReservation ? "מחיר ליתרה מעבר לשריון" : "מחיר ליחידה";
+}
+
+function refreshDialogDisplayDiscountPrice() {
+  const displayButton = dom.cartProductQuickPrices.querySelector(".display-discount-button");
+  if (!displayButton) return;
+  setDisplayDiscountButtonPrice(displayButton, parsePrice(dom.cartProductPrice.value) ?? 0);
+}
+
+function updateDialogPromotionState() {
+  const allowPromotion = orderType === "delivery";
+  dom.dialogPromotionOption.hidden = !allowPromotion;
+  if (!allowPromotion) dom.cartProductPromotion.checked = false;
+  const promotionSelected = allowPromotion && dom.cartProductPromotion.checked;
+  if (promotionSelected) {
+    dom.cartProductQuantity.value = "10";
+    dom.cartProductQuantity.disabled = true;
+    dom.cartProductReservation.checked = false;
+    dom.dialogReservationOption.hidden = true;
+    updateDialogReservationPricing();
+  } else {
+    dom.cartProductQuantity.disabled = false;
+    renderDialogReservationOption();
+  }
 }
 
 function renderCartCustomerFeedback() {
@@ -6283,6 +6383,7 @@ function renderCartLine(line) {
   const row = document.createElement("article");
   row.className = "cart-line";
   row.classList.toggle("reservation-cart-line", Boolean(line.fromReservation));
+  row.classList.toggle("bonus-cart-line", isBonusOrderItem(line));
 
   const header = document.createElement("div");
   header.className = "cart-line-header";
@@ -6308,7 +6409,9 @@ function renderCartLine(line) {
   });
   const price = line.fromReservation
     ? createReservationPriceField()
-    : createNumberField("מחיר יחידה", line.unitPrice, {
+    : isBonusOrderItem(line)
+      ? createBonusPriceField()
+      : createNumberField("מחיר יחידה", line.unitPrice, {
         min: 0,
         step: 0.01,
         attr: "cartPrice",
@@ -6318,7 +6421,7 @@ function renderCartLine(line) {
   const quickPrices = document.createElement("div");
   quickPrices.className = "quick-prices";
 
-  if (!line.fromReservation) {
+  if (!line.fromReservation && !isBonusOrderItem(line)) {
     const listButton = document.createElement("button");
     listButton.type = "button";
     listButton.dataset.useListPrice = line.lineKey;
@@ -6348,9 +6451,14 @@ function renderCartLine(line) {
   displayBadge.textContent = "פריט תצוגה · 15% הנחה";
   displayBadge.hidden = line.priceSource !== "display";
 
+  const bonusBadge = document.createElement("div");
+  bonusBadge.className = "bonus-cart-badge";
+  bonusBadge.textContent = "בונוס 10+1 · יחידה ללא עלות";
+  bonusBadge.hidden = !isBonusOrderItem(line);
+
   header.append(title, remove);
   controls.append(quantity, price);
-  row.append(header, controls, reservationBadge, displayBadge, quickPrices);
+  row.append(header, controls, reservationBadge, displayBadge, bonusBadge, quickPrices);
   return row;
 }
 
@@ -6358,9 +6466,16 @@ function createDisplayDiscountButton(listPrice) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "display-discount-button";
-  button.textContent = `תצוגה -15% · ${formatPrice(getDisplayDiscountPrice(listPrice))}`;
-  button.setAttribute("aria-label", `החל הנחת תצוגה של 15 אחוז, מחיר ${formatPrice(getDisplayDiscountPrice(listPrice))}`);
+  setDisplayDiscountButtonPrice(button, listPrice);
   return button;
+}
+
+function setDisplayDiscountButtonPrice(button, basePrice) {
+  const price = Math.max(0, parsePrice(basePrice) ?? 0);
+  const discountedPrice = getDisplayDiscountPrice(price);
+  button.dataset.displayBasePrice = String(price);
+  button.textContent = `תצוגה -15% · ${formatPrice(discountedPrice)}`;
+  button.setAttribute("aria-label", `החל הנחת תצוגה של 15 אחוז ממחיר ${formatPrice(price)}, מחיר ${formatPrice(discountedPrice)}`);
 }
 
 function createLastPriceReference(lastPrice) {
@@ -6378,6 +6493,13 @@ function createReservationPriceField() {
   const field = document.createElement("div");
   field.className = "field-wrap compact-field reservation-price-field";
   field.innerHTML = "<span>מחיר יחידה</span><strong>משריון</strong>";
+  return field;
+}
+
+function createBonusPriceField() {
+  const field = document.createElement("div");
+  field.className = "field-wrap compact-field bonus-price-field";
+  field.innerHTML = "<span>מחיר יחידה</span><strong>₪0 · בונוס</strong>";
   return field;
 }
 
@@ -6512,6 +6634,9 @@ function renderOrderCard(order, options = {}) {
   card.classList.toggle("reservation-purchase-order", isReservationPurchaseOrder(order));
   const customer = getOrderCustomer(order);
   const customerName = customer?.name || order.customerName;
+  const isTomorrowOrder = options.tone === "tomorrow-order-card";
+  const iconName = isReservationPurchaseOrder(order) ? "package" : isTomorrowOrder ? "calendar" : "receipt";
+  const typeLabel = isReservationPurchaseOrder(order) ? "הזמנה לשריון" : isTomorrowOrder ? "אספקה למחר" : "הזמנה שמורה";
 
   const date = new Date(order.createdAt).toLocaleString("he-IL", {
     dateStyle: "short",
@@ -6526,14 +6651,23 @@ function renderOrderCard(order, options = {}) {
 
   const body = document.createElement("div");
   body.className = "order-body";
-  const customerLine = customerName ? `<span>לקוח: ${escapeHtml(customerName)}</span>` : "";
+  const customerLine = customerName
+    ? `<div class="order-card-customer">${getOrderActionIcon("customer")}<span>${escapeHtml(customerName)}</span></div>`
+    : "";
   body.innerHTML = `
-    <strong>${escapeHtml(date)}</strong>
+    <div class="order-card-heading">
+      <span class="order-card-kind-icon ${escapeHtml(iconName)}" aria-hidden="true">${getOrderActionIcon(iconName)}</span>
+      <div class="order-card-heading-copy">
+        <strong>${escapeHtml(date)}</strong>
+        <span class="order-card-state">${escapeHtml(typeLabel)}</span>
+      </div>
+      <span class="order-card-verified" aria-label="הזמנה שמורה">${getOrderActionIcon("check")}</span>
+    </div>
     ${isReservationPurchaseOrder(order) ? '<span class="order-type-badge">הזמנה לשריון</span>' : ""}
     ${customerLine}
     ${reportLabel ? `<span class="order-report-badge">${escapeHtml(reportLabel)}</span>` : ""}
-    <span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳ · ${escapeHtml(formatPrice(order.total))}</span>
-    <small>${escapeHtml(summary)}</small>
+    <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>${escapeHtml(formatPrice(order.total))}</b></div>
+    <small class="order-card-summary">${escapeHtml(summary)}</small>
   `;
 
   const actions = createOrderActions(order, { showDetails: true });
@@ -6548,51 +6682,70 @@ function createOrderActions(order, options = {}) {
 
   const primaryAction = document.createElement("button");
   primaryAction.type = "button";
-  primaryAction.className = "secondary-button";
+  primaryAction.className = "secondary-button order-action-button order-action-view";
   if (options.showDetails) {
     primaryAction.dataset.toggleOrderDetails = order.id;
     primaryAction.setAttribute("aria-expanded", "false");
-    primaryAction.textContent = "הצג הזמנה";
+    primaryAction.innerHTML = `${getOrderActionIcon("view")}<span>הצג הזמנה</span>`;
   } else {
     primaryAction.dataset.loadOrder = order.id;
-    primaryAction.textContent = "טען לסל";
+    primaryAction.innerHTML = `${getOrderActionIcon("load")}<span>טען לסל</span>`;
   }
 
   const whatsapp = document.createElement("a");
-  whatsapp.className = "whatsapp-button compact";
+  whatsapp.className = "whatsapp-button compact order-action-button order-action-whatsapp";
   whatsapp.target = "_blank";
   whatsapp.rel = "noreferrer";
-  whatsapp.textContent = "וואטסאפ";
+  whatsapp.innerHTML = `${getOrderActionIcon("whatsapp")}<span>וואטסאפ</span>`;
   updateWhatsAppLink(whatsapp, createWhatsAppUrl(order.items, order));
 
   const edit = document.createElement("button");
   edit.type = "button";
-  edit.className = "secondary-button";
+  edit.className = "secondary-button order-action-button order-action-edit";
   edit.dataset.editOrder = order.id;
-  edit.textContent = "ערוך";
+  edit.innerHTML = `${getOrderActionIcon("edit")}<span>ערוך</span>`;
 
   const duplicate = document.createElement("button");
   duplicate.type = "button";
-  duplicate.className = "secondary-button";
+  duplicate.className = "secondary-button order-action-button order-action-copy";
   duplicate.dataset.duplicateOrder = order.id;
-  duplicate.textContent = "שכפל";
+  duplicate.innerHTML = `${getOrderActionIcon("copy")}<span>שכפל</span>`;
 
   const moveToDraft = document.createElement("button");
   moveToDraft.type = "button";
-  moveToDraft.className = "secondary-button";
+  moveToDraft.className = "secondary-button order-action-button order-action-draft";
   moveToDraft.dataset.moveOrderToDraft = order.id;
-  moveToDraft.textContent = "העבר לטיוטות";
+  moveToDraft.innerHTML = `${getOrderActionIcon("draft")}<span>לטיוטות</span>`;
 
   const remove = document.createElement("button");
   remove.type = "button";
-  remove.className = "danger-button";
+  remove.className = "danger-button order-action-button order-action-delete";
   remove.dataset.deleteOrder = order.id;
-  remove.textContent = "מחק";
+  remove.innerHTML = `${getOrderActionIcon("trash")}<span>מחק</span>`;
 
   actions.append(primaryAction, duplicate, edit);
   if (options.showDetails) actions.append(moveToDraft);
   actions.append(whatsapp, remove);
   return actions;
+}
+
+function getOrderActionIcon(name) {
+  const paths = {
+    receipt: '<path d="M6 3h12v18l-2.5-1.5L12 21l-3.5-1.5L6 21z" /><path d="M9 8h6M9 12h6M9 16h4" />',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5" />',
+    package: '<path d="m4 7 8-4 8 4-8 4zM4 7v10l8 4V11M20 7v10l-8 4" />',
+    check: '<path d="m5 12 4 4L19 6" />',
+    customer: '<circle cx="12" cy="8" r="3" /><path d="M5 21a7 7 0 0 1 14 0" />',
+    view: '<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6z" /><circle cx="12" cy="12" r="2.4" />',
+    load: '<path d="M12 3v11" /><path d="m8 10 4 4 4-4M5 19h14" />',
+    copy: '<rect x="9" y="9" width="10" height="11" rx="2" /><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />',
+    edit: '<path d="m4 20 4.2-1 9.5-9.5a2.1 2.1 0 0 0-3-3L5.2 16 4 20z" /><path d="m13.5 7.5 3 3" />',
+    draft: '<path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 15l5-5 2 2-5 5-3 1z" />',
+    whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5z" /><path d="M9 9.1c.2 2 1.8 3.6 3.8 3.8l1.3-1.2 1.5.6c.2.1.3.4.2.6-.4.9-1.3 1.3-2.1 1.1-3.3-.8-5.8-3.3-6.6-6.6-.2-.9.2-1.8 1.1-2.1.2-.1.5 0 .6.2l.6 1.5z" />',
+    trash: '<path d="M4 7h16M10 11v5M14 11v5M6 7l1 14h10l1-14M9 7V4h6v3" />',
+    bonus: '<path d="m12 3 1.9 4.4L18.5 9l-3.4 3.2.9 4.8-4.1-2.4-4.1 2.4.9-4.8L5.5 9l4.6-1.6z" />',
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.receipt}</svg>`;
 }
 
 function createOrderTextDetails(order, options = {}) {
@@ -6710,6 +6863,7 @@ function formatQuantityUnit(quantity) {
 function formatOrderLine(item) {
   const prefix = `${item.quantity} ${formatQuantityUnit(item.quantity)} ${formatOrderItemModel(item)}`;
   if (item.fromReservation || item.priceSource === "reservation") return `${prefix} · משריון`;
+  if (isBonusOrderItem(item)) return `${prefix} · בונוס 10+1 · 0 ש״ח`;
   const line = `${prefix} לפי ${formatOrderPrice(item)}`;
   return item.priceSource === "display" ? `${line} · הנחת תצוגה 15%` : line;
 }
@@ -6727,6 +6881,10 @@ function formatOrderItemModel(item) {
 
 function isReservationOrderItem(item) {
   return Boolean(item?.fromReservation || item?.priceSource === "reservation");
+}
+
+function isBonusOrderItem(item) {
+  return item?.priceSource === "bonus";
 }
 
 function getProductBySku(value) {
@@ -6911,7 +7069,7 @@ function handleOrderActionClick(event) {
     const shouldOpen = details.hidden;
     details.hidden = !shouldOpen;
     toggleButton.setAttribute("aria-expanded", String(shouldOpen));
-    toggleButton.textContent = shouldOpen ? "סגור הזמנה" : "הצג הזמנה";
+    toggleButton.innerHTML = `${getOrderActionIcon("view")}<span>${shouldOpen ? "סגור הזמנה" : "הצג הזמנה"}</span>`;
     return;
   }
 
@@ -7255,7 +7413,7 @@ function duplicateOrderToCart(orderId) {
         : item.unitPrice;
       const priceSource = wasFromReservation
         ? "list"
-        : item.priceSource === "display" || item.priceSource === "list"
+        : item.priceSource === "display" || item.priceSource === "list" || item.priceSource === "bonus"
           ? item.priceSource
           : "custom";
       return {
@@ -7287,7 +7445,7 @@ function rebuildLastPricesFromOrders(orderList) {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     .reduce((prices, order) => {
       order.items.forEach((line) => {
-        if (line.fromReservation || line.priceSource === "reservation") return;
+        if (line.fromReservation || line.priceSource === "reservation" || isBonusOrderItem(line)) return;
         prices[line.skuKey] = {
           price: line.unitPrice,
           savedAt: order.createdAt,
@@ -7995,7 +8153,7 @@ function formatPlainPrice(price) {
 }
 
 function normalizePriceSource(value) {
-  return ["list", "last", "custom", "display", "reservation"].includes(value) ? value : "custom";
+  return ["list", "last", "custom", "display", "reservation", "bonus"].includes(value) ? value : "custom";
 }
 
 function normalizeOrderType(value) {
