@@ -1663,15 +1663,13 @@ function renderResultNodes(items, query, totalMatches) {
       addButton.textContent = "הוסף לסל";
       actions.append(addButton);
 
-      if (orderType === "delivery") {
-        const promotionButton = document.createElement("button");
-        promotionButton.className = "ten-plus-one-button";
-        promotionButton.type = "button";
-        promotionButton.dataset.addTenPlusOne = product.skuKey;
-        promotionButton.setAttribute("aria-label", `הוסף מבצע 10 ועוד 1 עבור ${product.sku || product.description}`);
-        promotionButton.innerHTML = `${getOrderActionIcon("bonus")}<span>10+1</span>`;
-        actions.append(promotionButton);
-      }
+      const promotionButton = document.createElement("button");
+      promotionButton.className = "ten-plus-one-button";
+      promotionButton.type = "button";
+      promotionButton.dataset.addTenPlusOne = product.skuKey;
+      promotionButton.setAttribute("aria-label", `הוסף מבצע 10 ועוד 1 עבור ${product.sku || product.description}`);
+      promotionButton.innerHTML = `${getOrderActionIcon("bonus")}<span>10+1</span>`;
+      actions.append(promotionButton);
     }
 
     getProductDocuments(product).forEach((productDocument) => {
@@ -5816,7 +5814,9 @@ function refreshDialogDisplayDiscountPrice() {
 }
 
 function updateDialogPromotionState() {
-  const allowPromotion = orderType === "delivery";
+  // The promotion is valid both for a regular delivery and for a purchase that
+  // is recorded into a customer's reservation balance.
+  const allowPromotion = true;
   dom.dialogPromotionOption.hidden = !allowPromotion;
   if (!allowPromotion) dom.cartProductPromotion.checked = false;
   const promotionSelected = allowPromotion && dom.cartProductPromotion.checked;
