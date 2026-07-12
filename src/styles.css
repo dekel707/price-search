@@ -7338,3 +7338,176 @@ body {
     padding: 3px 4px;
   }
 }
+
+/* Keep every destructive action as clear as the delete action in Orders. */
+.danger-button {
+  border-color: rgba(255, 102, 128, 0.72);
+  background: linear-gradient(135deg, rgba(174, 38, 67, 0.76), rgba(104, 24, 46, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 222, 229, 0.08);
+  color: #ffe2e8;
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  border-color: rgba(255, 150, 169, 0.92);
+  background: linear-gradient(135deg, rgba(207, 53, 86, 0.88), rgba(130, 29, 57, 0.96));
+  color: #fff8fa;
+}
+
+/* The calendar is deliberately compact on phones: no horizontal spill or split header. */
+@media (max-width: 719px) {
+  [data-tab-panel="calendar"],
+  .calendar-panel,
+  .calendar-panel * {
+    min-width: 0;
+  }
+
+  [data-tab-panel="calendar"] {
+    overflow: hidden;
+  }
+
+  .calendar-panel {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .calendar-panel-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .calendar-panel-header .standard-panel-title {
+    justify-content: center;
+  }
+
+  .calendar-panel-header .standard-panel-title > div {
+    text-align: center;
+  }
+
+  .calendar-month-actions {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .calendar-nav-button {
+    width: 40px;
+  }
+
+  .calendar-month-labels {
+    min-width: 0;
+  }
+
+  .calendar-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .calendar-summary {
+    grid-column: 1 / -1;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .calendar-day {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .calendar-panel {
+    gap: 12px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .calendar-panel-header .standard-panel-icon {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+
+  .calendar-panel-header .standard-panel-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .calendar-month-actions {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+  }
+
+  .calendar-nav-button {
+    width: 36px;
+    min-height: 36px;
+  }
+
+  .calendar-month-labels strong {
+    font-size: 0.88rem;
+  }
+
+  .calendar-month-labels span {
+    font-size: 0.69rem;
+  }
+
+  .calendar-legend {
+    padding: 9px;
+  }
+
+  .calendar-legend-item,
+  .calendar-summary {
+    font-size: 0.67rem;
+  }
+
+  .calendar-grid,
+  .calendar-weekdays {
+    gap: 3px;
+  }
+
+  .calendar-weekdays span {
+    padding: 1px 0;
+    font-size: 0.61rem;
+  }
+
+  .calendar-day {
+    min-height: 66px;
+    gap: 3px;
+    padding: 4px 3px;
+    border-radius: 8px;
+  }
+
+  .calendar-day-heading {
+    gap: 2px;
+  }
+
+  .calendar-day-heading strong {
+    font-size: 0.72rem;
+  }
+
+  .calendar-day-events {
+    gap: 3px;
+  }
+
+  .calendar-event-chip {
+    max-width: 100%;
+    padding: 2px 3px;
+    border-radius: 5px;
+    font-size: 0.53rem;
+  }
+
+  .calendar-more-events {
+    font-size: 0.56rem;
+  }
+
+  .calendar-events-panel {
+    padding: 12px;
+  }
+}
