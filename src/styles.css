@@ -2337,6 +2337,44 @@ h2 {
   gap: 10px;
 }
 
+.collection-payment-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(130px, 0.55fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(105, 183, 151, 0.34);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(18, 63, 57, 0.52), rgba(10, 28, 45, 0.72));
+}
+
+.collection-payment-copy,
+.collection-payment-status {
+  grid-column: 1 / -1;
+}
+
+.collection-payment-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.collection-payment-copy strong {
+  color: #c6fff4;
+}
+
+.collection-payment-copy span,
+.collection-payment-status {
+  color: #9fb8b0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.collection-payment-status {
+  min-height: 1.15em;
+  margin: 0;
+}
+
 .collection-form-actions .file-button,
 .collection-form-actions .secondary-button {
   flex: 1;
@@ -2607,7 +2645,8 @@ h2 {
   line-height: 1.35;
 }
 
-.collection-month-summary > strong {
+.collection-month-summary > strong,
+.collection-month-values strong {
   direction: ltr;
   color: #ffe19a;
   font-size: 0.86rem;
@@ -2618,8 +2657,18 @@ h2 {
   opacity: 0.72;
 }
 
-.collection-month-panel.paid .collection-month-summary > strong {
+.collection-month-panel.paid .collection-month-summary > strong,
+.collection-month-panel.paid .collection-month-values strong {
   color: #bbf7d0;
+}
+
+.collection-month-values {
+  justify-items: end;
+  white-space: nowrap;
+}
+
+.collection-month-values small {
+  color: #9ddcc5;
 }
 
 .month-invoices {
@@ -5459,5 +5508,104 @@ body {
     height: 18px;
     padding-inline: 4px;
     font-size: 0.6rem;
+  }
+}
+
+/* Collection payments, darker order choices, and quantity pickers. */
+.collection-payment-form {
+  grid-template-columns: minmax(0, 1.25fr) minmax(130px, 0.55fr) auto;
+}
+
+.collection-payment-form .file-button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.collection-month-values {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  min-width: 84px;
+}
+
+.collection-month-values strong {
+  color: var(--ps-amber);
+}
+
+.collection-month-values small {
+  color: #9ddcc5;
+  font-weight: 800;
+}
+
+.collection-month-panel.paid .collection-month-values strong {
+  color: var(--ps-green);
+}
+
+.inline-add-field select {
+  min-height: 44px;
+}
+
+.orders-panel .order-card.orders-history-card {
+  border-color: rgba(61, 150, 172, 0.36);
+  background: linear-gradient(145deg, rgba(8, 30, 45, 0.96), rgba(8, 21, 33, 0.94));
+}
+
+.orders-panel .order-card.tomorrow-order-card {
+  border-color: rgba(108, 112, 204, 0.46);
+  background: linear-gradient(145deg, rgba(25, 28, 64, 0.96), rgba(12, 21, 48, 0.96));
+}
+
+.orders-panel .order-card.orders-history-card:hover {
+  border-color: rgba(91, 202, 215, 0.62);
+  background: linear-gradient(145deg, rgba(10, 39, 56, 0.98), rgba(9, 25, 39, 0.98));
+}
+
+.orders-panel .order-card.tomorrow-order-card:hover {
+  border-color: rgba(151, 156, 255, 0.72);
+  background: linear-gradient(145deg, rgba(34, 37, 80, 0.99), rgba(16, 27, 62, 0.99));
+}
+
+.orders-panel .order-card .secondary-button {
+  border-color: rgba(104, 157, 183, 0.3);
+  background: rgba(5, 20, 33, 0.78);
+  color: #d5e8ef;
+}
+
+.orders-panel .tomorrow-order-card .secondary-button {
+  border-color: rgba(143, 150, 242, 0.38);
+  background: rgba(16, 22, 57, 0.82);
+  color: #e0e3ff;
+}
+
+.orders-panel .order-card .secondary-button:hover,
+.orders-panel .order-card .secondary-button:focus-visible {
+  border-color: rgba(102, 211, 212, 0.68);
+  background: rgba(16, 54, 67, 0.9);
+  color: #d6fffc;
+}
+
+.orders-panel .tomorrow-order-card .secondary-button:hover,
+.orders-panel .tomorrow-order-card .secondary-button:focus-visible {
+  border-color: rgba(181, 184, 255, 0.8);
+  background: rgba(39, 43, 96, 0.94);
+  color: #f0f1ff;
+}
+
+@media (max-width: 719px) {
+  .collection-payment-form {
+    grid-template-columns: 1fr;
+  }
+
+  .collection-payment-form .file-button {
+    width: 100%;
+  }
+
+  .collection-month-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .collection-month-summary .month-status {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
