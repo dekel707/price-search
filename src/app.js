@@ -6644,6 +6644,7 @@ function renderOrderCard(order, options = {}) {
   });
   const reportLabel = getOrderReportLabel(order);
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const reservationUsage = getOrderReservationUsage(order);
   const summary = order.items
     .slice(0, 2)
     .map((item) => `${item.description} × ${item.quantity}`)
@@ -6664,6 +6665,7 @@ function renderOrderCard(order, options = {}) {
       <span class="order-card-verified" aria-label="הזמנה שמורה">${getOrderActionIcon("check")}</span>
     </div>
     ${isReservationPurchaseOrder(order) ? '<span class="order-type-badge">הזמנה לשריון</span>' : ""}
+    ${reservationUsage ? `<span class="order-reservation-badge ${reservationUsage.partial ? "partial" : "full"}">${getOrderActionIcon("package")}<span>${reservationUsage.label}</span></span>` : ""}
     ${customerLine}
     ${reportLabel ? `<span class="order-report-badge">${escapeHtml(reportLabel)}</span>` : ""}
     <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>${escapeHtml(formatPrice(order.total))}</b></div>
@@ -6674,6 +6676,20 @@ function renderOrderCard(order, options = {}) {
   const details = createOrderTextDetails(order);
   card.append(body, actions, details);
   return card;
+}
+
+function getOrderReservationUsage(order) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const hasReservationItems = items.some((item) => isReservationOrderItem(item));
+  if (!hasReservationItems) return null;
+
+  const hasPaidItems = items.some((item) =>
+    !isReservationOrderItem(item) && !isBonusOrderItem(item) && Math.max(0, Number(item?.unitPrice) || 0) > 0,
+  );
+
+  return hasPaidItems
+    ? { label: "שריון חלקי", partial: true }
+    : { label: "שריון", partial: false };
 }
 
 function createOrderActions(order, options = {}) {
