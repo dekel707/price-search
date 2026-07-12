@@ -7529,3 +7529,385 @@ body {
   background: linear-gradient(135deg, #d43c67, #841d3d);
   color: #ffffff;
 }
+
+/* AI order assistant — it creates a reviewable proposal and never skips confirmation. */
+.tab-button[data-tab="ai-assistant"]::before {
+  content: "✦";
+}
+
+.standard-panel-icon.ai-assistant {
+  border-color: rgba(123, 175, 255, 0.68);
+  background: linear-gradient(145deg, rgba(76, 89, 197, 0.7), rgba(42, 51, 122, 0.92));
+  color: #bbd7ff;
+}
+
+.standard-panel-chip.ai {
+  border-color: rgba(133, 168, 255, 0.42);
+  background: rgba(93, 104, 220, 0.14);
+  color: #c7d6ff;
+}
+
+.ai-assistant-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 20px;
+  border: 1px solid rgba(95, 144, 215, 0.36);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 96% 0, rgba(102, 112, 255, 0.19), transparent 30%),
+    radial-gradient(circle at 3% 100%, rgba(41, 208, 187, 0.12), transparent 24%),
+    linear-gradient(145deg, rgba(12, 25, 55, 0.98), rgba(7, 19, 39, 0.98));
+  box-shadow: 0 22px 54px rgba(1, 7, 22, 0.24), inset 0 1px 0 rgba(211, 227, 255, 0.035);
+}
+
+.ai-assistant-header {
+  align-items: center;
+}
+
+.ai-assistant-intro {
+  max-width: 780px;
+  margin: 0;
+  color: #b5c6da;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.ai-order-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(105, 154, 221, 0.26);
+  border-radius: 14px;
+  background: rgba(5, 18, 39, 0.54);
+}
+
+.ai-order-form textarea {
+  min-height: 130px;
+  resize: vertical;
+  border-color: rgba(111, 158, 224, 0.42);
+  background: rgba(5, 20, 42, 0.78);
+  color: #edf5ff;
+  line-height: 1.55;
+}
+
+.ai-order-form textarea:focus {
+  border-color: rgba(133, 203, 255, 0.88);
+  box-shadow: 0 0 0 4px rgba(91, 151, 255, 0.14);
+}
+
+.ai-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-order-actions .file-button {
+  flex: 0 0 auto;
+  min-width: 180px;
+  border-color: rgba(116, 188, 255, 0.76);
+  background: linear-gradient(135deg, #2479bd, #2eb7ba);
+  color: #f4feff;
+}
+
+.ai-order-actions .file-button:hover,
+.ai-order-actions .file-button:focus-visible {
+  background: linear-gradient(135deg, #318fd8, #3acec7);
+}
+
+.ai-order-status {
+  min-height: 20px;
+  color: #93b6d0;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.ai-order-result {
+  min-height: 90px;
+}
+
+.ai-order-empty,
+.ai-order-loading {
+  display: grid;
+  place-items: center;
+  gap: 7px;
+  min-height: 100px;
+  padding: 18px;
+  border: 1px dashed rgba(109, 153, 208, 0.36);
+  border-radius: 14px;
+  background: rgba(5, 20, 40, 0.42);
+  color: #b0c4d7;
+  text-align: center;
+}
+
+.ai-order-empty strong {
+  color: #e6f2ff;
+}
+
+.ai-order-empty span {
+  max-width: 610px;
+  color: #8fa8bd;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.ai-order-empty.small {
+  min-height: 72px;
+}
+
+.ai-order-loading {
+  grid-auto-flow: column;
+  grid-template-columns: auto auto;
+  justify-content: center;
+}
+
+.ai-order-loading span {
+  width: 19px;
+  height: 19px;
+  border: 2px solid rgba(135, 199, 255, 0.26);
+  border-top-color: #6ed5ef;
+  border-radius: 999px;
+  animation: ai-order-spin 780ms linear infinite;
+}
+
+@keyframes ai-order-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-order-proposal {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid rgba(83, 163, 190, 0.38);
+  border-radius: 15px;
+  background: linear-gradient(145deg, rgba(9, 41, 61, 0.84), rgba(7, 25, 47, 0.9));
+}
+
+.ai-order-proposal.needs-review {
+  border-color: rgba(244, 177, 99, 0.57);
+}
+
+.ai-order-proposal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(132, 184, 220, 0.19);
+}
+
+.ai-order-proposal-header > div,
+.ai-order-proposal-total {
+  display: grid;
+  gap: 3px;
+}
+
+.ai-order-proposal-header span {
+  color: #86a9bf;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.ai-order-proposal-header strong {
+  color: #f0f9ff;
+  font-size: 1rem;
+}
+
+.ai-order-proposal-total {
+  min-width: 138px;
+  padding: 8px 11px;
+  border: 1px solid rgba(91, 215, 194, 0.36);
+  border-radius: 10px;
+  background: rgba(12, 111, 104, 0.2);
+  text-align: left;
+}
+
+.ai-order-proposal-total strong {
+  color: #8ff3e2;
+}
+
+.ai-order-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-order-summary-chips span,
+.ai-order-source {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.ai-order-summary-chips .reservation,
+.ai-order-source.reservation {
+  border-color: rgba(83, 213, 166, 0.44);
+  background: rgba(20, 133, 86, 0.22);
+  color: #a4f1cb;
+}
+
+.ai-order-summary-chips .priced,
+.ai-order-source.priced {
+  border-color: rgba(112, 181, 246, 0.43);
+  background: rgba(38, 104, 169, 0.22);
+  color: #b9dcff;
+}
+
+.ai-order-issues {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(247, 185, 100, 0.43);
+  border-radius: 10px;
+  background: rgba(148, 86, 21, 0.17);
+  color: #ffd391;
+  font-size: 0.79rem;
+  font-weight: 800;
+}
+
+.ai-order-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-order-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 13px;
+  align-items: center;
+  padding: 11px;
+  border: 1px solid rgba(74, 142, 181, 0.31);
+  border-radius: 11px;
+  background: rgba(7, 30, 49, 0.7);
+}
+
+.ai-order-line-main {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.ai-order-line-main strong {
+  color: #f0f8ff;
+  font-size: 0.84rem;
+}
+
+.ai-order-line-main span {
+  overflow: hidden;
+  color: #a6c0d0;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-order-line-quantity {
+  color: #dceeff;
+  font-size: 0.83rem;
+  font-weight: 900;
+}
+
+.ai-order-line-sources {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-order-line-total {
+  grid-column: 1 / -1;
+  color: #87f0dc;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.ai-order-confirmation {
+  display: grid;
+  gap: 9px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(132, 184, 220, 0.19);
+  color: #b9d1df;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.ai-order-confirmation.pending {
+  color: #f6c583;
+}
+
+.ai-order-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-order-confirmation-actions button {
+  min-width: 148px;
+}
+
+@media (max-width: 719px) {
+  .ai-assistant-panel {
+    padding: 14px;
+    border-radius: 15px;
+  }
+
+  .ai-assistant-header {
+    display: grid;
+    gap: 11px;
+  }
+
+  .ai-assistant-header .standard-panel-title {
+    min-width: 0;
+  }
+
+  .ai-assistant-header .standard-panel-chip {
+    width: fit-content;
+  }
+
+  .ai-order-form {
+    padding: 11px;
+  }
+
+  .ai-order-actions .file-button {
+    width: 100%;
+  }
+
+  .ai-order-proposal-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-order-proposal-total {
+    text-align: right;
+  }
+
+  .ai-order-confirmation-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ai-order-confirmation-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 460px) {
+  .ai-assistant-panel {
+    padding: 11px;
+  }
+
+  .ai-order-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 9px;
+  }
+
+  .ai-order-source {
+    max-width: 100%;
+    font-size: 0.66rem;
+  }
+}
