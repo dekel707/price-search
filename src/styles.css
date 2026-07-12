@@ -7511,3 +7511,21 @@ body {
     padding: 12px;
   }
 }
+
+/* Orders have their own action palette, so keep Delete visibly red there as well. */
+.orders-panel .order-card .order-action-button.order-action-delete,
+.orders-panel .tomorrow-order-card .order-action-button.order-action-delete {
+  border-color: rgba(255, 103, 132, 0.9);
+  background: linear-gradient(135deg, rgba(180, 35, 68, 0.94), rgba(100, 20, 43, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 231, 237, 0.1), 0 8px 16px rgba(111, 18, 44, 0.18);
+  color: #ffedf1;
+}
+
+.orders-panel .order-card .order-action-button.order-action-delete:hover,
+.orders-panel .order-card .order-action-button.order-action-delete:focus-visible,
+.orders-panel .tomorrow-order-card .order-action-button.order-action-delete:hover,
+.orders-panel .tomorrow-order-card .order-action-button.order-action-delete:focus-visible {
+  border-color: #ff9caf;
+  background: linear-gradient(135deg, #d43c67, #841d3d);
+  color: #ffffff;
+}
