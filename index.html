@@ -435,6 +435,13 @@
             <p class="reservation-import-status" id="reservationImportStatus" aria-live="polite"></p>
           </section>
 
+          <details class="reservation-paste-import">
+            <summary>הדבק דוח מאקסל</summary>
+            <p>אפשר להעתיק את ארבע העמודות מהדוח ולהדביק כאן. הנתונים יעברו אותה בדיקה כפולה וסנכרון מלא.</p>
+            <textarea id="reservationPasteInput" rows="6" placeholder="שם לקוח | מספר פריט | תיאור פריט | יתרה לאספקה"></textarea>
+            <button class="secondary-button" id="importPastedReservations" type="button">בדוק וסנכרן שריונים</button>
+          </details>
+
           <details class="reservation-create">
             <summary>הוסף מוצר לשריון</summary>
             <form class="reservation-form" id="reservationForm">
