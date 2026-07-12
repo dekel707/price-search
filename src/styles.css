@@ -6140,3 +6140,91 @@ body {
   background: linear-gradient(135deg, rgba(113, 25, 43, 0.98), rgba(65, 20, 34, 0.98));
   color: #ffced5;
 }
+
+/* Tomorrow deliveries use the same bright teal family as the live order flow. */
+.orders-panel.tomorrow-orders-panel {
+  border-color: rgba(36, 221, 187, 0.58);
+  background:
+    radial-gradient(circle at 100% 0, rgba(24, 218, 179, 0.25), transparent 35%),
+    linear-gradient(145deg, rgba(5, 53, 57, 0.99), rgba(5, 25, 39, 0.99));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.27), inset 0 1px 0 rgba(128, 255, 223, 0.1);
+}
+
+.orders-panel.tomorrow-orders-panel .panel-header h2,
+.orders-panel.tomorrow-orders-panel .eyebrow {
+  color: #d7fff3;
+}
+
+.orders-panel-icon.tomorrow {
+  border-color: #34e6c3;
+  background: linear-gradient(145deg, #087f80, #24e0b5);
+  color: #effffb;
+}
+
+.orders-panel .orders-panel-chip.tomorrow {
+  border-color: rgba(57, 239, 204, 0.76);
+  background: linear-gradient(135deg, rgba(7, 142, 129, 0.76), rgba(23, 220, 179, 0.26));
+  color: #cafff4;
+}
+
+.orders-panel .order-card.tomorrow-order-card {
+  border-color: rgba(42, 223, 190, 0.58);
+  background:
+    radial-gradient(circle at 100% 0, rgba(8, 220, 187, 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(5, 64, 68, 0.99), rgba(4, 29, 45, 0.99));
+}
+
+.orders-panel .order-card.tomorrow-order-card:hover {
+  border-color: #4af1d0;
+  background:
+    radial-gradient(circle at 100% 0, rgba(33, 238, 202, 0.26), transparent 39%),
+    linear-gradient(145deg, rgba(6, 82, 84, 1), rgba(4, 38, 55, 1));
+}
+
+.tomorrow-order-card .order-card-kind-icon.calendar {
+  border-color: rgba(82, 245, 212, 0.76);
+  background: linear-gradient(145deg, rgba(8, 147, 134, 0.8), rgba(26, 229, 185, 0.24));
+  color: #b9fff1;
+}
+
+.orders-panel .tomorrow-order-card .order-action-button,
+.orders-panel .tomorrow-order-card .secondary-button {
+  border-color: rgba(49, 224, 191, 0.54);
+  background: linear-gradient(145deg, rgba(7, 80, 78, 0.98), rgba(5, 39, 54, 0.98));
+  color: #e2fff8;
+}
+
+/* The colored order identifier follows the RTL edge of every card. */
+.orders-panel .order-card::before {
+  inset: 0 0 0 auto;
+}
+
+.orders-panel .order-card.tomorrow-order-card::before {
+  background: #26dfb8;
+  box-shadow: 0 0 18px rgba(38, 223, 184, 0.78);
+}
+
+.order-reservation-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid rgba(52, 232, 191, 0.65);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(6, 124, 111, 0.5), rgba(24, 214, 177, 0.14));
+  color: #aaffeb;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.order-reservation-badge svg {
+  width: 15px;
+  height: 15px;
+}
+
+.order-reservation-badge.partial {
+  border-color: rgba(255, 192, 86, 0.72);
+  background: linear-gradient(135deg, rgba(154, 90, 9, 0.5), rgba(255, 185, 59, 0.14));
+  color: #ffe1a1;
+}
