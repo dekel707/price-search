@@ -68,6 +68,7 @@
         <button class="tab-button" type="button" data-tab="customers">לקוחות</button>
         <button class="tab-button" type="button" data-tab="reservations">שריונים</button>
         <button class="tab-button" type="button" data-tab="reminders">תזכורות</button>
+        <button class="tab-button" type="button" data-tab="calendar">לוח שנה</button>
         <button class="tab-button" type="button" data-tab="categories">קטגוריות</button>
         <button class="tab-button" type="button" data-tab="drafts">טיוטות</button>
         <button class="tab-button" type="button" data-tab="orders">הזמנות</button>
@@ -527,6 +528,46 @@
           </div>
 
           <div class="reminders-list" id="remindersList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="calendar">
+        <section class="calendar-panel" aria-label="לוח שנה">
+          <div class="panel-header calendar-panel-header">
+            <div class="standard-panel-title">
+              <span class="standard-panel-icon calendar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5" /></svg>
+              </span>
+              <div>
+                <p class="eyebrow">תזכורות ומלאי</p>
+                <h2>לוח שנה</h2>
+              </div>
+            </div>
+            <div class="calendar-month-actions">
+              <button class="secondary-button calendar-nav-button" id="calendarPrevious" type="button" aria-label="חודש קודם">‹</button>
+              <div class="calendar-month-labels">
+                <strong id="calendarGregorianLabel"></strong>
+                <span id="calendarHebrewLabel"></span>
+              </div>
+              <button class="secondary-button calendar-nav-button" id="calendarNext" type="button" aria-label="חודש הבא">›</button>
+            </div>
+          </div>
+
+          <div class="calendar-legend">
+            <span class="calendar-legend-item reminder"><i></i>תזכורות</span>
+            <span class="calendar-legend-item arrival"><i></i>מוצרים שחוזרים למלאי</span>
+            <span class="calendar-summary" id="calendarSummary"></span>
+          </div>
+
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>א׳</span><span>ב׳</span><span>ג׳</span><span>ד׳</span><span>ה׳</span><span>ו׳</span><span>ש׳</span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid" aria-live="polite"></div>
+
+          <section class="calendar-events-panel" aria-label="אירועים בחודש">
+            <div class="calendar-events-header"><strong>אירועים בחודש</strong><span id="calendarEventsCount"></span></div>
+            <div class="calendar-events-list" id="calendarEventsList"></div>
+          </section>
         </section>
       </section>
 
