@@ -7373,6 +7373,12 @@ function createOrderActions(order, options = {}) {
   edit.dataset.editOrder = order.id;
   edit.innerHTML = `${getOrderActionIcon("edit")}<span>ערוך</span>`;
 
+  const changePrice = document.createElement("button");
+  changePrice.type = "button";
+  changePrice.className = "secondary-button order-action-button order-action-price";
+  changePrice.dataset.editOrderPrice = order.id;
+  changePrice.innerHTML = `${getOrderActionIcon("price")}<span>שנה מחיר</span>`;
+
   const duplicate = document.createElement("button");
   duplicate.type = "button";
   duplicate.className = "secondary-button order-action-button order-action-copy";
@@ -7391,7 +7397,7 @@ function createOrderActions(order, options = {}) {
   remove.dataset.deleteOrder = order.id;
   remove.innerHTML = `${getOrderActionIcon("trash")}<span>מחק</span>`;
 
-  actions.append(primaryAction, duplicate, edit);
+  actions.append(primaryAction, duplicate, edit, changePrice);
   if (options.showDetails) actions.append(moveToDraft);
   actions.append(whatsapp, remove);
   return actions;
@@ -7408,6 +7414,7 @@ function getOrderActionIcon(name) {
     load: '<path d="M12 3v11" /><path d="m8 10 4 4 4-4M5 19h14" />',
     copy: '<rect x="9" y="9" width="10" height="11" rx="2" /><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />',
     edit: '<path d="m4 20 4.2-1 9.5-9.5a2.1 2.1 0 0 0-3-3L5.2 16 4 20z" /><path d="m13.5 7.5 3 3" />',
+    price: '<circle cx="12" cy="12" r="8" /><path d="M14.5 9.5c-.4-.7-1.2-1.1-2.3-1.1-1.4 0-2.4.7-2.4 1.8 0 2.8 4.8 1.2 4.8 3.9 0 1.1-1 1.9-2.5 1.9-1.1 0-2.1-.4-2.6-1.2M12 6.9v10.2" />',
     draft: '<path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 15l5-5 2 2-5 5-3 1z" />',
     whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5z" /><path d="M9 9.1c.2 2 1.8 3.6 3.8 3.8l1.3-1.2 1.5.6c.2.1.3.4.2.6-.4.9-1.3 1.3-2.1 1.1-3.3-.8-5.8-3.3-6.6-6.6-.2-.9.2-1.8 1.1-2.1.2-.1.5 0 .6.2l.6 1.5z" />',
     trash: '<path d="M4 7h16M10 11v5M14 11v5M6 7l1 14h10l1-14M9 7V4h6v3" />',
@@ -7720,6 +7727,12 @@ function handleOrderActionClick(event) {
   const duplicateButton = event.target.closest("[data-duplicate-order]");
   if (duplicateButton) {
     duplicateOrderToCart(duplicateButton.dataset.duplicateOrder);
+    return;
+  }
+
+  const priceButton = event.target.closest("[data-edit-order-price]");
+  if (priceButton) {
+    startEditingOrder(priceButton.dataset.editOrderPrice, { focusPrice: true });
     return;
   }
 
@@ -8039,7 +8052,7 @@ function deleteDraft(draftId) {
   dom.status.textContent = "הטיוטה נמחקה.";
 }
 
-function startEditingOrder(orderId) {
+function startEditingOrder(orderId, options = {}) {
   const order = orders.find((item) => item.id === orderId);
   if (!order) return;
   if (cart.length && editingOrderId !== order.id && !window.confirm("להחליף את הסל הנוכחי בעריכת ההזמנה?")) return;
@@ -8061,7 +8074,22 @@ function startEditingOrder(orderId) {
   saveCart();
   render();
   setActiveTab("cart");
-  dom.status.textContent = "ההזמנה נטענה לעריכה. שמירת השינויים תעדכן את ההזמנה הקיימת.";
+  if (!options.focusPrice) {
+    dom.status.textContent = "ההזמנה נטענה לעריכה. שמירת השינויים תעדכן את ההזמנה הקיימת.";
+    return;
+  }
+
+  dom.status.textContent = "ההזמנה נטענה לשינוי מחיר. עדכן את מחיר היחידה ושמור שינויים.";
+  window.setTimeout(() => {
+    const priceInput = dom.cartItems.querySelector("[data-cart-price]");
+    if (!priceInput) {
+      dom.status.textContent = "כל הפריטים בהזמנה יצאו משריון או מבונוס, ולכן אין בה מחיר לשינוי.";
+      return;
+    }
+    priceInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    priceInput.focus();
+    priceInput.select();
+  }, 50);
 }
 
 function duplicateOrderToCart(orderId) {
