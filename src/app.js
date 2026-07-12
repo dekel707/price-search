@@ -297,6 +297,8 @@ let reservationSeedVersion = 0;
 let reminders = [];
 let collections = [];
 let openCollectionDetails = new Set();
+let openReservationCustomerIds = new Set();
+let pendingReservationQuantities = new Map();
 let activeTab = "search";
 let orderType = "delivery";
 let activeCustomerId = "";
@@ -627,12 +629,37 @@ function bindEvents() {
   dom.reservationReportInput.addEventListener("change", handleReservationReportUpload);
   dom.importPastedReservations.addEventListener("click", handlePastedReservationReport);
   dom.reservationForm.addEventListener("submit", addReservationFromForm);
+  dom.reservationsList.addEventListener("input", (event) => {
+    const quantityInput = event.target.closest("[data-reservation-quantity]");
+    if (!quantityInput) return;
+    stageReservationQuantity(quantityInput.dataset.reservationQuantity, quantityInput.value, quantityInput);
+  });
+  dom.reservationsList.addEventListener(
+    "toggle",
+    (event) => {
+      const card = event.target.closest("[data-reservation-customer]");
+      if (!card) return;
+      const customerId = card.dataset.reservationCustomer;
+      if (!customerId) return;
+      if (card.open) openReservationCustomerIds.add(customerId);
+      else openReservationCustomerIds.delete(customerId);
+    },
+    true,
+  );
   dom.reservationsList.addEventListener("change", (event) => {
     const quantityInput = event.target.closest("[data-reservation-quantity]");
     if (!quantityInput) return;
-    setReservationQuantity(quantityInput.dataset.reservationQuantity, quantityInput.value);
+    stageReservationQuantity(quantityInput.dataset.reservationQuantity, quantityInput.value, quantityInput);
   });
   dom.reservationsList.addEventListener("click", (event) => {
+    const saveButton = event.target.closest("[data-save-reservation-customer]");
+    if (saveButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      saveReservationCustomerChanges(saveButton.dataset.saveReservationCustomer);
+      return;
+    }
+
     const exportButton = event.target.closest("[data-export-reservations]");
     if (exportButton) {
       event.preventDefault();
@@ -2543,7 +2570,8 @@ function renderReservationCustomerGroup(customerId, entries, open = false) {
 
   const card = document.createElement("details");
   card.className = "reservation-customer-card";
-  card.open = open;
+  card.dataset.reservationCustomer = customer.id;
+  card.open = open || openReservationCustomerIds.has(customer.id);
 
   const header = document.createElement("summary");
   header.className = "reservation-customer-header";
@@ -2576,10 +2604,24 @@ function renderReservationCustomerGroup(customerId, entries, open = false) {
   title.append(exportButton);
   header.append(title, total);
 
+  const pendingChangeCount = getPendingReservationChanges(customer.id).length;
+  const saveActions = document.createElement("div");
+  saveActions.className = "reservation-customer-save-actions";
+  saveActions.innerHTML = `
+    <span class="reservation-save-status" data-reservation-save-status>${pendingChangeCount ? `${pendingChangeCount.toLocaleString("he-IL")} שינויים ממתינים לשמירה` : "ערוך כמויות ולחץ שמור"}</span>
+    <button
+      class="file-button reservation-save-button"
+      type="button"
+      data-save-reservation-customer="${escapeHtml(customer.id)}"
+      ${pendingChangeCount ? "" : "disabled"}
+    >שמור שינויים</button>
+  `;
+  card.classList.toggle("has-pending-reservation-changes", pendingChangeCount > 0);
+
   const rows = entries
     .sort((a, b) => a.sku.localeCompare(b.sku, "en"))
     .map(renderReservationRow);
-  card.append(header, ...rows);
+  card.append(header, saveActions, ...rows);
   return card;
 }
 
@@ -2604,9 +2646,11 @@ function renderReservationRow(reservation) {
   quantity.inputMode = "numeric";
   quantity.min = "0";
   quantity.step = "1";
-  quantity.value = String(reservation.quantity);
+  const pendingQuantity = pendingReservationQuantities.get(reservation.id);
+  quantity.value = String(pendingQuantity ?? reservation.quantity);
   quantity.dataset.reservationQuantity = reservation.id;
   quantity.setAttribute("aria-label", `כמות שנותרה עבור ${reservation.sku}`);
+  quantity.classList.toggle("is-dirty", pendingQuantity !== undefined);
 
   const remove = document.createElement("button");
   remove.type = "button";
@@ -2651,13 +2695,72 @@ function addReservationFromForm(event) {
   dom.status.textContent = `${sku} נוסף לשריון של ${customer.name}.`;
 }
 
-function setReservationQuantity(reservationId, value) {
+function stageReservationQuantity(reservationId, value, input = null) {
   const reservation = reservations.find((item) => item.id === reservationId);
   if (!reservation) return;
-  reservation.quantity = parseNonNegativeInteger(value);
-  reservation.updatedAt = new Date().toISOString();
+
+  const rawValue = String(value ?? "").trim();
+  if (!rawValue) {
+    pendingReservationQuantities.delete(reservation.id);
+    input?.classList.add("is-invalid");
+    updateReservationCustomerSaveUi(reservation.customerId);
+    return;
+  }
+
+  const nextQuantity = parseNonNegativeInteger(rawValue);
+  if (nextQuantity === reservation.quantity) {
+    pendingReservationQuantities.delete(reservation.id);
+  } else {
+    pendingReservationQuantities.set(reservation.id, nextQuantity);
+  }
+  input?.classList.toggle("is-dirty", pendingReservationQuantities.has(reservation.id));
+  input?.classList.remove("is-invalid");
+  openReservationCustomerIds.add(reservation.customerId);
+  updateReservationCustomerSaveUi(reservation.customerId);
+}
+
+function getPendingReservationChanges(customerId) {
+  return reservations
+    .filter((reservation) => reservation.customerId === customerId && pendingReservationQuantities.has(reservation.id))
+    .map((reservation) => ({ reservation, quantity: pendingReservationQuantities.get(reservation.id) }));
+}
+
+function updateReservationCustomerSaveUi(customerId) {
+  const card = [...dom.reservationsList.querySelectorAll("[data-reservation-customer]")]
+    .find((item) => item.dataset.reservationCustomer === customerId);
+  if (!card) return;
+
+  const pendingChangeCount = getPendingReservationChanges(customerId).length;
+  const saveButton = card.querySelector("[data-save-reservation-customer]");
+  const status = card.querySelector("[data-reservation-save-status]");
+  card.classList.toggle("has-pending-reservation-changes", pendingChangeCount > 0);
+  if (saveButton) saveButton.disabled = pendingChangeCount === 0;
+  if (status) {
+    status.textContent = pendingChangeCount
+      ? `${pendingChangeCount.toLocaleString("he-IL")} שינויים ממתינים לשמירה`
+      : "ערוך כמויות ולחץ שמור";
+  }
+}
+
+function saveReservationCustomerChanges(customerId) {
+  const changes = getPendingReservationChanges(customerId);
+  if (!changes.length) {
+    updateReservationCustomerSaveUi(customerId);
+    return;
+  }
+
+  const now = new Date().toISOString();
+  changes.forEach(({ reservation, quantity }) => {
+    reservation.quantity = quantity;
+    reservation.updatedAt = now;
+    pendingReservationQuantities.delete(reservation.id);
+  });
+  sortReservations();
   saveReservations();
-  render();
+  openReservationCustomerIds.add(customerId);
+  renderReservationsPanel();
+  renderDashboard();
+  dom.status.textContent = `${changes.length.toLocaleString("he-IL")} שינויים בשריון נשמרו.`;
 }
 
 function deleteReservation(reservationId) {
@@ -2665,6 +2768,8 @@ function deleteReservation(reservationId) {
   if (!reservation) return;
   const customer = customers.find((item) => item.id === reservation.customerId);
   if (!window.confirm(`למחוק את ${reservation.sku} מהשריון של ${customer?.name || reservation.customerName}?`)) return;
+  pendingReservationQuantities.delete(reservationId);
+  if (customer?.id) openReservationCustomerIds.add(customer.id);
   reservations = reservations.filter((item) => item.id !== reservationId);
   saveReservations();
   render();
