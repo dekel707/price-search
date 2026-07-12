@@ -6489,3 +6489,156 @@ body {
     justify-content: start;
   }
 }
+
+/* Tomorrow orders: a restrained orange variant with the same action language as Orders. */
+.orders-panel.tomorrow-orders-panel {
+  border-color: rgba(232, 151, 72, 0.48);
+  background:
+    radial-gradient(circle at 100% 0, rgba(221, 131, 47, 0.15), transparent 35%),
+    linear-gradient(145deg, rgba(61, 35, 21, 0.98), rgba(20, 20, 31, 0.99));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 211, 160, 0.07);
+}
+
+.orders-panel.tomorrow-orders-panel .panel-header h2,
+.orders-panel.tomorrow-orders-panel .eyebrow {
+  color: #fff0dc;
+}
+
+.orders-panel-icon.tomorrow {
+  border-color: rgba(250, 174, 91, 0.82);
+  background: linear-gradient(145deg, #9e5b24, #dc913d);
+  color: #fff8ee;
+  box-shadow: 0 8px 18px rgba(156, 88, 29, 0.28);
+}
+
+.orders-panel .orders-panel-chip.tomorrow {
+  border-color: rgba(249, 176, 96, 0.62);
+  background: linear-gradient(135deg, rgba(139, 75, 25, 0.68), rgba(231, 150, 70, 0.16));
+  color: #ffdfba;
+}
+
+.orders-panel .order-card.tomorrow-order-card {
+  border-color: rgba(230, 151, 73, 0.46);
+  background:
+    radial-gradient(circle at 100% 0, rgba(220, 131, 47, 0.12), transparent 37%),
+    linear-gradient(145deg, rgba(62, 38, 25, 0.98), rgba(17, 23, 35, 0.99));
+}
+
+.orders-panel .order-card.tomorrow-order-card:hover {
+  border-color: rgba(250, 177, 94, 0.76);
+  background:
+    radial-gradient(circle at 100% 0, rgba(230, 146, 60, 0.17), transparent 39%),
+    linear-gradient(145deg, rgba(77, 47, 27, 0.99), rgba(22, 27, 42, 1));
+}
+
+.tomorrow-order-card .order-card-kind-icon.calendar {
+  border-color: rgba(251, 181, 100, 0.68);
+  background: linear-gradient(145deg, rgba(151, 82, 28, 0.74), rgba(230, 151, 64, 0.16));
+  color: #ffe2bd;
+}
+
+.orders-panel .order-card.tomorrow-order-card::before {
+  background: #e79a4b;
+  box-shadow: 0 0 13px rgba(231, 154, 75, 0.42);
+}
+
+/* Tomorrow keeps the familiar blue / teal / purple / gold / green order actions. */
+.orders-panel .tomorrow-order-card .order-action-view {
+  border-color: rgba(68, 190, 255, 0.58);
+  background: rgba(19, 116, 176, 0.2);
+  color: #92e3ff;
+}
+
+.orders-panel .tomorrow-order-card .order-action-copy {
+  border-color: rgba(50, 224, 196, 0.58);
+  background: rgba(16, 155, 134, 0.18);
+  color: #87ffe7;
+}
+
+.orders-panel .tomorrow-order-card .order-action-edit {
+  border-color: rgba(164, 132, 255, 0.62);
+  background: rgba(105, 74, 215, 0.2);
+  color: #d7c6ff;
+}
+
+.orders-panel .tomorrow-order-card .order-action-draft {
+  border-color: rgba(255, 184, 81, 0.65);
+  background: rgba(203, 120, 14, 0.18);
+  color: #ffda92;
+}
+
+.orders-panel .tomorrow-order-card .order-action-whatsapp {
+  border-color: #39db7c;
+  background: linear-gradient(135deg, #1bb85f, #38df83);
+  color: #062b17;
+}
+
+.orders-panel .tomorrow-order-card .order-action-delete {
+  border-color: rgba(255, 102, 128, 0.7);
+  background: rgba(174, 38, 67, 0.24);
+  color: #ffb5c2;
+}
+
+/* Reservation quantities are staged in place, then written only with the save action. */
+.reservation-customer-card.has-pending-reservation-changes {
+  border-color: rgba(245, 182, 94, 0.56);
+}
+
+.reservation-customer-save-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(122, 194, 210, 0.14);
+  background: linear-gradient(135deg, rgba(6, 62, 79, 0.58), rgba(12, 34, 49, 0.52));
+}
+
+.reservation-save-status {
+  color: #a9c8d5;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.has-pending-reservation-changes .reservation-save-status {
+  color: #ffe0ad;
+}
+
+.reservation-save-button {
+  min-height: 36px;
+  padding-inline: 12px;
+  border-color: rgba(45, 219, 185, 0.62);
+  background: linear-gradient(135deg, #087d7c, #10b996);
+  color: #effffb;
+  font-size: 0.8rem;
+}
+
+.reservation-save-button:disabled {
+  cursor: not-allowed;
+  border-color: rgba(107, 151, 167, 0.26);
+  background: rgba(11, 42, 58, 0.64);
+  color: #7893a2;
+  opacity: 0.8;
+}
+
+.reservation-row-controls input.is-dirty {
+  border-color: #f0ad57;
+  background: rgba(94, 55, 19, 0.45);
+  box-shadow: 0 0 0 3px rgba(240, 173, 87, 0.12);
+}
+
+.reservation-row-controls input.is-invalid {
+  border-color: #ee6979;
+  box-shadow: 0 0 0 3px rgba(238, 105, 121, 0.12);
+}
+
+@media (max-width: 620px) {
+  .reservation-customer-save-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reservation-save-button {
+    width: 100%;
+  }
+}
