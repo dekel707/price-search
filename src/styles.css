@@ -6044,3 +6044,99 @@ body {
     width: 100%;
   }
 }
+
+/* Final order screen palette: keep the vivid document-card colors above generic panels. */
+.orders-panel.orders-history-panel {
+  border-color: rgba(45, 180, 231, 0.5);
+  background:
+    radial-gradient(circle at 100% 0, rgba(43, 166, 239, 0.26), transparent 34%),
+    linear-gradient(145deg, rgba(7, 31, 51, 0.99), rgba(8, 18, 37, 0.99));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(126, 226, 255, 0.09);
+}
+
+.orders-panel.tomorrow-orders-panel {
+  border-color: rgba(142, 115, 255, 0.56);
+  background:
+    radial-gradient(circle at 100% 0, rgba(132, 94, 255, 0.28), transparent 34%),
+    linear-gradient(145deg, rgba(28, 19, 66, 0.99), rgba(11, 16, 43, 0.99));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.27), inset 0 1px 0 rgba(207, 191, 255, 0.1);
+}
+
+.orders-panel.orders-history-panel .panel-header h2,
+.orders-panel.orders-history-panel .eyebrow {
+  color: #d9f8ff;
+}
+
+.orders-panel.tomorrow-orders-panel .panel-header h2,
+.orders-panel.tomorrow-orders-panel .eyebrow {
+  color: #eee9ff;
+}
+
+.orders-panel .orders-panel-chip.history {
+  color: #baf7ff;
+  border-color: rgba(38, 218, 232, 0.68);
+  background: linear-gradient(135deg, rgba(2, 122, 148, 0.72), rgba(10, 211, 211, 0.24));
+}
+
+.orders-panel .orders-panel-chip.tomorrow {
+  color: #eee6ff;
+  border-color: rgba(176, 132, 255, 0.72);
+  background: linear-gradient(135deg, rgba(96, 56, 203, 0.78), rgba(168, 94, 255, 0.28));
+}
+
+.orders-panel .order-card.orders-history-card {
+  border-color: rgba(42, 185, 236, 0.54);
+  background:
+    radial-gradient(circle at 100% 0, rgba(3, 185, 222, 0.16), transparent 35%),
+    linear-gradient(145deg, rgba(8, 37, 57, 0.99), rgba(5, 21, 37, 0.99));
+}
+
+.orders-panel .order-card.tomorrow-order-card {
+  border-color: rgba(142, 116, 255, 0.58);
+  background:
+    radial-gradient(circle at 100% 0, rgba(131, 94, 255, 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(34, 27, 81, 0.99), rgba(13, 19, 49, 0.99));
+}
+
+.orders-panel .order-card.orders-history-card:hover {
+  border-color: #48d8ee;
+  background:
+    radial-gradient(circle at 100% 0, rgba(16, 218, 238, 0.22), transparent 38%),
+    linear-gradient(145deg, rgba(9, 51, 72, 1), rgba(6, 25, 43, 1));
+}
+
+.orders-panel .order-card.tomorrow-order-card:hover {
+  border-color: #b4a2ff;
+  background:
+    radial-gradient(circle at 100% 0, rgba(160, 126, 255, 0.28), transparent 38%),
+    linear-gradient(145deg, rgba(46, 38, 103, 1), rgba(17, 24, 62, 1));
+}
+
+.orders-panel .order-action-button,
+.orders-panel .order-card .secondary-button {
+  border-color: rgba(71, 177, 210, 0.5);
+  background: linear-gradient(145deg, rgba(10, 44, 64, 0.97), rgba(5, 23, 39, 0.97));
+  color: #e2f8ff;
+}
+
+.orders-panel .tomorrow-order-card .order-action-button,
+.orders-panel .tomorrow-order-card .secondary-button {
+  border-color: rgba(150, 129, 255, 0.52);
+  background: linear-gradient(145deg, rgba(53, 43, 118, 0.98), rgba(20, 26, 67, 0.98));
+  color: #f0edff;
+}
+
+.orders-panel .order-action-button:hover,
+.orders-panel .order-action-button:focus-visible,
+.orders-panel .order-card .secondary-button:hover,
+.orders-panel .order-card .secondary-button:focus-visible {
+  border-color: #36e4d5;
+  background: linear-gradient(135deg, #087d7c, #10b996);
+  color: #f4fffd;
+}
+
+.orders-panel .order-action-button.action-danger {
+  border-color: rgba(255, 102, 119, 0.64);
+  background: linear-gradient(135deg, rgba(113, 25, 43, 0.98), rgba(65, 20, 34, 0.98));
+  color: #ffced5;
+}
