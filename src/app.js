@@ -29,6 +29,7 @@ const GENERAL_PRODUCT = { sku: "כללי", description: "מוצר כללי", pri
 const CLOUD_STATE_ENDPOINT = "/api/state";
 const AUTH_ENDPOINT = "/api/auth";
 const COLLECTION_IMPORT_ENDPOINT = "/api/import-collections";
+const AI_ORDER_ENDPOINT = "/api/ai-order";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const CLOUD_SYNC_DISABLED = URL_PARAMS.has("local");
@@ -225,6 +226,11 @@ const dom = {
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarEventsCount: document.querySelector("#calendarEventsCount"),
   calendarEventsList: document.querySelector("#calendarEventsList"),
+  aiOrderForm: document.querySelector("#aiOrderForm"),
+  aiOrderInput: document.querySelector("#aiOrderInput"),
+  aiOrderGenerate: document.querySelector("#aiOrderGenerate"),
+  aiOrderStatus: document.querySelector("#aiOrderStatus"),
+  aiOrderResult: document.querySelector("#aiOrderResult"),
   dashboardStats: document.querySelector("#dashboardStats"),
   dashboardInsights: document.querySelector("#dashboardInsights"),
   dashboardRecentOrders: document.querySelector("#dashboardRecentOrders"),
@@ -308,6 +314,7 @@ let openCollectionDetails = new Set();
 let openReservationCustomerIds = new Set();
 let pendingReservationQuantities = new Map();
 let calendarMonthCursor = startOfLocalMonth(new Date());
+let aiOrderProposal = null;
 let activeTab = "search";
 let orderType = "delivery";
 let activeCustomerId = "";
@@ -706,6 +713,8 @@ function bindEvents() {
   });
   dom.calendarPrevious.addEventListener("click", () => shiftCalendarMonth(-1));
   dom.calendarNext.addEventListener("click", () => shiftCalendarMonth(1));
+  dom.aiOrderForm.addEventListener("submit", requestAiOrderProposal);
+  dom.aiOrderResult.addEventListener("click", handleAiOrderAction);
   dom.collectionForm.addEventListener("submit", saveCollectionFromForm);
   dom.collectionPaymentForm.addEventListener("submit", saveCollectionPaymentFromForm);
   dom.cancelCollectionEdit.addEventListener("click", resetCollectionForm);
@@ -3620,6 +3629,243 @@ function formatCalendarHebrewDate(date) {
     year: "numeric",
     timeZone: "Asia/Jerusalem",
   });
+}
+
+async function requestAiOrderProposal(event) {
+  event.preventDefault();
+  const instruction = cleanString(dom.aiOrderInput.value);
+  if (instruction.length < 4) {
+    dom.aiOrderStatus.textContent = "כתוב את פרטי ההזמנה כדי שאוכל להכין הצעה.";
+    dom.aiOrderInput.focus();
+    return;
+  }
+
+  aiOrderProposal = null;
+  dom.aiOrderGenerate.disabled = true;
+  dom.aiOrderStatus.textContent = "מאתר לקוח, מוצרים ושריונים…";
+  dom.aiOrderResult.innerHTML = `<div class="ai-order-loading"><span></span>מכין הצעה לבדיקה</div>`;
+
+  try {
+    const response = await fetch(AI_ORDER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ instruction }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      lockApp("יש להתחבר מחדש כדי להשתמש בעוזר.");
+      return;
+    }
+    if (!response.ok || !data?.proposal) {
+      dom.aiOrderStatus.textContent = getAiOrderErrorMessage(data?.error, response.status);
+      renderAiOrderEmptyState();
+      return;
+    }
+
+    aiOrderProposal = data.proposal;
+    dom.aiOrderStatus.textContent = data.proposal.ready
+      ? "ההצעה מוכנה. בדוק אותה לפני שמירה או שליחה."
+      : "ההצעה דורשת תיקון קטן לפני שאפשר ליצור הזמנה.";
+    renderAiOrderProposal();
+  } catch (error) {
+    console.warn("AI order proposal failed", error);
+    dom.aiOrderStatus.textContent = "לא הצלחתי להכין הצעה כרגע. נסה שוב.";
+    renderAiOrderEmptyState();
+  } finally {
+    dom.aiOrderGenerate.disabled = false;
+  }
+}
+
+function getAiOrderErrorMessage(error, status) {
+  if (error === "ai_not_configured") return "חיבור ה‑AI עדיין לא הוגדר. יש להוסיף OPENAI_API_KEY ב‑Vercel.";
+  if (error === "unauthorized") return "יש להתחבר מחדש כדי להשתמש בעוזר.";
+  if (error === "cloud_storage_not_configured") return "האחסון בענן לא זמין כרגע.";
+  if (error === "invalid_instruction") return "כתוב בקשה מפורטת יותר, למשל שם לקוח וכמויות.";
+  if (error === "ai_provider_error") return "שירות ה‑AI לא זמין כרגע. נסה שוב בעוד רגע.";
+  return status >= 500 ? "לא הצלחתי להכין הצעה כרגע. נסה שוב." : "לא הצלחתי להבין את הבקשה. נסח אותה מחדש.";
+}
+
+function renderAiOrderEmptyState() {
+  dom.aiOrderResult.innerHTML = `
+    <div class="ai-order-empty">
+      <strong>הצעה תופיע כאן לפני כל פעולה.</strong>
+      <span>לא תישמר הזמנה ולא תיפתח הודעה ב‑WhatsApp ללא לחיצה מפורשת שלך.</span>
+    </div>
+  `;
+}
+
+function renderAiOrderProposal() {
+  if (!aiOrderProposal) {
+    renderAiOrderEmptyState();
+    return;
+  }
+
+  const proposal = aiOrderProposal;
+  const items = Array.isArray(proposal.items) ? proposal.items : [];
+  const unmatched = Array.isArray(proposal.unmatched) ? proposal.unmatched : [];
+  const customerName = cleanString(proposal.customer?.name || proposal.customerQuery || "לא זוהה לקוח");
+  const issueMessages = [cleanString(proposal.clarification), ...unmatched.map((item) => `לא נמצא: ${item.query}`)].filter(Boolean);
+  const ready = Boolean(proposal.ready && proposal.customer?.id && items.length && !unmatched.length);
+  const reservationUnits = items.reduce((sum, item) => sum + parseNonNegativeInteger(item.reservedQuantity), 0);
+  const paidUnits = items.reduce((sum, item) => sum + parseNonNegativeInteger(item.paidQuantity), 0);
+
+  const itemMarkup = items.length
+    ? items
+        .map((item) => {
+          const reservedQuantity = parseNonNegativeInteger(item.reservedQuantity);
+          const paidQuantity = parseNonNegativeInteger(item.paidQuantity);
+          const reservationText = reservedQuantity
+            ? `מהשריון: <strong>${reservedQuantity.toLocaleString("he-IL")} יח׳</strong> · נשאר בשריון: ${Math.max(0, Number(item.reservationRemainingAfter) || 0).toLocaleString("he-IL")}`
+            : "מהשריון: 0 יח׳";
+          const pricedText = paidQuantity
+            ? `למחירון: <strong>${paidQuantity.toLocaleString("he-IL")} יח׳ × ${formatPrice(item.unitPrice)}</strong>`
+            : "למחירון: 0 יח׳";
+          return `
+            <article class="ai-order-line">
+              <div class="ai-order-line-main">
+                <strong>${escapeHtml(item.sku || "ללא מק״ט")}</strong>
+                <span>${escapeHtml(item.description || "מוצר")}</span>
+              </div>
+              <div class="ai-order-line-quantity">${parseNonNegativeInteger(item.quantity).toLocaleString("he-IL")} יח׳</div>
+              <div class="ai-order-line-sources">
+                <span class="ai-order-source reservation">${reservationText}</span>
+                <span class="ai-order-source priced">${pricedText}</span>
+              </div>
+              <strong class="ai-order-line-total">${formatPrice(Number(item.pricedTotal) || 0)}</strong>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div class="ai-order-empty small"><strong>לא נמצאו עדיין מוצרים להצעה.</strong></div>`;
+
+  const issueMarkup = issueMessages.length
+    ? `<div class="ai-order-issues">${issueMessages.map((message) => `<span>${escapeHtml(message)}</span>`).join("")}</div>`
+    : "";
+  const actionMarkup = ready
+    ? `
+      <div class="ai-order-confirmation">
+        <span>ההצעה לא נשמרה עדיין. בחר מה לעשות:</span>
+        <div class="ai-order-confirmation-actions">
+          <button class="secondary-button" type="button" data-ai-order-action="cart">טען לסל לבדיקה</button>
+          <button class="file-button" type="button" data-ai-order-action="save">שמור הזמנה</button>
+          <button class="whatsapp-button" type="button" data-ai-order-action="whatsapp">שמור ופתח WhatsApp</button>
+        </div>
+      </div>
+    `
+    : `<div class="ai-order-confirmation pending"><span>עדכן את הנוסח ושלח שוב כדי להשלים את הפריטים החסרים.</span></div>`;
+
+  dom.aiOrderResult.innerHTML = `
+    <section class="ai-order-proposal ${ready ? "ready" : "needs-review"}">
+      <div class="ai-order-proposal-header">
+        <div>
+          <span>לקוח</span>
+          <strong>${escapeHtml(customerName)}</strong>
+        </div>
+        <div class="ai-order-proposal-total">
+          <span>לתשלום לפי מחירון</span>
+          <strong>${formatPrice(Number(proposal.total) || 0)}</strong>
+        </div>
+      </div>
+      <div class="ai-order-summary-chips">
+        <span class="reservation">${reservationUnits.toLocaleString("he-IL")} יח׳ מהשריון</span>
+        <span class="priced">${paidUnits.toLocaleString("he-IL")} יח׳ במחירון</span>
+      </div>
+      ${issueMarkup}
+      <div class="ai-order-lines">${itemMarkup}</div>
+      ${actionMarkup}
+    </section>
+  `;
+}
+
+function handleAiOrderAction(event) {
+  const action = event.target.closest("[data-ai-order-action]")?.dataset.aiOrderAction;
+  if (!action || !aiOrderProposal?.ready) return;
+
+  if (action === "cart") {
+    loadAiProposalIntoCart({ openCart: true });
+    return;
+  }
+
+  const loaded = loadAiProposalIntoCart({ openCart: false });
+  if (!loaded) return;
+  const shouldOpenWhatsApp = action === "whatsapp";
+  const order = saveOrder({
+    status: shouldOpenWhatsApp
+      ? "הזמנת העוזר נשמרה. הודעת ה‑WhatsApp נפתחה לשליחה."
+      : "הזמנת העוזר נשמרה והשריונים עודכנו.",
+  });
+  if (!order || !shouldOpenWhatsApp) return;
+
+  const url = createWhatsAppUrl(order.items, order);
+  if (!url) {
+    dom.status.textContent = "ההזמנה נשמרה. כדי לפתוח WhatsApp יש להגדיר מספר קבוע בסל.";
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function loadAiProposalIntoCart(options = { openCart: true }) {
+  const proposal = aiOrderProposal;
+  if (!proposal?.ready || !proposal.customer?.id || !Array.isArray(proposal.items) || !proposal.items.length) {
+    dom.aiOrderStatus.textContent = "אין הצעה מלאה שאפשר לטעון לסל.";
+    return false;
+  }
+
+  const customer = customers.find((item) => item.id === proposal.customer.id);
+  if (!customer) {
+    dom.aiOrderStatus.textContent = "הלקוח בהצעה כבר לא קיים. הכין הצעה חדשה.";
+    return false;
+  }
+  if (cart.length && !window.confirm("להחליף את הפריטים שכבר נמצאים בסל בהצעת העוזר?")) return false;
+
+  const proposalProducts = proposal.items.map((item) => ({
+    item,
+    product: products.find((product) => product.skuKey === item.skuKey),
+  }));
+  if (proposalProducts.some(({ product }) => !product)) {
+    dom.aiOrderStatus.textContent = "אחד המוצרים כבר לא קיים במחירון. הכין הצעה חדשה.";
+    return false;
+  }
+
+  cart = [];
+  editingOrderId = "";
+  editingDraftId = "";
+  duplicatedOrderNeedsCustomer = false;
+  orderReportTomorrow = false;
+  dom.saveAsDraft.checked = false;
+  setOrderType("delivery", { render: false });
+  applyCustomerToDraft(customer);
+  customerConfirmedForCurrentCart = true;
+
+  proposalProducts.forEach(({ item, product }) => {
+    const reservedQuantity = parseNonNegativeInteger(item.reservedQuantity);
+    const paidQuantity = parseNonNegativeInteger(item.paidQuantity);
+    if (reservedQuantity > 0) {
+      upsertCartLine(product, reservedQuantity, {
+        fromReservation: true,
+        unitPrice: 0,
+        priceSource: "reservation",
+      });
+    }
+    if (paidQuantity > 0) {
+      upsertCartLine(product, paidQuantity, {
+        fromReservation: false,
+        unitPrice: Math.max(0, parsePrice(item.unitPrice) ?? product.price),
+        priceSource: "list",
+      });
+    }
+  });
+
+  cart = orderCartLines(cart);
+  saveCart();
+  saveSettings();
+  saveOrderReportTomorrow();
+  render();
+  dom.status.textContent = "הצעת העוזר נטענה לסל. בדוק אותה לפני שמירה.";
+  if (options.openCart) setActiveTab("cart");
+  return true;
 }
 
 function renderCollectionsPanel() {
