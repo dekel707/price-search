@@ -239,6 +239,10 @@ const dom = {
   collectionAmount: document.querySelector("#collectionAmount"),
   collectionDueDate: document.querySelector("#collectionDueDate"),
   collectionNote: document.querySelector("#collectionNote"),
+  collectionPaymentForm: document.querySelector("#collectionPaymentForm"),
+  collectionPaymentCustomer: document.querySelector("#collectionPaymentCustomer"),
+  collectionPaymentAmount: document.querySelector("#collectionPaymentAmount"),
+  collectionPaymentStatus: document.querySelector("#collectionPaymentStatus"),
   collectionReportInput: document.querySelector("#collectionReportInput"),
   collectionImportStatus: document.querySelector("#collectionImportStatus"),
   cancelCollectionEdit: document.querySelector("#cancelCollectionEdit"),
@@ -658,6 +662,7 @@ function bindEvents() {
     if (deleteButton) deleteReminder(deleteButton.dataset.deleteReminder);
   });
   dom.collectionForm.addEventListener("submit", saveCollectionFromForm);
+  dom.collectionPaymentForm.addEventListener("submit", saveCollectionPaymentFromForm);
   dom.cancelCollectionEdit.addEventListener("click", resetCollectionForm);
   dom.collectionReportInput.addEventListener("change", handleCollectionReportUpload);
   dom.collectionSearch.addEventListener("input", renderCollectionsPanel);
@@ -1677,7 +1682,7 @@ function renderResultNodes(items, query, totalMatches) {
     if (!isDiscontinued && !shouldAskForCartCustomer()) {
       const inlineFields = document.createElement("div");
       inlineFields.className = "inline-add-fields";
-      const quantity = createNumberField("כמות", 1, {
+      const quantity = createQuantitySelectField("כמות", 1, {
         min: 1,
         step: 1,
         attr: "addQuantity",
@@ -3389,23 +3394,29 @@ function renderCollectionDetails(item) {
 
 function renderCollectionMonth(item, month) {
   const monthInvoices = getCollectionMonthInvoices(item, month.monthKey);
+  const openAmount = getCollectionMonthOpenAmount(month);
+  const paidAmount = getCollectionMonthPaidAmount(month);
+  const isPaid = openAmount <= 0;
   const row = document.createElement("details");
   row.className = "collection-month-panel";
-  row.classList.toggle("paid", month.paid);
+  row.classList.toggle("paid", isPaid);
   row.innerHTML = `
     <summary class="collection-month-summary">
       <span>
         <b>${escapeHtml(month.label || formatMonthKey(month.monthKey))}</b>
         <small>${Number(month.invoiceCount || monthInvoices.length).toLocaleString("he-IL")} חשבוניות · ${escapeHtml(formatCollectionDueDates(monthInvoices))}</small>
       </span>
-      <strong>${escapeHtml(formatPrice(month.amount))}</strong>
+      <span class="collection-month-values">
+        <strong>${escapeHtml(formatPrice(openAmount))}</strong>
+        ${paidAmount > 0 ? `<small>שולם ${escapeHtml(formatPrice(paidAmount))}</small>` : ""}
+      </span>
       <button
         type="button"
         class="collection-status-button month-status"
         data-toggle-collection-month="${escapeHtml(item.id)}"
         data-month-key="${escapeHtml(month.monthKey)}"
-        data-paid-next="${month.paid ? "false" : "true"}"
-      >${month.paid ? "שולם" : "פתוח"}</button>
+        data-paid-next="${isPaid ? "false" : "true"}"
+      >${isPaid ? "שולם" : paidAmount > 0 ? "חלקי" : "פתוח"}</button>
     </summary>
     ${renderCollectionInvoicesTable(monthInvoices)}
   `;
@@ -3490,6 +3501,7 @@ function saveCollectionFromForm(event) {
     customerId: customer?.id || existing?.customerId || "",
     customerName,
     amount: roundMoney(amount),
+    paidAmount: existing ? Math.min(roundMoney(amount), getCollectionEntryPaidAmount(existing)) : 0,
     accountNumber: existing?.accountNumber || "",
     invoices: existing?.invoices || [],
     months: existing?.months || [],
@@ -3519,6 +3531,120 @@ function saveCollectionFromForm(event) {
     : existing
       ? "פרטי הגיול עודכנו."
       : "חוב חדש נוסף לגיול.";
+}
+
+function saveCollectionPaymentFromForm(event) {
+  event.preventDefault();
+  const customerName = cleanString(dom.collectionPaymentCustomer.value);
+  const amount = parsePrice(dom.collectionPaymentAmount.value);
+  if (!customerName) {
+    dom.collectionPaymentStatus.textContent = "צריך לבחור או להקליד לקוח.";
+    dom.collectionPaymentCustomer.focus();
+    return;
+  }
+  if (amount === null || amount <= 0) {
+    dom.collectionPaymentStatus.textContent = "צריך להזין סכום תשלום גדול מאפס.";
+    dom.collectionPaymentAmount.focus();
+    return;
+  }
+
+  const customer = findCustomerByLooseName(customerName);
+  const result = applyCollectionPayment(customer, customerName, amount);
+  if (result.applied <= 0) {
+    const message = "לא נמצא ללקוח חוב פתוח לקיזוז בגיול.";
+    dom.collectionPaymentStatus.textContent = message;
+    dom.status.textContent = message;
+    return;
+  }
+
+  saveCollections();
+  renderCollectionsPanel();
+  renderDashboard();
+  dom.collectionPaymentAmount.value = "";
+  const details = [`${formatPrice(result.applied)} קוזזו מ־${result.monthsUpdated.toLocaleString("he-IL")} חודשים`];
+  if (result.unapplied > 0) details.push(`${formatPrice(result.unapplied)} לא נקלטו כי אין יתרת חוב פתוחה`);
+  const message = `${details.join(" · ")}.`;
+  dom.collectionPaymentStatus.textContent = message;
+  dom.status.textContent = message;
+}
+
+function applyCollectionPayment(customer, customerName, amount) {
+  const normalizedName = normalizeSearch(customerName);
+  const matchesCustomer = (collection) =>
+    (customer?.id && collection.customerId === customer.id) ||
+    normalizeSearch(collection.customerName) === normalizeSearch(customer?.name || customerName) ||
+    normalizeSearch(collection.customerName) === normalizedName;
+  const targets = [];
+
+  collections.forEach((collection, collectionIndex) => {
+    if (!matchesCustomer(collection) || getCollectionOpenAmount(collection) <= 0) return;
+    if (collection.months?.length) {
+      collection.months.forEach((month, monthIndex) => {
+        if (getCollectionMonthOpenAmount(month) <= 0) return;
+        targets.push({
+          type: "month",
+          collectionIndex,
+          monthIndex,
+          orderKey: `${month.monthKey || "9999-99"}|${collection.createdAt || ""}|${collection.id}`,
+        });
+      });
+      return;
+    }
+    targets.push({
+      type: "collection",
+      collectionIndex,
+      orderKey: `${getInvoiceMonthKey(collection.invoices?.[0]?.invoiceDate) || collection.createdAt?.slice(0, 7) || "9999-99"}|${collection.createdAt || ""}|${collection.id}`,
+    });
+  });
+
+  targets.sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+  if (!targets.length) return { applied: 0, unapplied: amount, monthsUpdated: 0 };
+
+  const now = new Date().toISOString();
+  const nextCollections = collections.map((collection) => ({
+    ...collection,
+    months: collection.months?.map((month) => ({ ...month })) || [],
+  }));
+  let remaining = roundMoney(amount);
+  let applied = 0;
+  let monthsUpdated = 0;
+
+  targets.forEach((target) => {
+    if (remaining <= 0) return;
+    const collection = nextCollections[target.collectionIndex];
+    if (!collection) return;
+
+    if (target.type === "month") {
+      const month = collection.months[target.monthIndex];
+      const openAmount = getCollectionMonthOpenAmount(month);
+      const payment = Math.min(remaining, openAmount);
+      if (payment <= 0) return;
+      month.paidAmount = roundMoney(getCollectionMonthPaidAmount(month) + payment);
+      month.paid = getCollectionMonthOpenAmount(month) <= 0;
+      month.paidAt = month.paid ? now : "";
+      remaining = roundMoney(remaining - payment);
+      applied = roundMoney(applied + payment);
+      monthsUpdated += 1;
+      collection.paid = collection.months.every((entry) => getCollectionMonthOpenAmount(entry) <= 0);
+      collection.paidAt = collection.paid ? collection.paidAt || now : "";
+      collection.updatedAt = now;
+      return;
+    }
+
+    const openAmount = getCollectionOpenAmount(collection);
+    const payment = Math.min(remaining, openAmount);
+    if (payment <= 0) return;
+    collection.paidAmount = roundMoney(getCollectionEntryPaidAmount(collection) + payment);
+    collection.paid = getCollectionOpenAmount(collection) <= 0;
+    collection.paidAt = collection.paid ? collection.paidAt || now : "";
+    collection.updatedAt = now;
+    remaining = roundMoney(remaining - payment);
+    applied = roundMoney(applied + payment);
+    monthsUpdated += 1;
+  });
+
+  collections = nextCollections;
+  return { applied, unapplied: Math.max(0, remaining), monthsUpdated };
 }
 
 async function handleCollectionReportUpload(event) {
@@ -3606,13 +3732,17 @@ function applyCollectionReportImport(items, fileName) {
     const customerName = customer?.name || item.customerName;
     const previous = previousByCustomer.get(normalizeCustomerIdentity(customerName));
     const months = buildCollectionMonths(item.invoices, previous?.months || []);
-    const paid = months.length ? months.every((month) => month.amount <= 0 || month.paid) : item.amount <= 0;
+    const paidAmount = months.length
+      ? roundMoney(months.reduce((sum, month) => sum + getCollectionMonthPaidAmount(month), 0))
+      : getCollectionEntryPaidAmount(previous || { amount: item.amount });
+    const paid = months.length ? months.every((month) => getCollectionMonthOpenAmount(month) <= 0) : paidAmount >= item.amount;
 
     return {
       id: previous?.id || `collection-aging-${Date.now()}-${index}`,
       customerId: customer?.id || previous?.customerId || "",
       customerName,
       amount: item.amount,
+      paidAmount,
       accountNumber: item.accountNumber || previous?.accountNumber || "",
       invoices: item.invoices,
       months,
@@ -3707,14 +3837,21 @@ function buildCollectionMonths(invoices, previousMonths = []) {
     .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
     .map((month) => {
       const previous = stateByMonth.get(month.monthKey);
+      const paidAmount = roundMoney(
+        Math.min(
+          month.amount,
+          Math.max(0, previous ? getCollectionMonthPaidAmount(previous) : 0),
+        ),
+      );
       return {
         monthKey: month.monthKey,
         label: formatMonthKey(month.monthKey),
         amount: roundMoney(month.amount),
+        paidAmount,
         invoiceCount: month.invoiceCount,
         dueDates: [...month.dueDates].sort(),
-        paid: Boolean(previous?.paid),
-        paidAt: previous?.paidAt || "",
+        paid: paidAmount >= roundMoney(month.amount),
+        paidAt: paidAmount >= roundMoney(month.amount) ? previous?.paidAt || "" : "",
       };
     });
 }
@@ -3723,14 +3860,19 @@ function normalizeCollectionMonthState(month) {
   if (!month || typeof month !== "object") return null;
   const monthKey = cleanString(month.monthKey);
   if (!/^\d{4}-\d{2}$/.test(monthKey)) return null;
+  const amount = roundMoney(parsePrice(month.amount) || 0);
+  const paidAmount = month.paid
+    ? amount
+    : roundMoney(Math.min(amount, Math.max(0, parsePrice(month.paidAmount) || 0)));
   return {
     monthKey,
     label: cleanString(month.label) || formatMonthKey(monthKey),
-    amount: roundMoney(parsePrice(month.amount) || 0),
+    amount,
+    paidAmount,
     invoiceCount: Math.max(0, Math.floor(Number(month.invoiceCount) || 0)),
     dueDates: Array.isArray(month.dueDates) ? month.dueDates.map(normalizeDateInput).filter(Boolean).sort() : [],
-    paid: Boolean(month.paid),
-    paidAt: month.paidAt || "",
+    paid: paidAmount >= amount,
+    paidAt: paidAmount >= amount ? month.paidAt || "" : "",
   };
 }
 
@@ -3823,7 +3965,7 @@ function createCollectionMessage(collection) {
 
 function getCollectionOpenMonths(collection) {
   return (collection.months || [])
-    .filter((month) => !month.paid && Number(month.amount) > 0)
+    .filter((month) => getCollectionMonthOpenAmount(month) > 0)
     .sort((a, b) => cleanString(a.monthKey).localeCompare(cleanString(b.monthKey)));
 }
 
@@ -3846,7 +3988,7 @@ function formatCollectionMessageMonth(collection, month) {
   const invoiceCount = Number(month.invoiceCount || monthInvoices.length) || 0;
   const invoiceText = invoiceCount ? ` · ${invoiceCount.toLocaleString("he-IL")} חשבוניות` : "";
   const dueText = formatCollectionMonthDueText(month, monthInvoices);
-  return `- ${month.label || formatMonthKey(month.monthKey)}: ${formatPlainPrice(month.amount)} ש״ח${invoiceText}${dueText}`;
+  return `- ${month.label || formatMonthKey(month.monthKey)}: ${formatPlainPrice(getCollectionMonthOpenAmount(month))} ש״ח${invoiceText}${dueText}`;
 }
 
 function formatCollectionMonthDueText(month, invoices) {
@@ -3936,6 +4078,7 @@ function resetCollectionForm() {
 }
 
 function setCollectionPaid(collectionId, paid) {
+  const now = new Date().toISOString();
   collections = collections.map((item) =>
     item.id === collectionId
       ? {
@@ -3944,12 +4087,14 @@ function setCollectionPaid(collectionId, paid) {
             ? item.months.map((month) => ({
                 ...month,
                 paid: Boolean(paid),
-                paidAt: paid ? new Date().toISOString() : "",
+                paidAmount: paid ? Math.max(0, roundMoney(month.amount)) : 0,
+                paidAt: paid ? now : "",
               }))
             : item.months,
+          paidAmount: paid ? Math.max(0, roundMoney(item.amount)) : 0,
           paid: Boolean(paid),
-          paidAt: paid ? new Date().toISOString() : "",
-          updatedAt: new Date().toISOString(),
+          paidAt: paid ? now : "",
+          updatedAt: now,
         }
       : item,
   );
@@ -3968,11 +4113,12 @@ function setCollectionMonthPaid(collectionId, monthKey, paid) {
         ? {
             ...month,
             paid: Boolean(paid),
+            paidAmount: paid ? Math.max(0, roundMoney(month.amount)) : 0,
             paidAt: paid ? now : "",
           }
         : month,
     );
-    const isPaid = months.length ? months.every((month) => month.amount <= 0 || month.paid) : Boolean(item.paid);
+    const isPaid = months.length ? months.every((month) => getCollectionMonthOpenAmount(month) <= 0) : Boolean(item.paid);
     return {
       ...item,
       months,
@@ -3999,16 +4145,32 @@ function getCollectionStats(items) {
 
 function getCollectionOpenAmount(item) {
   if (item.months?.length) {
-    return roundMoney(item.months.filter((month) => !month.paid && month.amount > 0).reduce((sum, month) => sum + month.amount, 0));
+    return roundMoney(item.months.reduce((sum, month) => sum + getCollectionMonthOpenAmount(month), 0));
   }
-  return item.paid ? 0 : Math.max(0, roundMoney(item.amount));
+  return roundMoney(Math.max(0, (parsePrice(item.amount) ?? 0) - getCollectionEntryPaidAmount(item)));
 }
 
 function getCollectionPaidAmount(item) {
   if (item.months?.length) {
-    return roundMoney(item.months.filter((month) => month.paid).reduce((sum, month) => sum + Math.max(0, month.amount), 0));
+    return roundMoney(item.months.reduce((sum, month) => sum + getCollectionMonthPaidAmount(month), 0));
   }
-  return item.paid ? Math.max(0, roundMoney(item.amount)) : 0;
+  return getCollectionEntryPaidAmount(item);
+}
+
+function getCollectionMonthPaidAmount(month) {
+  const amount = Math.max(0, parsePrice(month?.amount) ?? 0);
+  if (month?.paid) return amount;
+  return roundMoney(Math.min(amount, Math.max(0, parsePrice(month?.paidAmount) ?? 0)));
+}
+
+function getCollectionMonthOpenAmount(month) {
+  return roundMoney(Math.max(0, (parsePrice(month?.amount) ?? 0) - getCollectionMonthPaidAmount(month)));
+}
+
+function getCollectionEntryPaidAmount(item) {
+  const amount = Math.max(0, parsePrice(item?.amount) ?? 0);
+  if (item?.paid) return amount;
+  return roundMoney(Math.min(amount, Math.max(0, parsePrice(item?.paidAmount) ?? 0)));
 }
 
 function getCollectionPaymentAlert(item, reference = new Date()) {
@@ -6152,7 +6314,9 @@ function renderOrders() {
     return;
   }
 
-  dom.ordersList.replaceChildren(...visibleOrders.slice(0, query ? 60 : 12).map(renderOrderCard));
+  dom.ordersList.replaceChildren(
+    ...visibleOrders.slice(0, query ? 60 : 12).map((order) => renderOrderCard(order, { tone: "orders-history-card" })),
+  );
 }
 
 function renderTomorrowOrders() {
@@ -6167,7 +6331,9 @@ function renderTomorrowOrders() {
     return;
   }
 
-  dom.tomorrowOrdersList.replaceChildren(...visibleOrders.slice(0, query ? 60 : 80).map(renderOrderCard));
+  dom.tomorrowOrdersList.replaceChildren(
+    ...visibleOrders.slice(0, query ? 60 : 80).map((order) => renderOrderCard(order, { tone: "tomorrow-order-card" })),
+  );
 }
 
 function filterOrdersByQuery(orderList, query) {
@@ -6262,9 +6428,10 @@ function renderDraftCard(draft) {
   return card;
 }
 
-function renderOrderCard(order) {
+function renderOrderCard(order, options = {}) {
   const card = document.createElement("article");
   card.className = "order-card";
+  if (options.tone) card.classList.add(options.tone);
   card.classList.toggle("reservation-purchase-order", isReservationPurchaseOrder(order));
   const customer = getOrderCustomer(order);
   const customerName = customer?.name || order.customerName;
@@ -6394,6 +6561,33 @@ function createNumberField(labelText, value, options) {
   input.value = String(value);
   input.dataset[options.attr] = options.key;
   label.append(labelNode, input);
+  return label;
+}
+
+function createQuantitySelectField(labelText, value, options) {
+  const label = document.createElement("label");
+  label.className = "field-wrap compact-field";
+  const labelNode = document.createElement("span");
+  labelNode.textContent = labelText;
+  const select = document.createElement("select");
+  const quantities = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 40, 50, 75, 100];
+  const selected = parseQuantity(value);
+  quantities.forEach((quantity) => {
+    const option = document.createElement("option");
+    option.value = String(quantity);
+    option.textContent = String(quantity);
+    option.selected = quantity === selected;
+    select.append(option);
+  });
+  if (!quantities.includes(selected)) {
+    const option = document.createElement("option");
+    option.value = String(selected);
+    option.textContent = String(selected);
+    option.selected = true;
+    select.append(option);
+  }
+  select.dataset[options.attr] = options.key;
+  label.append(labelNode, select);
   return label;
 }
 
@@ -7457,13 +7651,17 @@ function normalizeCollections(value) {
         findCustomerByLooseName(item.customerName);
       const customerName = customer?.name || cleanString(item.customerName);
       if (!customerName) return null;
-      const paid = months.length ? months.every((month) => month.amount <= 0 || month.paid) : Boolean(item.paid);
+      const paidAmount = item.paid
+        ? Math.max(0, roundMoney(amount))
+        : roundMoney(Math.min(Math.max(0, roundMoney(amount)), Math.max(0, parsePrice(item.paidAmount) ?? 0)));
+      const paid = months.length ? months.every((month) => getCollectionMonthOpenAmount(month) <= 0) : paidAmount >= amount;
       return {
         id,
         customerId: customer?.id || cleanString(item.customerId),
         customerName,
         accountNumber: cleanString(item.accountNumber),
         amount: roundMoney(amount),
+        paidAmount,
         invoices,
         months,
         dueDate: normalizeDateInput(item.dueDate),
