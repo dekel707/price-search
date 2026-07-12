@@ -1059,6 +1059,34 @@ h2 {
   white-space: nowrap;
 }
 
+.reservation-paste-import {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(143, 177, 209, 0.22);
+  border-radius: 10px;
+  background: rgba(10, 28, 45, 0.48);
+}
+
+.reservation-paste-import summary {
+  color: #c8e5f6;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.reservation-paste-import p {
+  margin: 0;
+  color: #9fb8c9;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.reservation-paste-import textarea {
+  min-height: 126px;
+  resize: vertical;
+}
+
 .reservations-list {
   display: grid;
   gap: 12px;
