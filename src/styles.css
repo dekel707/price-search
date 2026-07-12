@@ -6642,3 +6642,293 @@ body {
     width: 100%;
   }
 }
+
+/* Shared document-card format for every workspace tab — colors stay owned by each feature. */
+.search-panel,
+.cart-panel,
+.drafts-panel,
+.categories-panel,
+.customers-panel,
+.customer-sales-panel,
+.monthly-sales-panel,
+.collections-panel,
+.reservations-panel,
+.reminders-panel,
+.sold-products-panel,
+.dashboard-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.search-panel::before,
+.cart-panel::before,
+.drafts-panel::before,
+.categories-panel::before,
+.customers-panel::before,
+.customer-sales-panel::before,
+.monthly-sales-panel::before,
+.collections-panel::before,
+.reservations-panel::before,
+.reminders-panel::before,
+.sold-products-panel::before,
+.dashboard-panel::before {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 4px;
+  background: var(--ps-accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--ps-accent) 52%, transparent);
+  content: "";
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.standard-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.standard-panel-title > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.standard-panel-icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--ps-accent) 56%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--ps-accent) 15%, #081a2c);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  color: var(--ps-accent);
+}
+
+.standard-panel-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.standard-panel-chip {
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--ps-accent) 44%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ps-accent) 10%, transparent);
+  color: color-mix(in srgb, var(--ps-accent) 70%, #eaf9ff);
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Headers without dedicated markup receive the same compact icon treatment. */
+[data-tab-panel]:not([data-tab-panel="search"]):not([data-tab-panel="orders"]):not([data-tab-panel="tomorrow-orders"]) .panel-header > div:first-child {
+  position: relative;
+  padding-inline-start: 52px;
+}
+
+[data-tab-panel]:not([data-tab-panel="search"]):not([data-tab-panel="orders"]):not([data-tab-panel="tomorrow-orders"]) .panel-header > div:first-child::before {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--ps-accent) 48%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ps-accent) 12%, #081a2c);
+  color: var(--ps-accent);
+  font-size: 1.05rem;
+  font-weight: 900;
+  content: "▦";
+}
+
+[data-tab-panel="cart"] .panel-header > div:first-child::before { content: "□"; }
+[data-tab-panel="sold-products"] .panel-header > div:first-child::before { content: "↗"; }
+[data-tab-panel="customer-sales"] .panel-header > div:first-child::before { content: "♙"; }
+[data-tab-panel="monthly-sales"] .panel-header > div:first-child::before { content: "▥"; }
+[data-tab-panel="collections"] .panel-header > div:first-child::before { content: "₪"; }
+[data-tab-panel="customers"] .panel-header > div:first-child::before { content: "♧"; }
+[data-tab-panel="reservations"] .panel-header > div:first-child::before { content: "◇"; }
+[data-tab-panel="reminders"] .panel-header > div:first-child::before { content: "◷"; }
+[data-tab-panel="categories"] .panel-header > div:first-child::before { content: "▱"; }
+[data-tab-panel="drafts"] .panel-header > div:first-child::before { content: "✎"; }
+
+.search-panel-header {
+  align-items: center;
+}
+
+.search-panel .search-label {
+  color: #cce8f4;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.search-panel .search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 5px 8px 5px 5px;
+  border: 1px solid rgba(87, 175, 209, 0.34);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(6, 38, 57, 0.82), rgba(4, 23, 39, 0.86));
+  box-shadow: inset 0 1px 0 rgba(206, 239, 255, 0.035);
+}
+
+.search-panel .search-box::before {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ps-accent) 13%, transparent);
+  color: var(--ps-accent);
+  content: "⌕";
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.search-panel .search-box input {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+  min-height: 46px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.search-panel .search-box:focus-within {
+  border-color: color-mix(in srgb, var(--ps-accent) 64%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ps-accent) 12%, transparent), inset 0 1px 0 rgba(206, 239, 255, 0.04);
+}
+
+.results {
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.result-row {
+  position: relative;
+  overflow: hidden;
+  gap: 14px;
+  padding: 16px 18px 16px 16px;
+  border-radius: 16px;
+}
+
+.result-row::before {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 4px;
+  background: var(--ps-accent);
+  box-shadow: 0 0 17px color-mix(in srgb, var(--ps-accent) 55%, transparent);
+  content: "";
+}
+
+.result-row.discontinued-product::before {
+  background: #9ca3af;
+  box-shadow: none;
+}
+
+.result-main {
+  gap: 16px;
+}
+
+.result-row .price {
+  min-width: 104px;
+  border: 1px solid rgba(244, 201, 93, 0.26);
+  border-radius: 11px;
+}
+
+.item-tools {
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(100, 171, 206, 0.16);
+}
+
+.result-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px;
+}
+
+.result-actions > * {
+  display: inline-flex;
+  min-width: 0 !important;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.result-actions .add-cart-button {
+  grid-column: span 1;
+}
+
+.cart-line,
+.draft-card,
+.customer-card,
+.customer-sales-card,
+.sold-product-card,
+.monthly-sales-card,
+.collection-row,
+.reservation-customer-card,
+.reminder-row,
+.category-product-row,
+.category-products,
+.customer-history,
+.maintenance-panel,
+.reservation-import,
+.reservation-paste-import,
+.reservation-create {
+  border-radius: 16px;
+}
+
+.customer-card,
+.customer-sales-card,
+.sold-product-card,
+.collection-row,
+.reminder-row,
+.category-product-row,
+.cart-line {
+  border-inline-start-width: 3px;
+  border-inline-start-color: color-mix(in srgb, var(--ps-accent) 60%, transparent);
+}
+
+.reservation-row:not(.low-stock) {
+  border-inline-start: 3px solid color-mix(in srgb, var(--ps-accent) 45%, transparent);
+}
+
+@media (max-width: 640px) {
+  .standard-panel-chip {
+    display: none;
+  }
+
+  [data-tab-panel]:not([data-tab-panel="search"]):not([data-tab-panel="orders"]):not([data-tab-panel="tomorrow-orders"]) .panel-header > div:first-child {
+    padding-inline-start: 47px;
+  }
+
+  [data-tab-panel]:not([data-tab-panel="search"]):not([data-tab-panel="orders"]):not([data-tab-panel="tomorrow-orders"]) .panel-header > div:first-child::before {
+    width: 36px;
+    height: 36px;
+  }
+
+  .result-row {
+    padding: 14px 16px 14px 13px;
+  }
+
+  .result-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
