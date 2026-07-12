@@ -5147,6 +5147,7 @@ function renderMonthlySalesPanel() {
     createMonthlySalesMoneyStat("סה״כ מכר", stats.paidRevenue),
     createMonthlySalesStat("הזמנות בכסף", stats.orderCount.toLocaleString("he-IL")),
     createMonthlySalesStat("יחידות בכסף", stats.quantity.toLocaleString("he-IL")),
+    createMonthlySalesStat("נמשך משריון", `${stats.reservationQuantity.toLocaleString("he-IL")} יח׳`),
   );
 
   if (!reports.length) {
@@ -5162,12 +5163,16 @@ function getMonthlySalesReports() {
 
   orders.forEach((order) => {
     const paidRevenue = getPaidSalesTotal(order.items);
-    if (paidRevenue <= 0) return;
-
-    const monthKey = getOrderReportDateKey(order).slice(0, 7);
+    const reportDateKey = getOrderReportDateKey(order);
+    const monthKey = reportDateKey.slice(0, 7);
     const paidQuantity = order.items
       .filter((item) => !isReservationOrderItem(item))
       .reduce((sum, item) => sum + item.quantity, 0);
+    const reservationQuantity = order.items
+      .filter((item) => isReservationOrderItem(item))
+      .reduce((sum, item) => sum + item.quantity, 0);
+    if (paidRevenue <= 0 && reservationQuantity <= 0) return;
+
     const customer = getOrderCustomer(order);
     const customerName = customer?.name || order.customerName || "ללא לקוח";
     const customerKey = customer?.id || normalizeSearch(customerName) || `customer-${order.id}`;
@@ -5176,31 +5181,62 @@ function getMonthlySalesReports() {
       label: formatMonthKey(monthKey),
       paidRevenue: 0,
       quantity: 0,
+      reservationQuantity: 0,
       orderIds: new Set(),
+      paidOrderIds: new Set(),
+      reservationOrderIds: new Set(),
       customerKeys: new Set(),
       customers: new Map(),
+      days: new Map(),
       latestAt: order.createdAt,
     };
     const customerRow = report.customers.get(customerKey) || {
       customerName,
       paidRevenue: 0,
       quantity: 0,
+      reservationQuantity: 0,
       orderIds: new Set(),
+      paidOrderIds: new Set(),
+      reservationOrderIds: new Set(),
       latestAt: order.createdAt,
+    };
+    const dayRow = report.days.get(reportDateKey) || {
+      dateKey: reportDateKey,
+      label: formatMonthlySalesDay(reportDateKey),
+      paidRevenue: 0,
+      quantity: 0,
+      reservationQuantity: 0,
+      orderIds: new Set(),
+      paidOrderIds: new Set(),
+      reservationOrderIds: new Set(),
     };
 
     report.paidRevenue = roundMoney(report.paidRevenue + paidRevenue);
     report.quantity += paidQuantity;
+    report.reservationQuantity += reservationQuantity;
     report.orderIds.add(order.id);
+    if (paidRevenue > 0) report.paidOrderIds.add(order.id);
+    if (reservationQuantity > 0) report.reservationOrderIds.add(order.id);
     report.customerKeys.add(customerKey);
     if (new Date(order.createdAt).getTime() > new Date(report.latestAt).getTime()) report.latestAt = order.createdAt;
 
     customerRow.paidRevenue = roundMoney(customerRow.paidRevenue + paidRevenue);
     customerRow.quantity += paidQuantity;
+    customerRow.reservationQuantity += reservationQuantity;
     customerRow.orderIds.add(order.id);
+    if (paidRevenue > 0) customerRow.paidOrderIds.add(order.id);
+    if (reservationQuantity > 0) customerRow.reservationOrderIds.add(order.id);
     if (new Date(order.createdAt).getTime() > new Date(customerRow.latestAt).getTime()) customerRow.latestAt = order.createdAt;
 
+    dayRow.paidRevenue = roundMoney(dayRow.paidRevenue + paidRevenue);
+    dayRow.quantity += paidQuantity;
+    dayRow.reservationQuantity += reservationQuantity;
+    dayRow.orderIds.add(order.id);
+    if (paidRevenue > 0) dayRow.paidOrderIds.add(order.id);
+    if (reservationQuantity > 0) dayRow.reservationOrderIds.add(order.id);
+
     report.customers.set(customerKey, customerRow);
+    report.days.set(reportDateKey, dayRow);
     reports.set(monthKey, report);
   });
 
@@ -5208,30 +5244,56 @@ function getMonthlySalesReports() {
     .map((report) => ({
       ...report,
       orderCount: report.orderIds.size,
+      paidOrderCount: report.paidOrderIds.size,
+      reservationOrderCount: report.reservationOrderIds.size,
       customerCount: report.customerKeys.size,
-      topCustomers: [...report.customers.values()]
+      customerRows: [...report.customers.values()]
         .map((customer) => ({
           ...customer,
           orderCount: customer.orderIds.size,
+          paidOrderCount: customer.paidOrderIds.size,
+          reservationOrderCount: customer.reservationOrderIds.size,
           orderIds: undefined,
+          paidOrderIds: undefined,
+          reservationOrderIds: undefined,
         }))
-        .sort((a, b) => b.paidRevenue - a.paidRevenue || b.quantity - a.quantity)
-        .slice(0, 8),
+        .sort((a, b) => b.paidRevenue - a.paidRevenue || b.reservationQuantity - a.reservationQuantity || b.quantity - a.quantity),
+      dayRows: [...report.days.values()]
+        .map((day) => ({
+          ...day,
+          orderCount: day.orderIds.size,
+          paidOrderCount: day.paidOrderIds.size,
+          reservationOrderCount: day.reservationOrderIds.size,
+          orderIds: undefined,
+          paidOrderIds: undefined,
+          reservationOrderIds: undefined,
+        }))
+        .sort((a, b) => a.dateKey.localeCompare(b.dateKey)),
       orderIds: undefined,
+      paidOrderIds: undefined,
+      reservationOrderIds: undefined,
       customerKeys: undefined,
       customers: undefined,
+      days: undefined,
     }))
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+}
+
+function formatMonthlySalesDay(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return dateKey;
+  return date.toLocaleDateString("he-IL", { weekday: "short", day: "2-digit", month: "2-digit" });
 }
 
 function getMonthlySalesStats(reports) {
   return reports.reduce(
     (stats, report) => ({
       paidRevenue: roundMoney(stats.paidRevenue + report.paidRevenue),
-      orderCount: stats.orderCount + report.orderCount,
+      orderCount: stats.orderCount + report.paidOrderCount,
       quantity: stats.quantity + report.quantity,
+      reservationQuantity: stats.reservationQuantity + report.reservationQuantity,
     }),
-    { paidRevenue: 0, orderCount: 0, quantity: 0 },
+    { paidRevenue: 0, orderCount: 0, quantity: 0, reservationQuantity: 0 },
   );
 }
 
@@ -5269,30 +5331,85 @@ function renderMonthlySalesCard(report) {
     </div>
     <div class="monthly-sales-kpis">
       ${createMonthlySalesMoneyButton(report.paidRevenue, "monthly-sales-kpi-money")}
-      <span>${report.quantity.toLocaleString("he-IL")} יח׳</span>
+      <span>${report.quantity.toLocaleString("he-IL")} יח׳ בכסף</span>
+      ${report.reservationQuantity ? `<span class="monthly-sales-reservation-kpi">${report.reservationQuantity.toLocaleString("he-IL")} יח׳ משריון</span>` : ""}
     </div>
   `;
 
+  const breakdown = document.createElement("div");
+  breakdown.className = "monthly-sales-breakdown";
+
+  const daysSection = document.createElement("section");
+  daysSection.className = "monthly-sales-section monthly-sales-days-section";
+  daysSection.innerHTML = `
+    <div class="monthly-sales-section-title">
+      <div><span class="monthly-sales-section-icon" aria-hidden="true">◷</span><strong>מכר לפי יום</strong></div>
+      <span>${report.dayRows.length.toLocaleString("he-IL")} ימים עם פעילות</span>
+    </div>
+  `;
+  const days = document.createElement("div");
+  days.className = "monthly-sales-days";
+  days.replaceChildren(...report.dayRows.map(renderMonthlySalesDayRow));
+  daysSection.append(days);
+
+  const customersSection = document.createElement("section");
+  customersSection.className = "monthly-sales-section monthly-sales-customers-section";
+  customersSection.innerHTML = `
+    <div class="monthly-sales-section-title">
+      <div><span class="monthly-sales-section-icon customers" aria-hidden="true">♙</span><strong>פילוח לקוחות</strong></div>
+      <span>${report.customerCount.toLocaleString("he-IL")} לקוחות</span>
+    </div>
+  `;
   const customers = document.createElement("div");
   customers.className = "monthly-sales-customers";
-  customers.replaceChildren(...report.topCustomers.map(renderMonthlySalesCustomerRow));
+  customers.replaceChildren(...report.customerRows.map(renderMonthlySalesCustomerRow));
+  customersSection.append(customers);
 
-  card.append(summary, customers);
+  breakdown.append(daysSection, customersSection);
+  card.append(summary, breakdown);
   return card;
+}
+
+function renderMonthlySalesDayRow(day) {
+  const row = document.createElement("div");
+  row.className = "monthly-sales-day-row";
+  const details = [
+    `${day.orderCount.toLocaleString("he-IL")} הזמנות`,
+    day.quantity ? `${day.quantity.toLocaleString("he-IL")} יח׳ בכסף` : "",
+    day.reservationQuantity ? `${day.reservationQuantity.toLocaleString("he-IL")} יח׳ משריון` : "",
+  ].filter(Boolean).join(" · ");
+  row.innerHTML = `
+    <div>
+      <strong>${escapeHtml(day.label)}</strong>
+      <span>${escapeHtml(details)}</span>
+    </div>
+    <div class="monthly-sales-day-values">
+      ${createMonthlySalesMoneyButton(day.paidRevenue, "monthly-sales-day-money")}
+      ${day.reservationQuantity ? `<span class="monthly-sales-reservation-pill">${day.reservationQuantity.toLocaleString("he-IL")} משריון</span>` : ""}
+    </div>
+  `;
+  return row;
 }
 
 function renderMonthlySalesCustomerRow(customer) {
   const row = document.createElement("div");
   row.className = "monthly-sales-customer-row";
   const latest = new Date(customer.latestAt).toLocaleDateString("he-IL");
+  const customerDetails = [
+    `${customer.orderCount.toLocaleString("he-IL")} הזמנות`,
+    customer.quantity ? `${customer.quantity.toLocaleString("he-IL")} יח׳ בכסף` : "",
+    customer.reservationQuantity ? `${customer.reservationQuantity.toLocaleString("he-IL")} יח׳ משריון` : "",
+    `קנייה אחרונה ${latest}`,
+  ].filter(Boolean).join(" · ");
   row.innerHTML = `
     <div>
       <strong>${escapeHtml(customer.customerName)}</strong>
-      <span>${customer.orderCount.toLocaleString("he-IL")} הזמנות · קנייה אחרונה ${escapeHtml(latest)}</span>
+      <span>${escapeHtml(customerDetails)}</span>
     </div>
     <div class="monthly-sales-customer-values">
       <span>${customer.quantity.toLocaleString("he-IL")} יח׳</span>
       ${createMonthlySalesMoneyButton(customer.paidRevenue, "monthly-sales-customer-money")}
+      ${customer.reservationQuantity ? `<span class="monthly-sales-reservation-pill">${customer.reservationQuantity.toLocaleString("he-IL")} משריון</span>` : ""}
     </div>
   `;
   return row;
