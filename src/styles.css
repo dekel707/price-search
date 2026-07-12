@@ -5116,6 +5116,402 @@ h2 {
   }
 }
 
+/* Orders: high-contrast document cards inspired by the supplied dark mobile layout. */
+.orders-history-panel {
+  border-color: rgba(45, 180, 231, 0.38);
+  background:
+    radial-gradient(circle at 100% 0, rgba(43, 166, 239, 0.2), transparent 32%),
+    linear-gradient(145deg, rgba(7, 31, 51, 0.98), rgba(8, 18, 37, 0.98));
+}
+
+.tomorrow-orders-panel {
+  border-color: rgba(133, 103, 255, 0.5);
+  background:
+    radial-gradient(circle at 0 0, rgba(185, 82, 255, 0.19), transparent 34%),
+    linear-gradient(145deg, rgba(27, 20, 74, 0.98), rgba(11, 18, 49, 0.98));
+}
+
+.orders-panel .panel-header {
+  align-items: center;
+}
+
+.orders-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.orders-panel-icon,
+.order-card-kind-icon,
+.order-card-verified,
+.order-action-button svg,
+.ten-plus-one-button svg {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.orders-panel-icon {
+  width: 42px;
+  height: 42px;
+  border: 1px solid currentColor;
+  border-radius: 13px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.orders-panel-icon svg,
+.order-card-kind-icon svg,
+.order-card-verified svg,
+.order-action-button svg,
+.ten-plus-one-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.orders-panel-icon.history {
+  background: linear-gradient(145deg, #0f82c1, #32c7f0);
+  color: #ecfbff;
+}
+
+.orders-panel-icon.tomorrow {
+  background: linear-gradient(145deg, #6a45e7, #b65df6);
+  color: #f8f1ff;
+}
+
+.orders-panel-chip {
+  padding: 7px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.orders-panel-chip.history {
+  border-color: rgba(72, 207, 255, 0.62);
+  background: rgba(16, 151, 211, 0.16);
+  color: #7cddff;
+}
+
+.orders-panel-chip.tomorrow {
+  border-color: rgba(199, 153, 255, 0.68);
+  background: rgba(137, 90, 245, 0.18);
+  color: #d9bdff;
+}
+
+.orders-panel .order-card {
+  position: relative;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  overflow: hidden;
+  padding: 14px;
+  border-width: 1px;
+  border-radius: 16px;
+  box-shadow: 0 14px 34px rgba(1, 8, 23, 0.26);
+}
+
+.orders-panel .order-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 5px;
+  background: #33c5ef;
+  box-shadow: 0 0 18px rgba(51, 197, 239, 0.72);
+  content: "";
+}
+
+.orders-panel .order-card.tomorrow-order-card::before {
+  background: #a571ff;
+  box-shadow: 0 0 18px rgba(165, 113, 255, 0.74);
+}
+
+.orders-panel .order-card.reservation-purchase-order::before {
+  background: #ffb648;
+  box-shadow: 0 0 18px rgba(255, 182, 72, 0.68);
+}
+
+.orders-panel .order-body {
+  display: grid;
+  gap: 8px;
+}
+
+.order-card-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.order-card-kind-icon {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(93, 214, 255, 0.62);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(13, 111, 168, 0.7), rgba(25, 196, 238, 0.18));
+  color: #71ddff;
+}
+
+.tomorrow-order-card .order-card-kind-icon.calendar {
+  border-color: rgba(199, 148, 255, 0.68);
+  background: linear-gradient(145deg, rgba(100, 63, 205, 0.76), rgba(197, 91, 248, 0.22));
+  color: #e2c5ff;
+}
+
+.reservation-purchase-order .order-card-kind-icon.package {
+  border-color: rgba(255, 191, 87, 0.7);
+  background: linear-gradient(145deg, rgba(184, 101, 16, 0.74), rgba(255, 179, 51, 0.2));
+  color: #ffd184;
+}
+
+.order-card-heading-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.orders-panel .order-card .order-card-heading-copy strong {
+  color: #f3fbff;
+  direction: rtl;
+  font-size: 0.96rem;
+}
+
+.order-card-state {
+  color: #9db8ce !important;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.order-card-verified {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(69, 236, 168, 0.7);
+  border-radius: 10px;
+  background: rgba(21, 171, 111, 0.22);
+  color: #5df0b0;
+}
+
+.order-card-verified svg {
+  width: 16px;
+  height: 16px;
+}
+
+.order-card-customer,
+.order-card-totals {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.order-card-customer {
+  justify-content: flex-start;
+  color: #dcecfb;
+  font-weight: 800;
+}
+
+.order-card-customer svg {
+  width: 16px;
+  height: 16px;
+  color: #7edcff;
+}
+
+.order-card-totals {
+  padding: 9px 10px;
+  border: 1px solid rgba(116, 177, 219, 0.24);
+  border-radius: 10px;
+  background: rgba(2, 13, 30, 0.38);
+}
+
+.order-card-totals span {
+  color: #a8bfd2 !important;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.order-card-totals b {
+  color: #ffcf70;
+  font-size: 1rem;
+}
+
+.order-card-summary {
+  color: #9db4c8 !important;
+  line-height: 1.45;
+}
+
+.orders-panel .order-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+.orders-panel .order-action-button {
+  min-width: 0;
+  min-height: 38px;
+  gap: 6px;
+  padding-inline: 8px;
+  border-radius: 10px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.orders-panel .order-action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.orders-panel .order-card .order-action-view {
+  border-color: rgba(68, 190, 255, 0.58);
+  background: rgba(19, 116, 176, 0.2);
+  color: #92e3ff;
+}
+
+.orders-panel .order-card .order-action-copy {
+  border-color: rgba(50, 224, 196, 0.58);
+  background: rgba(16, 155, 134, 0.18);
+  color: #87ffe7;
+}
+
+.orders-panel .order-card .order-action-edit {
+  border-color: rgba(164, 132, 255, 0.62);
+  background: rgba(105, 74, 215, 0.2);
+  color: #d7c6ff;
+}
+
+.orders-panel .order-card .order-action-draft {
+  border-color: rgba(255, 184, 81, 0.65);
+  background: rgba(203, 120, 14, 0.18);
+  color: #ffda92;
+}
+
+.orders-panel .order-card .order-action-whatsapp {
+  border-color: #39db7c;
+  background: linear-gradient(135deg, #1bb85f, #38df83);
+  color: #062b17;
+}
+
+.orders-panel .order-card .order-action-delete {
+  border-color: rgba(255, 102, 128, 0.7);
+  background: rgba(174, 38, 67, 0.24);
+  color: #ffb5c2;
+}
+
+.orders-panel .order-text-details {
+  padding-top: 12px;
+  border-top-color: rgba(136, 188, 224, 0.2);
+}
+
+.orders-panel .order-text-details strong {
+  color: #ffcf70;
+}
+
+.promotion-toggle {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 167, 69, 0.62);
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(146, 65, 13, 0.42), rgba(255, 161, 31, 0.12));
+  color: #ffe2aa;
+  cursor: pointer;
+}
+
+.promotion-toggle[hidden] {
+  display: none;
+}
+
+.promotion-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ffae3d;
+}
+
+.promotion-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.promotion-toggle strong {
+  color: #ffeabf;
+  font-size: 0.88rem;
+}
+
+.promotion-toggle small {
+  color: #ffc46f;
+  font-size: 0.75rem;
+}
+
+.ten-plus-one-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid #ffad3d;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #c65e0e, #ffb22f);
+  box-shadow: 0 8px 18px rgba(220, 107, 12, 0.26);
+  color: #fff7e7;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.ten-plus-one-button:hover,
+.ten-plus-one-button:focus-visible {
+  border-color: #ffd078;
+  background: linear-gradient(135deg, #df7114, #ffc052);
+}
+
+.bonus-cart-line {
+  border-color: rgba(255, 176, 61, 0.62) !important;
+  background: linear-gradient(135deg, rgba(114, 57, 8, 0.48), rgba(64, 37, 12, 0.4)) !important;
+}
+
+.bonus-price-field strong,
+.bonus-cart-badge {
+  border-color: rgba(255, 181, 71, 0.64);
+  background: rgba(255, 156, 22, 0.16);
+  color: #ffd78a;
+}
+
+.bonus-cart-badge {
+  padding: 8px 10px;
+  border: 1px solid;
+  border-radius: 9px;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.bonus-cart-badge[hidden] {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .orders-panel .panel-header {
+    align-items: flex-start;
+  }
+
+  .orders-panel-chip {
+    padding-inline: 8px;
+    font-size: 0.68rem;
+  }
+
+  .orders-panel .order-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .orders-panel .order-action-button {
+    min-height: 40px;
+  }
+}
+
 /* Dashboard cards inspired by the dark, outlined management style in the reference. */
 :root {
   --ps-background: #07111d;
