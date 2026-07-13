@@ -2206,6 +2206,23 @@ function setActiveTab(tab) {
 }
 
 function handleDashboardAction(action) {
+  if (action === "today-orders") {
+    const todayKey = getLocalDateKey(new Date());
+    const todayOpenOrders = orders.filter(
+      (order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === todayKey,
+    );
+    if (!todayOpenOrders.length) {
+      dom.status.textContent = "אין כרגע הזמנות פתוחות להיום.";
+      return;
+    }
+    dom.orderSearch.value = "";
+    renderOrders();
+    setActiveTab("orders");
+    window.setTimeout(() => dom.orderSearch.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    dom.status.textContent = `נפתחו ${todayOpenOrders.length.toLocaleString("he-IL")} הזמנות פתוחות להיום.`;
+    return;
+  }
+
   if (action === "tomorrow-orders") {
     tomorrowOrdersReportDateFilter = "";
     dom.tomorrowOrderSearch.value = "";
@@ -5703,6 +5720,7 @@ function compareCollections(a, b) {
 function renderDashboard() {
   const now = new Date();
   const todayOrders = orders.filter((order) => isSameDay(getOrderReportDate(order), now));
+  const todayOpenOrders = todayOrders.filter((order) => !isOrderCompleted(order));
   const todayRevenue = todayOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const monthOrders = orders.filter((order) => isSameMonth(getOrderReportDate(order), now));
   const monthRevenue = monthOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
@@ -5719,16 +5737,18 @@ function renderDashboard() {
   const todayOpenReminders = openReminders.filter((reminder) => reminder.dueDate === todayKey);
   const dueDraftsToday = getDueDraftsForToday(now);
   const activeArrivalProducts = getActiveArrivalProducts(now);
-  const tomorrowOrders = orders.filter((order) => isOrderForTomorrow(order, now));
+  const tomorrowOrders = orders.filter((order) => !isOrderCompleted(order) && isOrderForTomorrow(order, now));
   const tomorrowRevenue = tomorrowOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const upcomingSundayKey = getUpcomingSundayLocalDateKey(now);
-  const sundayOrders = orders.filter((order) => getOrderReportDateKey(order) === upcomingSundayKey);
+  const sundayOrders = orders.filter(
+    (order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === upcomingSundayKey,
+  );
   const sundayRevenue = sundayOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const averageOrder = monthOrders.length ? monthRevenue / monthOrders.length : 0;
   const collectionStats = getCollectionStats(collections);
 
   dom.dashboardStats.innerHTML = [
-    dashboardStat("הזמנות היום", todayOrders.length.toLocaleString("he-IL"), "today-orders"),
+    dashboardTodayOrdersStat(todayOpenOrders.length),
     dashboardTomorrowOrdersStat(tomorrowOrders.length, tomorrowRevenue),
     isSundayInIsrael(now) ? "" : dashboardSundayOrdersStat(sundayOrders.length, sundayRevenue, upcomingSundayKey),
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
@@ -5804,6 +5824,11 @@ function dashboardActionStat(label, value, tone, action) {
       <strong>${escapeHtml(value)}</strong>
     </button>
   `;
+}
+
+function dashboardTodayOrdersStat(orderCount) {
+  const value = orderCount.toLocaleString("he-IL");
+  return orderCount ? dashboardActionStat("הזמנות היום", value, "today-orders", "today-orders") : dashboardStat("הזמנות היום", value, "today-orders");
 }
 
 function dashboardTomorrowOrdersStat(orderCount, grossValue) {
