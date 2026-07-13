@@ -8145,6 +8145,37 @@ body {
   white-space: nowrap;
 }
 
+/* Only the open-order number navigates from the dashboard cards. */
+.dashboard-order-count-action {
+  display: inline-grid;
+  width: fit-content;
+  align-self: end;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.dashboard-order-count-action:hover strong {
+  color: #8edfff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.dashboard-order-count-action:focus-visible {
+  outline: 2px solid rgba(79, 169, 255, 0.8);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.dashboard-split-compact div.dashboard-split-value {
+  cursor: default;
+}
+
 @media (max-width: 719px) {
   .dashboard-stats {
     grid-auto-rows: 104px;

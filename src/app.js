@@ -5850,7 +5850,18 @@ function dashboardActionStat(label, value, tone, action) {
 
 function dashboardTodayOrdersStat(orderCount) {
   const value = orderCount.toLocaleString("he-IL");
-  return orderCount ? dashboardActionStat("הזמנות היום", value, "today-orders", "today-orders") : dashboardStat("הזמנות היום", value, "today-orders");
+  const countControl = orderCount
+    ? `<button type="button" class="dashboard-order-count-action" data-dashboard-action="today-orders" aria-label="הצג ${escapeHtml(value)} הזמנות פתוחות להיום">
+        <strong>${escapeHtml(value)}</strong>
+      </button>`
+    : `<strong>0</strong>`;
+
+  return `
+    <div class="dashboard-stat today-orders dashboard-order-count-only">
+      ${dashboardStatHeading("הזמנות היום", "today-orders")}
+      ${countControl}
+    </div>
+  `;
 }
 
 function dashboardTomorrowOrdersStat(orderCount, grossValue) {
@@ -5858,13 +5869,15 @@ function dashboardTomorrowOrdersStat(orderCount, grossValue) {
   const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
   return `
-    <div class="dashboard-stat dashboard-link-stat tomorrow-orders dashboard-split-stat dashboard-split-compact">
+    <div class="dashboard-stat tomorrow-orders dashboard-split-stat dashboard-split-compact dashboard-order-count-only">
       ${dashboardStatHeading("הזמנות למחר", "tomorrow-orders")}
       <div class="dashboard-split-values">
-        <button type="button" class="dashboard-split-value dashboard-split-count" data-dashboard-action="tomorrow-orders">
-          <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+        <div class="dashboard-split-value dashboard-split-count">
+          <button type="button" class="dashboard-order-count-action" data-dashboard-action="tomorrow-orders" aria-label="הצג ${escapeHtml(orderCount.toLocaleString("he-IL"))} הזמנות פתוחות למחר">
+            <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+          </button>
           <small>הזמנות</small>
-        </button>
+        </div>
         <button type="button" class="dashboard-split-value dashboard-split-money" data-toggle-dashboard-vat="tomorrow" aria-pressed="${excludeVat}">
           <strong>${escapeHtml(formatPrice(displayValue))}</strong>
           <small>${vatLabel}</small>
@@ -5880,16 +5893,18 @@ function dashboardSundayOrdersStat(orderCount, grossValue, sundayKey) {
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
   const sundayLabel = formatSundayOrderDate(sundayKey);
   const countControl = orderCount
-    ? `<button type="button" class="dashboard-split-value dashboard-split-count" data-dashboard-action="sunday-orders" aria-label="הצג הזמנות פתוחות ליום ראשון ${escapeHtml(sundayLabel)}">
-        <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+    ? `<div class="dashboard-split-value dashboard-split-count">
+        <button type="button" class="dashboard-order-count-action" data-dashboard-action="sunday-orders" aria-label="הצג ${escapeHtml(orderCount.toLocaleString("he-IL"))} הזמנות פתוחות ליום ראשון ${escapeHtml(sundayLabel)}">
+          <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+        </button>
         <small>${escapeHtml(sundayLabel)} · הזמנות פתוחות</small>
-      </button>`
+      </div>`
     : `<div class="dashboard-split-value dashboard-split-count" aria-label="אין הזמנות פתוחות ליום ראשון ${escapeHtml(sundayLabel)}">
         <strong>0</strong>
         <small>${escapeHtml(sundayLabel)} · אין הזמנות</small>
       </div>`;
   return `
-    <div class="dashboard-stat dashboard-link-stat sunday-orders dashboard-split-stat dashboard-split-compact">
+    <div class="dashboard-stat sunday-orders dashboard-split-stat dashboard-split-compact dashboard-order-count-only">
       ${dashboardStatHeading("הזמנות ליום ראשון", "sunday-orders")}
       <div class="dashboard-split-values">
         ${countControl}
