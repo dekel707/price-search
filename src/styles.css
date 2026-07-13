@@ -8251,6 +8251,296 @@ button.calendar-day {
   }
 }
 
+/* Calendar zmanim and data-driven dashboard trends. */
+.calendar-zmanim-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(77, 188, 194, 0.3);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 94% 4%, rgba(54, 206, 185, 0.13), transparent 32%),
+    linear-gradient(145deg, rgba(8, 34, 49, 0.9), rgba(6, 23, 39, 0.92));
+}
+
+.calendar-zmanim-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calendar-zmanim-header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.calendar-zmanim-header span {
+  color: #6fddd4;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.calendar-zmanim-header strong {
+  color: #edfaff;
+  font-size: 0.95rem;
+}
+
+.calendar-zmanim-header small {
+  color: #8db7c5;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.calendar-zmanim-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 9px;
+}
+
+.calendar-zmanim-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(103, 187, 202, 0.23);
+  border-radius: 11px;
+  background: rgba(4, 22, 37, 0.58);
+}
+
+.calendar-zmanim-card > span {
+  color: #57d7c6;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.calendar-zmanim-card strong {
+  overflow: hidden;
+  color: #effbff;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-zmanim-card small {
+  color: #a0bdcb;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.calendar-zmanim-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.calendar-zmanim-card b {
+  padding: 4px 6px;
+  border: 1px solid rgba(88, 203, 193, 0.18);
+  border-radius: 7px;
+  background: rgba(42, 164, 154, 0.1);
+  color: #b3eee7;
+  font-size: 0.67rem;
+  white-space: nowrap;
+}
+
+.calendar-zmanim-empty {
+  margin: 0;
+  color: #9db5c1;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dashboard-trends-section {
+  display: grid;
+  gap: 13px;
+  padding: 17px;
+  border: 1px solid rgba(58, 166, 184, 0.28);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 3% 0%, rgba(82, 213, 189, 0.13), transparent 29%),
+    linear-gradient(145deg, rgba(10, 32, 51, 0.86), rgba(7, 22, 38, 0.86));
+}
+
+.dashboard-trends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid rgba(92, 161, 188, 0.18);
+}
+
+.dashboard-trends-header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-trends-header .eyebrow {
+  margin: 0;
+}
+
+.dashboard-trends-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: #eefaff;
+  font-size: 1rem;
+}
+
+.dashboard-section-icon.trends {
+  border-color: rgba(80, 218, 185, 0.32);
+  background: rgba(80, 218, 185, 0.1);
+  color: #65e5cf;
+}
+
+.dashboard-trends-header > span {
+  color: #9eb7c5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.dashboard-trends-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-trend-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(113, 160, 183, 0.25);
+  border-right: 3px solid var(--trend-reliability-color, #ed9a59);
+  border-radius: 12px;
+  background: rgba(5, 22, 37, 0.62);
+}
+
+.dashboard-trend-card.reliability-green { --trend-reliability-color: #48d89e; }
+.dashboard-trend-card.reliability-orange { --trend-reliability-color: #f0a55f; }
+.dashboard-trend-card.reliability-red { --trend-reliability-color: #f07082; }
+
+.dashboard-trend-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.dashboard-trend-heading > span {
+  overflow: hidden;
+  color: #d8ebf4;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-trend-signal {
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 7px;
+  font-size: 0.69rem;
+  font-weight: 900;
+}
+
+.dashboard-trend-signal.up {
+  background: rgba(66, 202, 142, 0.14);
+  color: #7ee8b7;
+}
+
+.dashboard-trend-signal.down {
+  background: rgba(240, 103, 126, 0.13);
+  color: #ff9cab;
+}
+
+.dashboard-trend-signal.steady {
+  background: rgba(100, 175, 223, 0.13);
+  color: #9dd9ff;
+}
+
+.dashboard-trend-signal.insufficient {
+  background: rgba(240, 165, 95, 0.13);
+  color: #f6c68d;
+}
+
+.dashboard-trend-values {
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-trend-values strong {
+  color: #f1fbff;
+  font-size: 1.14rem;
+}
+
+.dashboard-trend-values span {
+  color: #9bb5c3;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.dashboard-trend-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dashboard-trend-metrics > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid rgba(109, 158, 183, 0.2);
+  border-radius: 7px;
+  background: rgba(104, 152, 180, 0.08);
+  color: #b9d1dd;
+  font-size: 0.64rem;
+  font-weight: 900;
+}
+
+.trend-reliability i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.trend-reliability.green { color: #68e3a6 !important; }
+.trend-reliability.orange { color: #f1bc77 !important; }
+.trend-reliability.red { color: #ff8f9f !important; }
+
+@media (max-width: 719px) {
+  .calendar-zmanim-panel,
+  .dashboard-trends-section {
+    padding: 13px;
+    border-radius: 12px;
+  }
+
+  .calendar-zmanim-header,
+  .dashboard-trends-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .calendar-zmanim-header small,
+  .dashboard-trends-header > span {
+    text-align: right;
+  }
+
+  .calendar-zmanim-content,
+  .dashboard-trends-list {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-trend-card {
+    gap: 9px;
+  }
+}
+
 /* Importing an order always stops at a review screen before it can affect reports. */
 .order-import {
   display: grid;

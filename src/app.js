@@ -42,6 +42,7 @@ const CLOUD_STATE_ENDPOINT = "/api/state";
 const AUTH_ENDPOINT = "/api/auth";
 const COLLECTION_IMPORT_ENDPOINT = "/api/import-collections";
 const AI_ORDER_ENDPOINT = "/api/ai-order";
+const ZMANIM_ENDPOINT = "/api/zmanim";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const CLOUD_SYNC_DISABLED = URL_PARAMS.has("local");
@@ -255,6 +256,8 @@ const dom = {
   calendarEventsTitle: document.querySelector("#calendarEventsTitle"),
   calendarEventsCount: document.querySelector("#calendarEventsCount"),
   calendarEventsList: document.querySelector("#calendarEventsList"),
+  calendarZmanim: document.querySelector("#calendarZmanim"),
+  zmanimSource: document.querySelector("#zmanimSource"),
   aiOrderForm: document.querySelector("#aiOrderForm"),
   aiOrderInput: document.querySelector("#aiOrderInput"),
   aiOrderGenerate: document.querySelector("#aiOrderGenerate"),
@@ -262,6 +265,8 @@ const dom = {
   aiOrderResult: document.querySelector("#aiOrderResult"),
   dashboardStats: document.querySelector("#dashboardStats"),
   dashboardInsights: document.querySelector("#dashboardInsights"),
+  dashboardTrends: document.querySelector("#dashboardTrends"),
+  dashboardTrendsMeta: document.querySelector("#dashboardTrendsMeta"),
   dashboardRecentOrders: document.querySelector("#dashboardRecentOrders"),
   dashboardLowReservations: document.querySelector("#dashboardLowReservations"),
   dashboardTopProducts: document.querySelector("#dashboardTopProducts"),
@@ -352,6 +357,8 @@ let openReservationCustomerIds = new Set();
 let pendingReservationQuantities = new Map();
 let calendarMonthCursor = startOfLocalMonth(new Date());
 let calendarSelectedDateKey = "";
+let remindersDateFilter = "";
+let zmanimState = { status: "loading", shabbat: null, holidays: [], source: "", updatedAt: "" };
 let aiOrderProposal = null;
 let activeTab = "search";
 let orderType = "delivery";
@@ -452,6 +459,7 @@ async function startApp() {
   if (completeDueOrders()) saveOrders();
 
   render();
+  loadZmanim();
   registerServiceWorker();
   hydrateCloudState();
 }
@@ -559,14 +567,16 @@ function bindEvents() {
         dom.tomorrowOrderSearch.value = "";
         renderTomorrowOrders();
       }
+      if (button.dataset.tab === "reminders") remindersDateFilter = "";
       setActiveTab(button.dataset.tab);
     });
   });
   dom.headerReminders.addEventListener("click", () => {
     dom.reminderStatusFilter.value = "open";
+    remindersDateFilter = getLocalDateKey(new Date());
     renderRemindersPanel();
     setActiveTab("reminders");
-    dom.status.textContent = "נפתחו התזכורות הפתוחות.";
+    dom.status.textContent = "נפתחו רק התזכורות הפתוחות להיום.";
   });
   dom.searchInput.addEventListener("input", render);
   dom.categoryFilter.addEventListener("change", render);
@@ -757,12 +767,19 @@ function bindEvents() {
   dom.reminderForm.addEventListener("submit", saveReminderFromForm);
   dom.cancelReminderEdit.addEventListener("click", resetReminderForm);
   dom.showAllReminders.addEventListener("click", () => {
+    remindersDateFilter = "";
     dom.reminderStatusFilter.value = "all";
     renderRemindersPanel();
     dom.status.textContent = "מוצגות כל התזכורות.";
   });
-  dom.reminderStatusFilter.addEventListener("change", renderRemindersPanel);
-  dom.reminderCustomerFilter.addEventListener("change", renderRemindersPanel);
+  dom.reminderStatusFilter.addEventListener("change", () => {
+    remindersDateFilter = "";
+    renderRemindersPanel();
+  });
+  dom.reminderCustomerFilter.addEventListener("change", () => {
+    remindersDateFilter = "";
+    renderRemindersPanel();
+  });
   dom.remindersList.addEventListener("change", (event) => {
     const toggle = event.target.closest("[data-toggle-reminder]");
     if (!toggle) return;
@@ -4134,23 +4151,41 @@ function renderRemindersPanel() {
     });
 
   const openCount = reminders.filter((reminder) => !reminder.completed).length;
-  renderHeaderReminders(openCount);
+  const todayKey = getLocalDateKey(new Date());
+  const todayOpenCount = reminders.filter((reminder) => !reminder.completed && reminder.dueDate === todayKey).length;
+  renderHeaderReminders(todayOpenCount);
   const status = dom.reminderStatusFilter.value || "open";
-  dom.remindersSummary.textContent = `${openCount.toLocaleString("he-IL")} פתוחות · ${reminders.length.toLocaleString("he-IL")} סה״כ`;
-  dom.showAllReminders.textContent = status === "all" ? "מציג הכל" : "הצג את כל התזכורות";
-  dom.showAllReminders.disabled = status === "all";
+  const showingToday = remindersDateFilter === todayKey;
+  dom.remindersSummary.textContent = showingToday
+    ? `${todayOpenCount.toLocaleString("he-IL")} פתוחות היום · ${openCount.toLocaleString("he-IL")} פתוחות בסה״כ`
+    : `${openCount.toLocaleString("he-IL")} פתוחות · ${reminders.length.toLocaleString("he-IL")} סה״כ`;
+  dom.showAllReminders.textContent = showingToday
+    ? "הצג את כל התזכורות"
+    : status === "all"
+      ? "מציג הכל"
+      : "הצג את כל התזכורות";
+  dom.showAllReminders.disabled = !showingToday && status === "all";
   const customerId = dom.reminderCustomerFilter.value;
   const visible = reminders
     .filter((reminder) => {
       if (status === "open" && reminder.completed) return false;
       if (status === "done" && !reminder.completed) return false;
+      if (showingToday && reminder.dueDate !== todayKey) return false;
       return !customerId || reminder.customerId === customerId;
     })
     .sort(compareReminders);
 
   if (!visible.length) {
     dom.remindersList.replaceChildren(
-      emptyState(status === "all" ? "אין תזכורות שמורות." : status === "done" ? "אין תזכורות שבוצעו." : "אין תזכורות פתוחות."),
+      emptyState(
+        showingToday
+          ? "אין תזכורות פתוחות להיום."
+          : status === "all"
+            ? "אין תזכורות שמורות."
+            : status === "done"
+              ? "אין תזכורות שבוצעו."
+              : "אין תזכורות פתוחות.",
+      ),
     );
     renderCalendarPanel();
     return;
@@ -4159,14 +4194,16 @@ function renderRemindersPanel() {
   renderCalendarPanel();
 }
 
-function renderHeaderReminders(openCount) {
+function renderHeaderReminders(todayOpenCount) {
   if (!dom.headerReminders || !dom.headerRemindersBadge) return;
-  const hasOpenReminders = openCount > 0;
-  dom.headerRemindersBadge.hidden = !hasOpenReminders;
-  dom.headerRemindersBadge.textContent = openCount.toLocaleString("he-IL");
+  const hasOpenToday = todayOpenCount > 0;
+  dom.headerRemindersBadge.hidden = !hasOpenToday;
+  dom.headerRemindersBadge.textContent = todayOpenCount.toLocaleString("he-IL");
   dom.headerReminders.setAttribute(
     "aria-label",
-    hasOpenReminders ? `${openCount.toLocaleString("he-IL")} תזכורות פתוחות. פתח תזכורות` : "אין תזכורות פתוחות. פתח תזכורות",
+    hasOpenToday
+      ? `${todayOpenCount.toLocaleString("he-IL")} תזכורות פתוחות להיום. פתח תזכורות`
+      : "אין תזכורות פתוחות להיום. פתח תזכורות",
   );
 }
 
@@ -4343,6 +4380,98 @@ function renderCalendarPanel() {
   })));
 
   renderCalendarSelectedDayEvents(eventsByDate.get(calendarSelectedDateKey) || [], calendarSelectedDateKey);
+  renderCalendarZmanim();
+}
+
+async function loadZmanim() {
+  if (!dom.calendarZmanim || !dom.zmanimSource) return;
+  zmanimState = { ...zmanimState, status: "loading" };
+  renderCalendarZmanim();
+
+  try {
+    const response = await fetch(ZMANIM_ENDPOINT, { cache: "no-store", credentials: "same-origin" });
+    if (response.status === 401) {
+      lockApp("יש להתחבר מחדש.");
+      return;
+    }
+    if (!response.ok) throw new Error(`Zmanim failed: ${response.status}`);
+    const data = await response.json();
+    zmanimState = {
+      status: "ready",
+      shabbat: data.shabbat || null,
+      holidays: Array.isArray(data.holidays) ? data.holidays : [],
+      source: cleanString(data.source),
+      updatedAt: cleanString(data.updatedAt),
+    };
+  } catch (error) {
+    console.warn("Zmanim failed", error);
+    zmanimState = { ...zmanimState, status: "error" };
+  }
+
+  renderCalendarZmanim();
+}
+
+function renderCalendarZmanim() {
+  if (!dom.calendarZmanim || !dom.zmanimSource) return;
+
+  if (zmanimState.status === "loading") {
+    dom.zmanimSource.textContent = "טוען זמנים…";
+    dom.calendarZmanim.replaceChildren(calendarZmanimEmpty("טוען את זמני השבת והחגים לקריית אתא…"));
+    return;
+  }
+
+  if (zmanimState.status !== "ready") {
+    dom.zmanimSource.textContent = "הזמנים לא זמינים כרגע";
+    dom.calendarZmanim.replaceChildren(calendarZmanimEmpty("לא ניתן היה לטעון כרגע את זמני השבת והחג."));
+    return;
+  }
+
+  dom.zmanimSource.textContent = zmanimState.source || "קריית אתא";
+  const cards = [];
+  if (zmanimState.shabbat) {
+    cards.push(renderZmanimCard({
+      label: "שבת קרובה",
+      title: zmanimState.shabbat.label || formatReminderDate(zmanimState.shabbat.date),
+      date: zmanimState.shabbat.date,
+      candleLighting: zmanimState.shabbat.candleLighting,
+      havdalah: zmanimState.shabbat.havdalah,
+    }));
+  }
+
+  zmanimState.holidays.slice(0, 3).forEach((holiday) => {
+    cards.push(renderZmanimCard({
+      label: "חג קרוב",
+      title: holiday.title,
+      date: holiday.date,
+      candleLighting: holiday.candleLighting,
+      havdalah: holiday.havdalah,
+    }));
+  });
+
+  dom.calendarZmanim.replaceChildren(...(cards.length ? cards : [calendarZmanimEmpty("לא נמצאו זמני חג קרובים.")]));
+}
+
+function calendarZmanimEmpty(message) {
+  const empty = document.createElement("p");
+  empty.className = "calendar-zmanim-empty";
+  empty.textContent = message;
+  return empty;
+}
+
+function renderZmanimCard(item) {
+  const card = document.createElement("article");
+  card.className = "calendar-zmanim-card";
+  const details = [
+    item.candleLighting ? `כניסה ${item.candleLighting}` : "כניסה לא רלוונטית",
+    item.havdalah ? `יציאה ${item.havdalah}` : "יציאה לא רלוונטית",
+  ];
+  card.innerHTML = `
+    <span>${escapeHtml(item.label)}</span>
+    <strong>${escapeHtml(item.title || "מועד")}</strong>
+    <small>${escapeHtml(item.date ? formatReminderDate(item.date) : "")}</small>
+    <div>${details.map((detail) => `<b>${escapeHtml(detail)}</b>`).join("")}</div>
+  `;
+  return card;
 }
 
 function getCalendarEvents() {
@@ -5975,10 +6104,320 @@ function renderDashboard() {
     ${dashboardInsight("שווי יציאות משריון החודש", formatPrice(monthlyReleaseValue), "trend")}
   `;
 
+  renderDashboardTrends(now);
   renderDashboardRecentOrders();
   renderDashboardLowReservations();
   renderDashboardTopProducts();
   renderDashboardOpenReminders(openReminders);
+}
+
+function renderDashboardTrends(reference = new Date()) {
+  if (!dom.dashboardTrends || !dom.dashboardTrendsMeta) return;
+
+  const analysis = getDashboardTrendAnalysis(reference);
+  dom.dashboardTrendsMeta.textContent = "30 ימים אחרונים מול 30 ימים קודמים · לא תחזית";
+
+  if (!analysis.current.orderCount && !analysis.previous.orderCount) {
+    dom.dashboardTrends.replaceChildren(
+      dashboardEmpty("אין עדיין מספיק מכר מתועד לניתוח מגמות. המגמות יתחילו להופיע אחרי הזמנות שנשמרו במערכת."),
+    );
+    return;
+  }
+
+  dom.dashboardTrends.replaceChildren(...analysis.trends.map(renderDashboardTrendCard));
+}
+
+function getDashboardTrendAnalysis(reference = new Date()) {
+  const periods = getDashboardTrendPeriods(reference);
+  const current = getDashboardTrendPeriodStats(
+    orders.filter((order) => isOrderInDashboardTrendPeriod(order, periods.currentStart, periods.currentEnd)),
+  );
+  const previous = getDashboardTrendPeriodStats(
+    orders.filter((order) => isOrderInDashboardTrendPeriod(order, periods.previousStart, periods.previousEnd)),
+  );
+  const sharedAccuracy = getTrendDataAccuracy(current, previous);
+  const product = getStableProductTrend(current, previous);
+
+  return {
+    current,
+    previous,
+    trends: [
+      createDashboardTrend({
+        label: "מכר כספי",
+        currentValue: current.revenue,
+        previousValue: previous.revenue,
+        formatValue: formatPrice,
+        sample: current.orderCount + previous.orderCount,
+        baselineMinimum: 1,
+        sampleMinimum: 6,
+        baselineSample: previous.orderCount,
+        baselineSampleMinimum: 3,
+        accuracy: sharedAccuracy,
+      }),
+      createDashboardTrend({
+        label: "כמות מוצרים שנמכרה",
+        currentValue: current.units,
+        previousValue: previous.units,
+        formatValue: (value) => `${value.toLocaleString("he-IL")} יח׳`,
+        sample: current.orderCount + previous.orderCount,
+        baselineMinimum: 6,
+        sampleMinimum: 6,
+        baselineSample: previous.orderCount,
+        baselineSampleMinimum: 3,
+        accuracy: sharedAccuracy,
+      }),
+      createDashboardTrend({
+        label: "לקוחות פעילים",
+        currentValue: current.customerCount,
+        previousValue: previous.customerCount,
+        formatValue: (value) => `${value.toLocaleString("he-IL")} לקוחות`,
+        sample: current.customerCount + previous.customerCount,
+        baselineMinimum: 2,
+        sampleMinimum: 5,
+        baselineSample: previous.customerCount,
+        baselineSampleMinimum: 2,
+        accuracy: sharedAccuracy,
+      }),
+      product
+        ? createDashboardTrend({
+            label: `מגמת מוצר · ${product.label}`,
+            currentValue: product.current.units,
+            previousValue: product.previous.units,
+            formatValue: (value) => `${value.toLocaleString("he-IL")} יח׳`,
+            sample: product.current.orderCount + product.previous.orderCount,
+            baselineMinimum: 3,
+            sampleMinimum: 3,
+            baselineSample: product.previous.orderCount,
+            baselineSampleMinimum: 2,
+            accuracy: product.accuracy,
+            importanceMultiplier: product.importanceMultiplier,
+          })
+        : createInsufficientProductTrend(sharedAccuracy),
+    ],
+  };
+}
+
+function getDashboardTrendPeriods(reference, days = 30) {
+  const currentEnd = getLocalDateKey(reference);
+  const currentStart = shiftLocalDateKeyByDays(currentEnd, -(days - 1));
+  const previousEnd = shiftLocalDateKeyByDays(currentStart, -1);
+  const previousStart = shiftLocalDateKeyByDays(previousEnd, -(days - 1));
+  return { currentStart, currentEnd, previousStart, previousEnd };
+}
+
+function shiftLocalDateKeyByDays(value, offset) {
+  const date = getDateFromLocalKey(value);
+  date.setDate(date.getDate() + offset);
+  return getLocalDateKey(date);
+}
+
+function isOrderInDashboardTrendPeriod(order, start, end) {
+  const dateKey = getOrderReportDateKey(order);
+  return Boolean(dateKey && dateKey >= start && dateKey <= end);
+}
+
+function getDashboardTrendPeriodStats(orderList) {
+  const customersInPeriod = new Set();
+  const productsByKey = new Map();
+  let revenue = 0;
+  let units = 0;
+  let orderCount = 0;
+  let totalLines = 0;
+  let completeLines = 0;
+
+  orderList.forEach((order) => {
+    let hasPaidLine = false;
+    const customer = getOrderCustomer(order);
+    const customerKey = customer?.id || normalizeSearch(order.customerName);
+
+    order.items.forEach((item) => {
+      if (isReservationOrderItem(item)) return;
+      totalLines += 1;
+      const quantity = parseTrendQuantity(item.quantity);
+      const isBonus = isBonusOrderItem(item);
+      const unitPrice = Number(item.unitPrice);
+      const validLine = quantity !== null && (isBonus || Number.isFinite(unitPrice));
+      if (!validLine) return;
+
+      completeLines += 1;
+      hasPaidLine = true;
+      units += quantity;
+      if (!isBonus) revenue = roundMoney(revenue + quantity * unitPrice);
+
+      const key = item.skuKey || item.sku || item.description || "מוצר";
+      const label = cleanString(item.description || item.sku || "מוצר ללא שם");
+      const product = productsByKey.get(key) || {
+        label,
+        units: 0,
+        orderIds: new Set(),
+        totalLines: 0,
+        completeLines: 0,
+      };
+      product.units += quantity;
+      product.orderIds.add(order.id);
+      product.totalLines += 1;
+      product.completeLines += 1;
+      productsByKey.set(key, product);
+    });
+
+    if (!hasPaidLine) return;
+    orderCount += 1;
+    if (customerKey) customersInPeriod.add(customerKey);
+  });
+
+  return {
+    revenue: roundMoney(revenue),
+    units,
+    orderCount,
+    customerCount: customersInPeriod.size,
+    totalLines,
+    completeLines,
+    productsByKey,
+  };
+}
+
+function getStableProductTrend(current, previous) {
+  const keys = new Set([...current.productsByKey.keys(), ...previous.productsByKey.keys()]);
+  const candidates = [...keys]
+    .map((key) => {
+      const currentProduct = current.productsByKey.get(key) || emptyTrendProduct();
+      const previousProduct = previous.productsByKey.get(key) || emptyTrendProduct();
+      const orderCount = new Set([...currentProduct.orderIds, ...previousProduct.orderIds]).size;
+      const totalUnits = currentProduct.units + previousProduct.units;
+      const hasReliableBaseline = previousProduct.units >= 3 && totalUnits >= 8 && orderCount >= 3;
+      return {
+        label: currentProduct.label || previousProduct.label || "מוצר",
+        current: { units: currentProduct.units, orderCount: currentProduct.orderIds.size },
+        previous: { units: previousProduct.units, orderCount: previousProduct.orderIds.size },
+        hasReliableBaseline,
+        accuracy: getTrendItemAccuracy(currentProduct, previousProduct),
+        importanceMultiplier: totalUnits ? Math.min(1, totalUnits / Math.max(8, current.units + previous.units || 1)) : 0,
+        movement: Math.abs(currentProduct.units - previousProduct.units),
+      };
+    })
+    .filter((candidate) => candidate.hasReliableBaseline)
+    .sort((a, b) => b.movement - a.movement || b.current.units - a.current.units);
+  return candidates[0] || null;
+}
+
+function emptyTrendProduct() {
+  return { label: "", units: 0, orderIds: new Set(), totalLines: 0, completeLines: 0 };
+}
+
+function getTrendDataAccuracy(current, previous) {
+  return getTrendItemAccuracy(current, previous);
+}
+
+function getTrendItemAccuracy(current, previous) {
+  const total = Number(current.totalLines || 0) + Number(previous.totalLines || 0);
+  const complete = Number(current.completeLines || 0) + Number(previous.completeLines || 0);
+  return total ? Math.round((complete / total) * 100) : 0;
+}
+
+function parseTrendQuantity(value) {
+  const quantity = Number.parseInt(value, 10);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
+}
+
+function createDashboardTrend({
+  label,
+  currentValue,
+  previousValue,
+  formatValue,
+  sample,
+  baselineMinimum,
+  sampleMinimum,
+  baselineSample = sample,
+  baselineSampleMinimum = 1,
+  accuracy,
+  importanceMultiplier = 1,
+}) {
+  const delta = currentValue - previousValue;
+  const hasBaseline =
+    previousValue >= baselineMinimum && sample >= sampleMinimum && baselineSample >= baselineSampleMinimum;
+  const percentChange = hasBaseline ? (delta / previousValue) * 100 : null;
+  const reliability = calculateTrendReliability({
+    sample,
+    baselineSample,
+    baselineSampleMinimum,
+    sampleMinimum,
+    accuracy,
+    hasBaseline,
+  });
+  const importance = calculateTrendImportance({ currentValue, previousValue, sample, sampleMinimum, importanceMultiplier });
+  const direction = !hasBaseline ? "insufficient" : delta > 0 ? "up" : delta < 0 ? "down" : "steady";
+  const directionLabel = !hasBaseline
+    ? "אין בסיס יציב להשוואת אחוזים"
+    : delta > 0
+      ? `עלייה של ${Math.abs(percentChange).toLocaleString("he-IL", { maximumFractionDigits: 0 })}%`
+      : delta < 0
+        ? `ירידה של ${Math.abs(percentChange).toLocaleString("he-IL", { maximumFractionDigits: 0 })}%`
+        : "ללא שינוי מהותי";
+
+  return {
+    label,
+    direction,
+    directionLabel,
+    currentLabel: formatValue(currentValue),
+    previousLabel: formatValue(previousValue),
+    reliability,
+    accuracy,
+    importance,
+    hasBaseline,
+  };
+}
+
+function createInsufficientProductTrend(accuracy) {
+  return {
+    label: "מגמת מוצר",
+    direction: "insufficient",
+    directionLabel: "עדיין אין מוצר עם בסיס מכר חוזר מספיק",
+    currentLabel: "ממתין לנתונים",
+    previousLabel: "לא מוצג אחוז מטעה",
+    reliability: { score: 20, tier: "red", label: "נמוכה" },
+    accuracy,
+    importance: 20,
+    hasBaseline: false,
+  };
+}
+
+function calculateTrendReliability({ sample, baselineSample, baselineSampleMinimum, sampleMinimum, accuracy, hasBaseline }) {
+  const baselineScore = Math.min(1, baselineSample / Math.max(1, baselineSampleMinimum)) * 40;
+  const sampleScore = Math.min(1, sample / Math.max(1, sampleMinimum)) * 35;
+  const accuracyScore = Math.min(100, Math.max(0, accuracy)) * 0.25;
+  const rawScore = Math.round(baselineScore + sampleScore + accuracyScore);
+  const score = hasBaseline ? rawScore : Math.min(45, rawScore);
+  const tier = score >= 75 ? "green" : score >= 50 ? "orange" : "red";
+  return { score, tier, label: tier === "green" ? "גבוהה" : tier === "orange" ? "בינונית" : "נמוכה" };
+}
+
+function calculateTrendImportance({ currentValue, previousValue, sample, sampleMinimum, importanceMultiplier }) {
+  const largest = Math.max(Math.abs(currentValue), Math.abs(previousValue), 1);
+  const movement = Math.min(1, Math.abs(currentValue - previousValue) / largest);
+  const evidence = Math.min(1, sample / Math.max(1, sampleMinimum));
+  return Math.round(Math.min(100, (25 + movement * 50 + evidence * 25) * Math.max(0.45, importanceMultiplier)));
+}
+
+function renderDashboardTrendCard(trend) {
+  const card = document.createElement("article");
+  card.className = `dashboard-trend-card reliability-${trend.reliability.tier}`;
+  const directionSymbol = trend.direction === "up" ? "↗" : trend.direction === "down" ? "↘" : trend.direction === "steady" ? "→" : "•";
+  card.innerHTML = `
+    <div class="dashboard-trend-heading">
+      <span>${escapeHtml(trend.label)}</span>
+      <b class="dashboard-trend-signal ${escapeHtml(trend.direction)}">${directionSymbol} ${escapeHtml(trend.directionLabel)}</b>
+    </div>
+    <div class="dashboard-trend-values">
+      <strong>${escapeHtml(trend.currentLabel)}</strong>
+      <span>לעומת ${escapeHtml(trend.previousLabel)}</span>
+    </div>
+    <div class="dashboard-trend-metrics">
+      <span class="trend-reliability ${trend.reliability.tier}"><i></i>אמינות ${escapeHtml(trend.reliability.label)} ${trend.reliability.score}%</span>
+      <span>דיוק ${Math.round(trend.accuracy)}%</span>
+      <span>חשיבות ${Math.round(trend.importance)}%</span>
+    </div>
+  `;
+  return card;
 }
 
 function getDueDraftsForToday(reference = new Date()) {
