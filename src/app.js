@@ -1225,14 +1225,15 @@ async function parsePdfOrderFile(file) {
   const rawLines = productRows.map((row) => {
     const sku = getImportedSku(row.text);
     const quantity = getImportedQuantity(row.text);
-    const rawLineTotal = getPdfRowAmount(row);
-    if (!Number.isFinite(rawLineTotal) || rawLineTotal <= 0) {
+    const pricing = getPdfRowPricing(row);
+    const rawLineTotal = pricing.rawLineTotal;
+    if (!Number.isFinite(rawLineTotal) || rawLineTotal < 0) {
       throw new Error(`לא נמצא מחיר לשורה של ${sku}.`);
     }
     return {
       sku,
       quantity,
-      rawUnitPrice: roundMoney(rawLineTotal / quantity),
+      rawUnitPrice: Number.isFinite(pricing.rawUnitPrice) ? pricing.rawUnitPrice : roundMoney(rawLineTotal / quantity),
       rawLineTotal,
       description: "",
       priceIncludesVat: false,
@@ -1329,12 +1330,16 @@ function getImportedQuantity(value) {
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
-function getPdfRowAmount(row) {
+function getPdfRowPricing(row) {
   const candidates = row.cells
     .map((cell) => ({ x: cell.x, value: parseImportAmount(cell.text) }))
-    .filter((item) => Number.isFinite(item.value) && item.value > 0 && item.value < 1000000)
+    .filter((item) => Number.isFinite(item.value) && item.value >= 0 && item.value < 1000000)
     .sort((a, b) => a.x - b.x);
-  return candidates[0]?.value ?? null;
+  const hasDiscount = /\d+(?:[.,]\d+)?\s*%/.test(row.text);
+  return {
+    rawLineTotal: candidates[0]?.value ?? null,
+    rawUnitPrice: hasDiscount ? candidates[1]?.value ?? null : candidates[2]?.value ?? null,
+  };
 }
 
 function getPdfSummaryAmount(rows, matchesLabel) {
