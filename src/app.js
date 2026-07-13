@@ -34,6 +34,7 @@ const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_ORDER_IMPORT_OCR_PAGES = 8;
 const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
 const ORDER_COMPLETION_MIGRATION_VERSION = 1;
+const ORDER_OPEN_RESTORE_MIGRATION_VERSION = 1;
 const ORDER_IMPORT_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 const GENERAL_PRODUCT = { sku: "כללי", description: "מוצר כללי", price: 0 };
 const CLOUD_STATE_ENDPOINT = "/api/state";
@@ -336,6 +337,7 @@ let reservationSeedVersion = 0;
 let reminders = [];
 let collections = [];
 let orderCompletionMigrationVersion = 0;
+let orderOpenRestoreMigrationVersion = 0;
 let openCollectionDetails = new Set();
 let openReservationCustomerIds = new Set();
 let pendingReservationQuantities = new Map();
@@ -1132,7 +1134,9 @@ async function hydrateCloudState() {
         sharedStateResult.removedDraftReminders ||
         sharedStateResult.migratedCollectionReminders ||
         sharedStateResult.migratedCompletedOrders ||
-        Number(state.orderCompletionMigrationVersion || 0) < ORDER_COMPLETION_MIGRATION_VERSION
+        sharedStateResult.restoredCurrentDayOrders ||
+        Number(state.orderCompletionMigrationVersion || 0) < ORDER_COMPLETION_MIGRATION_VERSION ||
+        Number(state.orderOpenRestoreMigrationVersion || 0) < ORDER_OPEN_RESTORE_MIGRATION_VERSION
       ) {
         queueCloudSave(0);
       }
@@ -6887,6 +6891,24 @@ function isOrderCompleted(order) {
   return Boolean(cleanString(order?.completedAt));
 }
 
+function restoreCurrentDayOpenOrders() {
+  const todayKey = getLocalDateKey(new Date());
+  let restored = 0;
+
+  orders = orders.map((order) => {
+    if (!isOrderCompleted(order)) return order;
+    if (getOrderCreatedDateKey(order) !== todayKey || getOrderReportDateKey(order) !== todayKey) return order;
+
+    const createdAt = getSafeDate(order.createdAt);
+    if (createdAt.getHours() >= ORDER_REPORT_CUTOFF_HOUR) return order;
+
+    restored += 1;
+    return { ...order, completedAt: "", updatedAt: new Date().toISOString() };
+  });
+
+  return restored;
+}
+
 function completeDueOrders(options = {}) {
   const todayKey = getLocalDateKey(new Date());
   const completeExistingOrders = Boolean(options.completeExistingOrders);
@@ -9207,6 +9229,7 @@ function buildSharedState() {
     annotations,
     orders,
     orderCompletionMigrationVersion,
+    orderOpenRestoreMigrationVersion,
     drafts,
     lastPrices,
     reservations,
@@ -9236,11 +9259,17 @@ function applySharedState(state) {
   annotations = normalizeAnnotations(state.annotations);
   orders = normalizeOrders(state.orders);
   orderCompletionMigrationVersion = Math.max(0, Math.floor(Number(state.orderCompletionMigrationVersion) || 0));
+  orderOpenRestoreMigrationVersion = Math.max(0, Math.floor(Number(state.orderOpenRestoreMigrationVersion) || 0));
   const migratedCompletedOrders = completeDueOrders({
     completeExistingOrders: orderCompletionMigrationVersion < ORDER_COMPLETION_MIGRATION_VERSION,
   });
   if (orderCompletionMigrationVersion < ORDER_COMPLETION_MIGRATION_VERSION) {
     orderCompletionMigrationVersion = ORDER_COMPLETION_MIGRATION_VERSION;
+  }
+  const restoredCurrentDayOrders =
+    orderOpenRestoreMigrationVersion < ORDER_OPEN_RESTORE_MIGRATION_VERSION ? restoreCurrentDayOpenOrders() : 0;
+  if (orderOpenRestoreMigrationVersion < ORDER_OPEN_RESTORE_MIGRATION_VERSION) {
+    orderOpenRestoreMigrationVersion = ORDER_OPEN_RESTORE_MIGRATION_VERSION;
   }
   drafts = normalizeDrafts(state.drafts);
   lastPrices = normalizeLastPrices(state.lastPrices);
@@ -9270,7 +9299,13 @@ function applySharedState(state) {
   dom.whatsappNumber.value = settings.whatsappNumber || "";
   const removedDraftReminders = purgeDraftAutoReminders({ sync: false });
 
-  return { seededReservations: shouldSeedReservations, removedDraftReminders, migratedCollectionReminders, migratedCompletedOrders };
+  return {
+    seededReservations: shouldSeedReservations,
+    removedDraftReminders,
+    migratedCollectionReminders,
+    migratedCompletedOrders,
+    restoredCurrentDayOrders,
+  };
 }
 
 function readCustomers() {
