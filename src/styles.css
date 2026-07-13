@@ -8000,6 +8000,64 @@ body {
   bottom: 14px;
 }
 
+.dashboard-split-stat.dashboard-split-compact {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.dashboard-split-compact .dashboard-split-values {
+  display: grid;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-split-compact .dashboard-split-value {
+  display: grid;
+  min-width: 0;
+  align-content: end;
+  justify-items: start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.dashboard-split-compact .dashboard-split-money {
+  justify-items: end;
+  text-align: left;
+}
+
+.dashboard-split-compact .dashboard-split-value strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: #eaf4fb;
+  font-size: 0.98rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-split-compact .dashboard-split-money strong {
+  direction: ltr;
+}
+
+.dashboard-split-compact .dashboard-split-value small {
+  max-width: 100%;
+  overflow: hidden;
+  color: #91a8c0;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 719px) {
   .dashboard-stats {
     grid-auto-rows: 104px;
@@ -8030,5 +8088,13 @@ body {
   .dashboard-split-stat.sunday-orders .dashboard-card-action > small {
     right: 12px;
     bottom: 12px;
+  }
+
+  .dashboard-split-compact .dashboard-split-values {
+    gap: 6px;
+  }
+
+  .dashboard-split-compact .dashboard-split-value strong {
+    font-size: 0.9rem;
   }
 }
