@@ -631,7 +631,9 @@ function bindEvents() {
   dom.cartCustomerDialog.addEventListener("click", (event) => {
     if (event.target === dom.cartCustomerDialog) closeCartCustomerDialog();
   });
-  dom.orderImportInput.addEventListener("change", handleOrderImportUpload);
+  // The file/image import entry point was intentionally removed from the cart.
+  // Keep the old review dialog dormant so it cannot interrupt existing orders.
+  if (dom.orderImportInput) dom.orderImportInput.addEventListener("change", handleOrderImportUpload);
   dom.confirmOrderImport.addEventListener("click", loadImportedOrderIntoCart);
   dom.cancelOrderImport.addEventListener("click", closeOrderImportDialog);
   dom.cancelOrderImportTop.addEventListener("click", closeOrderImportDialog);
@@ -2212,7 +2214,7 @@ function handleDashboardAction(action) {
 
   if (action === "sunday-orders") {
     const sundayKey = getUpcomingSundayLocalDateKey(new Date());
-    const sundayOrders = orders.filter((order) => getOrderReportDateKey(order) === sundayKey);
+    const sundayOrders = orders.filter((order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === sundayKey);
     if (!sundayOrders.length) {
       dom.status.textContent = "אין כרגע הזמנות פתוחות ליום ראשון.";
       return;
@@ -7973,7 +7975,7 @@ function createBonusPriceField(line) {
 
 function renderOrders() {
   const query = normalizeSearch(dom.orderSearch.value);
-  const openOrders = orders.filter((order) => !isOrderCompleted(order));
+  const openOrders = orders.filter((order) => !isOrderCompleted(order) && !isOrderForTomorrow(order));
   const visibleOrders = filterOrdersByQuery(openOrders, query).sort(compareOrdersByCreatedAt);
 
   if (!visibleOrders.length) {
@@ -8005,8 +8007,8 @@ function renderTomorrowOrders() {
   const query = normalizeSearch(dom.tomorrowOrderSearch.value);
   const reportDateFilter = normalizeDateInput(tomorrowOrdersReportDateFilter);
   const tomorrowOrders = reportDateFilter
-    ? orders.filter((order) => getOrderReportDateKey(order) === reportDateFilter)
-    : orders.filter((order) => isOrderForTomorrow(order));
+    ? orders.filter((order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === reportDateFilter)
+    : orders.filter((order) => !isOrderCompleted(order) && isOrderForTomorrow(order));
   const visibleOrders = filterOrdersByQuery(tomorrowOrders, query).sort(compareOrdersByCreatedAt);
   const isSundayView = Boolean(reportDateFilter);
   if (dom.tomorrowOrdersEyebrow) dom.tomorrowOrdersEyebrow.textContent = isSundayView ? "דוחות יום ראשון" : "דוחות מחר";
