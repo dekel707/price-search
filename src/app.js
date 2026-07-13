@@ -4410,26 +4410,52 @@ function getIsraelHolidayEvents(reference = new Date()) {
     });
   };
 
+  // Show festival eves, חול המועד and אסרו חג separately so the calendar
+  // remains useful for planning working days, not only the main holidays.
   const scanStart = new Date(rangeStart);
-  scanStart.setDate(scanStart.getDate() - 7);
+  scanStart.setDate(scanStart.getDate() - 45);
   for (const date = new Date(scanStart); date <= rangeEnd; date.setDate(date.getDate() + 1)) {
     const { day, month } = getHebrewCalendarDateParts(date);
+    const isPurimMonth = month === "אדר" || month.startsWith("אדר ב");
 
+    if (month === "אלול" && day === 29) addHoliday(date, "ערב ראש השנה", "ערב חג");
     if (month === "תשרי") {
       if (day === 1) addHoliday(date, "ראש השנה", "חג ישראל");
       if (day === 2) addHoliday(date, "ראש השנה – יום ב׳", "חג ישראל");
+      if (day === 3) addHoliday(getObservedFastDate(date), "צום גדליה", "צום ומועד ישראלי");
+      if (day === 9) addHoliday(date, "ערב יום כיפור", "ערב חג");
       if (day === 10) addHoliday(date, "יום כיפור", "חג ישראל");
+      if (day === 14) addHoliday(date, "ערב סוכות", "ערב חג");
       if (day === 15) addHoliday(date, "סוכות", "חג ישראל");
+      if (day >= 16 && day <= 20) {
+        addHoliday(date, `חול המועד סוכות · יום ${day - 15}`, "חול המועד");
+      }
+      if (day === 21) addHoliday(date, "הושענא רבה · ערב שמיני עצרת", "מועד ישראלי");
       if (day === 22) addHoliday(date, "שמיני עצרת ושמחת תורה", "חג ישראל");
+      if (day === 23) addHoliday(date, "אסרו חג סוכות", "מועד ישראלי");
     }
 
-    if (month === "כסלו" && day === 25) addHoliday(date, "חנוכה", "חג ישראל");
+    if (month === "כסלו" && day === 25) {
+      Array.from({ length: 8 }, (_, index) => index).forEach((index) => {
+        const hanukkahDate = new Date(date);
+        hanukkahDate.setDate(hanukkahDate.getDate() + index);
+        addHoliday(hanukkahDate, `חנוכה · נר ${index + 1}`, "חג ישראל");
+      });
+    }
+    if (month === "טבת" && day === 10) addHoliday(date, "עשרה בטבת", "צום ומועד ישראלי");
     if (month === "שבט" && day === 15) addHoliday(date, "ט״ו בשבט", "חג ישראל");
-    if ((month === "אדר" || month.startsWith("אדר ב")) && day === 14) addHoliday(date, "פורים", "חג ישראל");
+    if (isPurimMonth && day === 13) addHoliday(date, "תענית אסתר · ערב פורים", "צום ומועד ישראלי");
+    if (isPurimMonth && day === 14) addHoliday(date, "פורים", "חג ישראל");
+    if (isPurimMonth && day === 15) addHoliday(date, "שושן פורים", "מועד ישראלי");
 
     if (month === "ניסן") {
+      if (day === 14) addHoliday(date, "ערב פסח", "ערב חג");
       if (day === 15) addHoliday(date, "פסח", "חג ישראל");
+      if (day >= 16 && day <= 20) {
+        addHoliday(date, `חול המועד פסח · יום ${day - 15}`, "חול המועד");
+      }
       if (day === 21) addHoliday(date, "שביעי של פסח", "חג ישראל");
+      if (day === 22) addHoliday(date, "אסרו חג פסח", "מועד ישראלי");
       if (day === 27) addHoliday(getObservedYomHaShoahDate(date), "יום הזיכרון לשואה ולגבורה", "מועד לאומי");
     }
 
@@ -4445,8 +4471,12 @@ function getIsraelHolidayEvents(reference = new Date()) {
       if (day === 28) addHoliday(date, "יום ירושלים", "מועד לאומי");
     }
 
+    if (month === "סיוון" && day === 5) addHoliday(date, "ערב שבועות", "ערב חג");
     if (month === "סיוון" && day === 6) addHoliday(date, "שבועות", "חג ישראל");
-    if (month === "אב" && day === 9) addHoliday(date, "תשעה באב", "מועד ישראלי");
+    if (month === "סיוון" && day === 7) addHoliday(date, "אסרו חג שבועות", "מועד ישראלי");
+    if (month === "תמוז" && day === 17) addHoliday(getObservedFastDate(date), "שבעה עשר בתמוז", "צום ומועד ישראלי");
+    if (month === "אב" && day === 8) addHoliday(date, "ערב תשעה באב", "ערב צום");
+    if (month === "אב" && day === 9) addHoliday(getObservedFastDate(date), "תשעה באב", "צום ומועד ישראלי");
     if (month === "אב" && day === 15) addHoliday(date, "ט״ו באב", "מועד ישראלי");
   }
 
@@ -4466,6 +4496,12 @@ function getObservedYomHaShoahDate(baseDate) {
   const observed = new Date(baseDate);
   if (observed.getDay() === 5) observed.setDate(observed.getDate() - 1);
   if (observed.getDay() === 0) observed.setDate(observed.getDate() + 1);
+  return observed;
+}
+
+function getObservedFastDate(baseDate) {
+  const observed = new Date(baseDate);
+  if (observed.getDay() === 6) observed.setDate(observed.getDate() + 1);
   return observed;
 }
 
