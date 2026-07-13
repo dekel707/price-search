@@ -3538,6 +3538,17 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.order-item-short-description {
+  color: var(--ps-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.order-item-short-description::before {
+  content: " · ";
+  color: currentColor;
+}
+
 .order-text-details strong {
   padding-top: 4px;
   color: #ffe19a;
@@ -7528,22 +7539,6 @@ body {
   border-color: #ff9caf;
   background: linear-gradient(135deg, #d43c67, #841d3d);
   color: #ffffff;
-}
-
-.orders-panel .order-card .order-action-button.order-action-price,
-.orders-panel .tomorrow-order-card .order-action-button.order-action-price {
-  border-color: rgba(109, 205, 239, 0.68);
-  background: linear-gradient(135deg, rgba(17, 106, 143, 0.78), rgba(12, 59, 91, 0.92));
-  color: #c8f3ff;
-}
-
-.orders-panel .order-card .order-action-button.order-action-price:hover,
-.orders-panel .order-card .order-action-button.order-action-price:focus-visible,
-.orders-panel .tomorrow-order-card .order-action-button.order-action-price:hover,
-.orders-panel .tomorrow-order-card .order-action-button.order-action-price:focus-visible {
-  border-color: #9ce9ff;
-  background: linear-gradient(135deg, #168fbc, #126989);
-  color: #f2fdff;
 }
 
 /* AI order assistant — it creates a reviewable proposal and never skips confirmation. */
