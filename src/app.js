@@ -1,7 +1,11 @@
 import "./styles.css";
 import { readSheet } from "read-excel-file/browser";
 import { strToU8, zipSync } from "fflate";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
+import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 import { DEFAULT_RESERVATION_GROUPS, RESERVATION_SEED_VERSION } from "./reservations-data.js";
+
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const STORAGE_KEY = "price-search-products-v1";
 const META_KEY = "price-search-meta-v1";
@@ -144,6 +148,15 @@ const dom = {
   customerName: document.querySelector("#customerName"),
   customerOptions: document.querySelector("#customerOptions"),
   customerHint: document.querySelector("#customerHint"),
+  orderImportInput: document.querySelector("#orderImportInput"),
+  orderImportStatus: document.querySelector("#orderImportStatus"),
+  orderImportDialog: document.querySelector("#orderImportDialog"),
+  orderImportReview: document.querySelector("#orderImportReview"),
+  orderImportCustomerName: document.querySelector("#orderImportCustomerName"),
+  orderImportCustomerPhone: document.querySelector("#orderImportCustomerPhone"),
+  confirmOrderImport: document.querySelector("#confirmOrderImport"),
+  cancelOrderImport: document.querySelector("#cancelOrderImport"),
+  cancelOrderImportTop: document.querySelector("#cancelOrderImportTop"),
   cartPanel: document.querySelector(".cart-panel"),
   cartTitle: document.querySelector("#cartTitle"),
   orderTypeInputs: [...document.querySelectorAll('[name="orderType"]')],
@@ -321,6 +334,7 @@ let activeCustomerId = "";
 let pendingCartProduct = null;
 let pendingCartPriceSource = "list";
 let pendingReservationChoiceTouched = false;
+let pendingOrderImport = null;
 let pendingNoteProduct = null;
 let pendingArrivalProduct = null;
 let customerConfirmedForCurrentCart = false;
@@ -590,6 +604,13 @@ function bindEvents() {
   dom.cartCustomerDialog.addEventListener("click", (event) => {
     if (event.target === dom.cartCustomerDialog) closeCartCustomerDialog();
   });
+  dom.orderImportInput.addEventListener("change", handleOrderImportUpload);
+  dom.confirmOrderImport.addEventListener("click", loadImportedOrderIntoCart);
+  dom.cancelOrderImport.addEventListener("click", closeOrderImportDialog);
+  dom.cancelOrderImportTop.addEventListener("click", closeOrderImportDialog);
+  dom.orderImportDialog.addEventListener("click", (event) => {
+    if (event.target === dom.orderImportDialog) closeOrderImportDialog();
+  });
   dom.noteForm.addEventListener("submit", saveProductNote);
   dom.deleteNote.addEventListener("click", deleteProductNote);
   dom.cancelNote.addEventListener("click", closeNoteDialog);
@@ -606,6 +627,7 @@ function bindEvents() {
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !dom.cartCustomerDialog.hidden) closeCartCustomerDialog();
+    if (event.key === "Escape" && !dom.orderImportDialog.hidden) closeOrderImportDialog();
     if (event.key === "Escape" && !dom.noteDialog.hidden) closeNoteDialog();
     if (event.key === "Escape" && !dom.arrivalDialog.hidden) closeArrivalDialog();
   });
@@ -1155,6 +1177,429 @@ async function handleStockFileUpload(event) {
   } finally {
     event.target.value = "";
   }
+}
+
+async function handleOrderImportUpload(event) {
+  const [file] = event.target.files;
+  if (!file) return;
+
+  dom.orderImportStatus.textContent = `קורא את ${file.name} ובודק סכומים...`;
+  try {
+    pendingOrderImport = await parseOrderImportFile(file);
+    renderOrderImportReview();
+    dom.orderImportDialog.hidden = false;
+    document.body.classList.add("dialog-open");
+    dom.orderImportStatus.textContent = `נמצאו ${pendingOrderImport.lines.length.toLocaleString("he-IL")} שורות. נדרש אישור לפני טעינה לסל.`;
+  } catch (error) {
+    console.error("Order import failed", error);
+    pendingOrderImport = null;
+    dom.orderImportStatus.textContent = `לא הצלחתי לייבא את הקובץ: ${error.message || "בדוק את המבנה ונסה שוב."}`;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+async function parseOrderImportFile(file) {
+  const fileName = cleanString(file.name);
+  const extension = fileName.split(".").pop()?.toLocaleLowerCase("en-US") || "";
+  if (extension === "pdf" || file.type === "application/pdf") return parsePdfOrderFile(file);
+  if (["xlsx", "xls"].includes(extension)) return parseSpreadsheetOrderFile(file);
+  if (extension === "csv" || file.type === "text/csv") return parseOrderImportRows(parseCsvRows(await file.text()), fileName);
+  throw new Error("נתמכים קבצי PDF, Excel או CSV בלבד.");
+}
+
+async function parsePdfOrderFile(file) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  const documentProxy = await getDocument({ data, disableWorker: true }).promise;
+  const rows = [];
+
+  for (let pageNumber = 1; pageNumber <= documentProxy.numPages; pageNumber += 1) {
+    const page = await documentProxy.getPage(pageNumber);
+    const textContent = await page.getTextContent({ normalizeWhitespace: true });
+    rows.push(...groupPdfTextRows(textContent.items, pageNumber));
+  }
+
+  const productRows = rows.filter((row) => getImportedSku(row.text));
+  if (!productRows.length) throw new Error("לא נמצאו דגמים קריאים ב־PDF.");
+
+  const rawLines = productRows.map((row) => {
+    const sku = getImportedSku(row.text);
+    const quantity = getImportedQuantity(row.text);
+    const rawLineTotal = getPdfRowAmount(row);
+    if (!Number.isFinite(rawLineTotal) || rawLineTotal <= 0) {
+      throw new Error(`לא נמצא מחיר לשורה של ${sku}.`);
+    }
+    return {
+      sku,
+      quantity,
+      rawUnitPrice: roundMoney(rawLineTotal / quantity),
+      rawLineTotal,
+      description: "",
+      priceIncludesVat: false,
+    };
+  });
+
+  const customerInfo = getPdfCustomerInfo(rows, productRows[0]);
+  const declaredTotal = getPdfSummaryAmount(rows, (text) => /סה[״"']?כ\s*מחיר|לתשלום/.test(text));
+  const declaredSubtotal = getPdfSummaryAmount(rows, (text) => /מחיר\s*כולל\s*הנחה|סכום\s*לפני\s*מע[״"']?מ/.test(text));
+  const vatAmount = getPdfSummaryAmount(rows, (text) => /מע[״"']?מ/.test(text));
+
+  return finalizeImportedOrder({
+    fileName: file.name,
+    sourceType: "PDF",
+    customerName: customerInfo.name,
+    customerPhone: customerInfo.phone,
+    rawLines,
+    declaredTotal,
+    declaredSubtotal,
+    vatAmount,
+  });
+}
+
+async function parseSpreadsheetOrderFile(file) {
+  const rows = await readSheet(file);
+  return parseOrderImportRows(rows, file.name);
+}
+
+function parseOrderImportRows(rows, fileName = "קובץ הזמנה") {
+  const normalizedRows = (rows || []).map((row) => (Array.isArray(row) ? row.map((cell) => cleanString(cell)) : []));
+  const headerRowIndex = findOrderImportHeaderRow(normalizedRows);
+  if (headerRowIndex < 0) throw new Error("לא נמצאה כותרת עם מק״ט/דגם וכמות בקובץ.");
+
+  const columns = getOrderImportColumns(normalizedRows[headerRowIndex]);
+  const rawLines = normalizedRows
+    .slice(headerRowIndex + 1)
+    .map((row) => createSpreadsheetImportLine(row, columns))
+    .filter(Boolean);
+  if (!rawLines.length) throw new Error("לא נמצאו שורות הזמנה לאחר הכותרת.");
+
+  const summary = getSpreadsheetImportSummary(normalizedRows, headerRowIndex);
+  const customerInfo = getSpreadsheetCustomerInfo(normalizedRows, headerRowIndex);
+  return finalizeImportedOrder({
+    fileName,
+    sourceType: "Excel",
+    customerName: customerInfo.name,
+    customerPhone: customerInfo.phone,
+    rawLines,
+    declaredTotal: summary.total,
+    declaredSubtotal: summary.subtotal,
+    vatAmount: summary.vat,
+  });
+}
+
+function groupPdfTextRows(items, pageNumber) {
+  const positioned = items
+    .map((item) => ({
+      text: cleanString(item.str),
+      x: Number(item.transform?.[4]) || 0,
+      y: Number(item.transform?.[5]) || 0,
+    }))
+    .filter((item) => item.text);
+  const grouped = [];
+  positioned
+    .sort((a, b) => b.y - a.y || a.x - b.x)
+    .forEach((item) => {
+      const existing = grouped.find((row) => Math.abs(row.y - item.y) <= 3);
+      if (existing) {
+        existing.cells.push(item);
+        return;
+      }
+      grouped.push({ y: item.y, cells: [item] });
+    });
+
+  return grouped.map((row) => {
+    const cells = row.cells.sort((a, b) => a.x - b.x);
+    return {
+      pageNumber,
+      y: row.y,
+      cells,
+      text: cells.map((cell) => cell.text).join(" "),
+    };
+  });
+}
+
+function getImportedSku(value) {
+  const match = cleanString(value).toLocaleUpperCase("en-US").match(/(?:FJ|IT)-[A-Z0-9-]+/);
+  return match?.[0] || "";
+}
+
+function getImportedQuantity(value) {
+  const match = cleanString(value).match(/(\d+(?:[.,]\d+)?)\s*יח[׳']/);
+  const quantity = match ? Number(match[1].replace(",", ".")) : 1;
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+}
+
+function getPdfRowAmount(row) {
+  const candidates = row.cells
+    .map((cell) => ({ x: cell.x, value: parseImportAmount(cell.text) }))
+    .filter((item) => Number.isFinite(item.value) && item.value > 0 && item.value < 1000000)
+    .sort((a, b) => a.x - b.x);
+  return candidates[0]?.value ?? null;
+}
+
+function getPdfSummaryAmount(rows, matchesLabel) {
+  for (const row of rows) {
+    if (!matchesLabel(normalizeOrderImportHeader(row.text))) continue;
+    const candidates = row.cells
+      .map((cell) => parseImportAmount(cell.text))
+      .filter((value) => Number.isFinite(value) && value >= 0 && value < 100000000);
+    if (candidates.length) return candidates[0];
+  }
+  return null;
+}
+
+function getPdfCustomerInfo(rows, firstProductRow) {
+  const endIndex = Math.max(0, rows.indexOf(firstProductRow));
+  const headerRows = rows.slice(0, endIndex);
+  const honorIndex = headerRows.findIndex((row) => /לכבוד/.test(normalizeOrderImportHeader(row.text)));
+  const searchRows = honorIndex >= 0 ? headerRows.slice(honorIndex + 1) : headerRows;
+  const customerRow = searchRows.find((row) => {
+    const text = cleanString(row.text);
+    const normalized = normalizeOrderImportHeader(text);
+    return /[א-ת]/.test(text) && !/תאריך|טלפון|פקס|כתובת|הצעתמחיר|יניר|מספר/.test(normalized);
+  });
+  const customerName = cleanString(customerRow?.text || "").replace(/^לכבוד\s*:?\s*/, "");
+  const phoneRows = customerRow ? searchRows.slice(Math.max(0, searchRows.indexOf(customerRow)), searchRows.indexOf(customerRow) + 8) : searchRows;
+  const phone = phoneRows
+    .map((row) => row.text.match(/0\d{1,2}-\d{6,8}/)?.[0] || "")
+    .find(Boolean) || "";
+  return { name: customerName, phone };
+}
+
+function findOrderImportHeaderRow(rows) {
+  return rows.findIndex((row) => {
+    const text = normalizeOrderImportHeader(row.join(" "));
+    return (text.includes("מקט") || text.includes("דגם") || text.includes("sku")) && text.includes("כמות");
+  });
+}
+
+function getOrderImportColumns(headerRow) {
+  const headers = headerRow.map(normalizeOrderImportHeader);
+  const indexOf = (predicate) => headers.findIndex(predicate);
+  const sku = indexOf((header) => header.includes("מקט") || header === "דגם" || header.includes("sku") || header.includes("model"));
+  const quantity = indexOf((header) => header.includes("כמות") || header.includes("qty") || header.includes("quantity"));
+  const description = indexOf((header) => header.includes("תיאור") || header.includes("מוצר") || header.includes("description"));
+  const total = indexOf((header) => header.includes("סהכ") || header.includes("total"));
+  const afterDiscount = indexOf((header) => header.includes("אחריהנחה") || header.includes("לאחרהנחה") || header.includes("netto"));
+  const grossPrice = indexOf((header) => header.includes("כוללמעמ") || header.includes("incvat") || header.includes("gross"));
+  const unitPrice = indexOf((header) => header.includes("מחירליחידה") || header.includes("מחיריחידה") || header.includes("unitprice") || header === "מחיר");
+  return { sku, quantity, description, total, afterDiscount, grossPrice, unitPrice };
+}
+
+function createSpreadsheetImportLine(row, columns) {
+  const sku = getImportedSku(row[columns.sku]);
+  if (!sku) return null;
+  const quantity = getImportedQuantity(row[columns.quantity]);
+  const rawLineTotal = parseImportAmount(row[columns.total]);
+  const rawUnitPrice =
+    parseImportAmount(row[columns.grossPrice]) ??
+    parseImportAmount(row[columns.afterDiscount]) ??
+    parseImportAmount(row[columns.unitPrice]) ??
+    (Number.isFinite(rawLineTotal) ? roundMoney(rawLineTotal / quantity) : null);
+  if (!Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) return null;
+  return {
+    sku,
+    quantity,
+    rawUnitPrice,
+    rawLineTotal: Number.isFinite(rawLineTotal) ? rawLineTotal : roundMoney(rawUnitPrice * quantity),
+    description: cleanString(row[columns.description]),
+    priceIncludesVat: columns.grossPrice >= 0,
+  };
+}
+
+function getSpreadsheetImportSummary(rows, headerRowIndex) {
+  const summary = { total: null, subtotal: null, vat: null };
+  rows.slice(headerRowIndex + 1).forEach((row) => {
+    const label = normalizeOrderImportHeader(row.join(" "));
+    const amount = row.map(parseImportAmount).find((value) => Number.isFinite(value) && value >= 0 && value < 100000000);
+    if (!Number.isFinite(amount)) return;
+    if (/סהכמחיר|לתשלום|grandtotal/.test(label)) summary.total = amount;
+    else if (/מחירכוללהנחה|סכוםלפנימעמ|subtotal/.test(label)) summary.subtotal = amount;
+    else if (/מעמ|vat/.test(label)) summary.vat = amount;
+  });
+  return summary;
+}
+
+function getSpreadsheetCustomerInfo(rows, headerRowIndex) {
+  const topRows = rows.slice(0, headerRowIndex);
+  for (const row of topRows) {
+    const cells = row.map(cleanString);
+    const labelIndex = cells.findIndex((cell) => /לקוח|לכבוד|customer/.test(normalizeOrderImportHeader(cell)));
+    if (labelIndex < 0) continue;
+    const name = cells.slice(labelIndex + 1).find((cell) => /[א-תA-Za-z]/.test(cell)) || "";
+    const phone = cells.map((cell) => cell.match(/0\d{1,2}-\d{6,8}/)?.[0] || "").find(Boolean) || "";
+    if (name) return { name, phone };
+  }
+  return { name: "", phone: "" };
+}
+
+function parseCsvRows(value) {
+  return String(value ?? "")
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => line.split(line.includes("\t") ? "\t" : ",").map((cell) => cell.trim()));
+}
+
+function parseImportAmount(value) {
+  const parsed = parsePrice(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeOrderImportHeader(value) {
+  return normalizeSearch(value).replace(/[\s_\-/]/g, "");
+}
+
+function finalizeImportedOrder(input) {
+  const rawSubtotal = roundMoney(input.rawLines.reduce((sum, line) => sum + (Number(line.rawLineTotal) || 0), 0));
+  const declaredTotal = Number.isFinite(input.declaredTotal) ? roundMoney(input.declaredTotal) : null;
+  const declaredSubtotal = Number.isFinite(input.declaredSubtotal) ? roundMoney(input.declaredSubtotal) : null;
+  const vatAmount = Number.isFinite(input.vatAmount) ? roundMoney(input.vatAmount) : null;
+  const inferredNetPrices = input.rawLines.some((line) => line.priceIncludesVat === false) &&
+    Boolean(declaredTotal && isAmountClose(roundMoney(rawSubtotal * (1 + VAT_RATE)), declaredTotal));
+  const multiplier = inferredNetPrices ? 1 + VAT_RATE : 1;
+  const lines = input.rawLines.map((line) => {
+    const product = products.find((item) => item.skuKey === getSkuKey(line.sku));
+    const quantity = getImportedQuantity(String(line.quantity));
+    const unitPrice = roundMoney((Number(line.rawUnitPrice) || 0) * multiplier);
+    return {
+      ...line,
+      product,
+      quantity,
+      unitPrice,
+      lineTotal: roundMoney(quantity * unitPrice),
+    };
+  });
+
+  let calculatedTotal = getOrderTotal(lines);
+  const roundingDifference = declaredTotal ? roundMoney(declaredTotal - calculatedTotal) : 0;
+  if (lines.length && Math.abs(roundingDifference) <= 0.1 && roundingDifference !== 0) {
+    const lastLine = lines[lines.length - 1];
+    lastLine.unitPrice = roundMoney(lastLine.unitPrice + roundingDifference / lastLine.quantity);
+    lastLine.lineTotal = roundMoney(lastLine.unitPrice * lastLine.quantity);
+    calculatedTotal = getOrderTotal(lines);
+  }
+
+  const unresolved = lines.filter((line) => !line.product);
+  const matchesTotal = !declaredTotal || isAmountClose(calculatedTotal, declaredTotal);
+  const warnings = [];
+  if (!input.customerName) warnings.push("לא זוהה שם לקוח. אפשר להזין אותו ידנית לפני טעינה לסל.");
+  if (unresolved.length) warnings.push(`${unresolved.length.toLocaleString("he-IL")} דגמים לא נמצאו במחירון ולכן לא ייטענו לסל.`);
+  if (declaredTotal && !matchesTotal) warnings.push("הסכום המחושב אינו תואם לסכום הסופי בקובץ.");
+  if (!declaredTotal) warnings.push("לא זוהה סכום סופי בקובץ; בדוק את הסכום לפני טעינה לסל.");
+
+  return {
+    ...input,
+    declaredTotal,
+    declaredSubtotal,
+    vatAmount,
+    rawSubtotal,
+    inferredNetPrices,
+    lines,
+    calculatedTotal,
+    matchesTotal,
+    unresolved,
+    warnings,
+  };
+}
+
+function isAmountClose(first, second) {
+  return Math.abs((Number(first) || 0) - (Number(second) || 0)) <= 0.1;
+}
+
+function renderOrderImportReview() {
+  const proposal = pendingOrderImport;
+  if (!proposal) return;
+  const existingCustomer = findCustomerByName(proposal.customerName);
+  dom.orderImportCustomerName.value = proposal.customerName || "";
+  dom.orderImportCustomerPhone.value = proposal.customerPhone || existingCustomer?.phone || "";
+  const difference = proposal.declaredTotal ? roundMoney(proposal.calculatedTotal - proposal.declaredTotal) : null;
+  const totalTone = proposal.matchesTotal ? "matched" : "mismatch";
+  const customerStatus = existingCustomer ? "לקוח קיים ייבחר אוטומטית" : "לקוח חדש ייווצר כשתאשר טעינה לסל";
+  const priceMode = proposal.inferredNetPrices ? "מחירי הקובץ הומרו ממחיר לפני מע״מ למחיר כולל מע״מ." : "המחירים נטענים כפי שהופיעו בקובץ.";
+
+  dom.orderImportReview.innerHTML = `
+    <div class="order-import-source"><span>${escapeHtml(proposal.sourceType)}</span><strong>${escapeHtml(proposal.fileName)}</strong></div>
+    <div class="order-import-summary-grid">
+      <div><span>סטטוס לקוח</span><strong>${escapeHtml(customerStatus)}</strong></div>
+      <div><span>שורות שזוהו</span><strong>${proposal.lines.length.toLocaleString("he-IL")}</strong></div>
+      <div><span>סה״כ בקובץ</span><strong>${proposal.declaredTotal ? escapeHtml(formatPrice(proposal.declaredTotal)) : "לא זוהה"}</strong></div>
+      <div class="${totalTone}"><span>סה״כ שייטען לסל</span><strong>${escapeHtml(formatPrice(proposal.calculatedTotal))}</strong><small>${difference === null ? "בדיקה ידנית" : proposal.matchesTotal ? "תואם לקובץ" : `הפרש ${escapeHtml(formatPrice(Math.abs(difference)))}`}</small></div>
+    </div>
+    <p class="order-import-tax-note">${escapeHtml(priceMode)}${proposal.declaredSubtotal ? ` לפני מע״מ: ${formatPrice(proposal.declaredSubtotal)}${proposal.vatAmount ? ` · מע״מ: ${formatPrice(proposal.vatAmount)}` : ""}` : ""}</p>
+    <div class="order-import-lines">
+      ${proposal.lines.map((line) => `
+        <article class="order-import-line${line.product ? "" : " unresolved"}">
+          <div><strong>${escapeHtml(line.sku)}</strong><span>${escapeHtml(line.product?.description || line.description || "לא נמצא במחירון")}</span></div>
+          <span>${line.quantity.toLocaleString("he-IL")} יח׳</span>
+          <b>${escapeHtml(formatPrice(line.lineTotal))}</b>
+        </article>
+      `).join("")}
+    </div>
+    ${proposal.warnings.length ? `<ul class="order-import-warnings">${proposal.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>` : ""}
+  `;
+  dom.confirmOrderImport.disabled = Boolean(proposal.unresolved.length) || !proposal.matchesTotal;
+}
+
+function closeOrderImportDialog() {
+  pendingOrderImport = null;
+  dom.orderImportDialog.hidden = true;
+  document.body.classList.remove("dialog-open");
+}
+
+function loadImportedOrderIntoCart() {
+  const proposal = pendingOrderImport;
+  if (!proposal) return;
+  const customerName = cleanString(dom.orderImportCustomerName.value);
+  const customerPhone = cleanString(dom.orderImportCustomerPhone.value);
+  if (!customerName) {
+    dom.orderImportStatus.textContent = "צריך להזין שם לקוח לפני טעינה לסל.";
+    dom.orderImportCustomerName.focus();
+    return;
+  }
+  if (proposal.unresolved.length || !proposal.matchesTotal) {
+    dom.orderImportStatus.textContent = "יש פערים בייבוא. תקן אותם לפני טעינה לסל.";
+    return;
+  }
+
+  let customer = findCustomerByName(customerName);
+  if (!customer) {
+    customer = {
+      id: createCustomerId(customerName),
+      code: "",
+      name: customerName,
+      phone: customerPhone,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    customers = [...customers, customer].sort((a, b) => a.name.localeCompare(b.name, "he"));
+  } else if (customerPhone && customer.phone !== customerPhone) {
+    customer = { ...customer, phone: customerPhone, updatedAt: new Date().toISOString() };
+    customers = customers.map((item) => (item.id === customer.id ? customer : item));
+  }
+
+  applyCustomerToDraft(customer);
+  const importedLines = proposal.lines.map((line) => ({
+    lineKey: createCartLineKey(line.product.skuKey, false, line.unitPrice, "custom"),
+    skuKey: line.product.skuKey,
+    sku: line.product.sku,
+    description: line.product.description,
+    listPrice: line.product.price,
+    unitPrice: line.unitPrice,
+    quantity: line.quantity,
+    fromReservation: false,
+    priceSource: "custom",
+  }));
+  cart = mergeCartLines([...cart, ...importedLines]);
+  customerConfirmedForCurrentCart = true;
+  saveCart();
+  saveSettings();
+  saveCustomers();
+  closeOrderImportDialog();
+  render();
+  setActiveTab("cart");
+  dom.orderImportStatus.textContent = `הקובץ נטען לסל עבור ${customer.name}. בדוק את השורות ולחץ „שמור הזמנה” רק כשאתה מאשר.`;
+  dom.status.textContent = "הייבוא הוכן בסל לבדיקה. ההזמנה טרם נשמרה ולא נכנסה לדוחות.";
 }
 
 async function parseSpreadsheet(file) {
