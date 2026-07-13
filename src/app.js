@@ -4648,7 +4648,7 @@ function renderCalendarSelectedDayEvents(events, dateKey) {
     dom.calendarEventsCount.textContent = "בחר יום";
     const empty = document.createElement("p");
     empty.className = "calendar-empty";
-    empty.textContent = "לחץ על יום בלוח כדי להציג רק את התזכורות והפריטים הפתוחים שלו.";
+    empty.textContent = "לחץ על יום בלוח כדי להציג תזכורות, פריטים פתוחים וחגים של אותו יום.";
     dom.calendarEventsList.replaceChildren(empty);
     return;
   }
@@ -4656,22 +4656,22 @@ function renderCalendarSelectedDayEvents(events, dateKey) {
   const date = getDateFromLocalKey(dateKey);
   const openEvents = events.filter((event) => event.type !== "holiday" && !event.completed);
   const holidays = events.filter((event) => event.type === "holiday");
+  const visibleEvents = [...holidays, ...openEvents];
   dom.calendarEventsTitle.textContent = `${formatReminderDate(dateKey)} · ${formatCalendarHebrewDate(date)}`;
-  dom.calendarEventsCount.textContent = openEvents.length
-    ? `${openEvents.length.toLocaleString("he-IL")} פתוחים`
-    : "אין פריטים פתוחים";
+  dom.calendarEventsCount.textContent = [
+    holidays.length ? `${holidays.length.toLocaleString("he-IL")} חגים` : "",
+    openEvents.length ? `${openEvents.length.toLocaleString("he-IL")} פתוחים` : "",
+  ].filter(Boolean).join(" · ") || "אין פריטים";
 
-  if (!openEvents.length) {
+  if (!visibleEvents.length) {
     const empty = document.createElement("p");
     empty.className = "calendar-empty";
-    empty.textContent = holidays.length
-      ? `אין תזכורות או פריטים פתוחים. ${holidays.map((event) => event.title).join(" · ")}`
-      : "אין תזכורות או פריטים פתוחים בתאריך זה.";
+    empty.textContent = "אין תזכורות, פריטים פתוחים או חגים בתאריך זה.";
     dom.calendarEventsList.replaceChildren(empty);
     return;
   }
 
-  dom.calendarEventsList.replaceChildren(...openEvents.map(renderCalendarEventRow));
+  dom.calendarEventsList.replaceChildren(...visibleEvents.map(renderCalendarEventRow));
 }
 
 function renderCalendarDay(date, events, options) {
@@ -4725,7 +4725,7 @@ function renderCalendarEventRow(event) {
       <span>${escapeHtml(formatCalendarHebrewDate(date))}</span>
     </div>
     <div class="calendar-event-copy">
-      <span class="calendar-event-type">${event.type === "arrival" ? "חזרה למלאי" : event.completed ? "תזכורת שבוצעה" : "תזכורת"}</span>
+      <span class="calendar-event-type">${event.type === "holiday" ? (event.detail || "חג ומועד") : event.type === "arrival" ? "חזרה למלאי" : event.completed ? "תזכורת שבוצעה" : "תזכורת"}</span>
       <strong>${escapeHtml(event.title)}</strong>
       ${event.detail ? `<small>${escapeHtml(event.detail)}</small>` : ""}
     </div>

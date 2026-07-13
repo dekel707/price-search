@@ -7361,6 +7361,16 @@ button.calendar-day {
   box-shadow: 0 0 11px rgba(75, 216, 143, 0.55);
 }
 
+.calendar-event-row.holiday {
+  border-color: rgba(242, 189, 92, 0.52);
+  background: linear-gradient(135deg, rgba(87, 65, 21, 0.42), rgba(15, 42, 55, 0.82));
+}
+
+.calendar-event-row.holiday::before {
+  background: #f2bd5c;
+  box-shadow: 0 0 11px rgba(242, 189, 92, 0.62);
+}
+
 .calendar-event-row.completed {
   opacity: 0.57;
 }
@@ -7407,6 +7417,10 @@ button.calendar-day {
 
 .calendar-event-row.arrival .calendar-event-type {
   color: #78dda9;
+}
+
+.calendar-event-row.holiday .calendar-event-type {
+  color: #f7cc7a;
 }
 
 .calendar-event-copy small {
