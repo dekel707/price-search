@@ -72,7 +72,8 @@
         <button class="tab-button" type="button" data-tab="calendar">לוח שנה</button>
         <button class="tab-button" type="button" data-tab="categories">קטגוריות</button>
         <button class="tab-button" type="button" data-tab="drafts">טיוטות</button>
-        <button class="tab-button" type="button" data-tab="orders">הזמנות</button>
+        <button class="tab-button" type="button" data-tab="orders">הזמנות פתוחות</button>
+        <button class="tab-button" type="button" data-tab="completed-orders">הזמנות שהושלמו</button>
         <button class="tab-button" type="button" data-tab="tomorrow-orders">הזמנות למחר</button>
       </nav>
 
@@ -690,17 +691,39 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v4h4M9 12h6M9 16h4" /></svg>
               </span>
               <div>
-              <p class="eyebrow">היסטוריה</p>
-              <h2>הזמנות שמורות</h2>
+          <p class="eyebrow">במעקב</p>
+          <h2>הזמנות פתוחות</h2>
               </div>
             </div>
-            <span class="orders-panel-chip history">מסמכים והמשך טיפול</span>
+            <span class="orders-panel-chip history">ממתינות להשלמה</span>
           </div>
           <label class="field-wrap">
-            <span>חיפוש הזמנה</span>
+            <span>חיפוש הזמנה פתוחה</span>
             <input id="orderSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
           </label>
           <div class="orders-list" id="ordersList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="completed-orders">
+        <section class="orders-panel orders-history-panel" aria-label="הזמנות שהושלמו">
+          <div class="panel-header">
+            <div class="orders-panel-title">
+              <span class="orders-panel-icon history" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v4h4M9 12h6M9 16h4" /><path d="m8 19 1.8 1.8L15.5 15" /></svg>
+              </span>
+              <div>
+                <p class="eyebrow">ארכיון</p>
+                <h2>הזמנות שהושלמו</h2>
+              </div>
+            </div>
+            <span class="orders-panel-chip history">נשמרות בדוחות</span>
+          </div>
+          <label class="field-wrap">
+            <span>חיפוש בהזמנות שהושלמו</span>
+            <input id="completedOrderSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
+          </label>
+          <div class="orders-list" id="completedOrdersList"></div>
         </section>
       </section>
 
