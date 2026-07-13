@@ -34,7 +34,7 @@ const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_ORDER_IMPORT_OCR_PAGES = 8;
 const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
 const ORDER_COMPLETION_MIGRATION_VERSION = 1;
-const ORDER_OPEN_RESTORE_MIGRATION_VERSION = 1;
+const ORDER_OPEN_RESTORE_MIGRATION_VERSION = 2;
 const ORDER_IMPORT_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 const GENERAL_PRODUCT = { sku: "כללי", description: "מוצר כללי", price: 0 };
 const CLOUD_STATE_ENDPOINT = "/api/state";
@@ -6898,9 +6898,6 @@ function restoreCurrentDayOpenOrders() {
   orders = orders.map((order) => {
     if (!isOrderCompleted(order)) return order;
     if (getOrderCreatedDateKey(order) !== todayKey || getOrderReportDateKey(order) !== todayKey) return order;
-
-    const createdAt = getSafeDate(order.createdAt);
-    if (createdAt.getHours() >= ORDER_REPORT_CUTOFF_HOUR) return order;
 
     restored += 1;
     return { ...order, completedAt: "", updatedAt: new Date().toISOString() };
