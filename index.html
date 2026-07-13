@@ -235,10 +235,10 @@
           <section class="order-import" aria-label="ייבוא הזמנה מקובץ">
             <div>
               <strong>ייבוא הזמנה מקובץ</strong>
-              <small>PDF או Excel. המערכת תזהה את הלקוח, הדגמים, הכמויות והמחירים ותציג בדיקה לפני טעינה לסל.</small>
+              <small>PDF, Excel או תמונה מהגלריה. המערכת תזהה דגמים וכמויות ותציג בדיקה לפני טעינה לסל.</small>
             </div>
-            <label class="secondary-button order-import-button" for="orderImportInput">העלה PDF / Excel</label>
-            <input id="orderImportInput" type="file" accept=".pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" />
+            <label class="secondary-button order-import-button" for="orderImportInput">העלה קובץ או תמונה</label>
+            <input id="orderImportInput" type="file" accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,image/*" />
             <small class="order-import-status" id="orderImportStatus" aria-live="polite"></small>
           </section>
 
@@ -712,14 +712,14 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5" /></svg>
               </span>
               <div>
-              <p class="eyebrow">דוחות מחר</p>
-              <h2>הזמנות למחר</h2>
+              <p class="eyebrow" id="tomorrowOrdersEyebrow">דוחות מחר</p>
+              <h2 id="tomorrowOrdersTitle">הזמנות למחר</h2>
               </div>
             </div>
-            <span class="orders-panel-chip tomorrow">מוכן לאספקה</span>
+            <span class="orders-panel-chip tomorrow" id="tomorrowOrdersChip">מוכן לאספקה</span>
           </div>
           <label class="field-wrap">
-            <span>חיפוש בהזמנות למחר</span>
+            <span id="tomorrowOrdersSearchLabel">חיפוש בהזמנות למחר</span>
             <input id="tomorrowOrderSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
           </label>
           <div class="orders-list" id="tomorrowOrdersList"></div>
