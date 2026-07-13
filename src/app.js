@@ -3,6 +3,7 @@ import { readSheet } from "read-excel-file/browser";
 import { strToU8, zipSync } from "fflate";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
+import { createWorker } from "tesseract.js";
 import { DEFAULT_RESERVATION_GROUPS, RESERVATION_SEED_VERSION } from "./reservations-data.js";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -29,6 +30,8 @@ const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
 const ORDER_REPORT_CUTOFF_HOUR = 15;
+const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
+const ORDER_IMPORT_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 const GENERAL_PRODUCT = { sku: "כללי", description: "מוצר כללי", price: 0 };
 const CLOUD_STATE_ENDPOINT = "/api/state";
 const AUTH_ENDPOINT = "/api/auth";
@@ -302,6 +305,10 @@ const dom = {
   ordersList: document.querySelector("#ordersList"),
   tomorrowOrderSearch: document.querySelector("#tomorrowOrderSearch"),
   tomorrowOrdersList: document.querySelector("#tomorrowOrdersList"),
+  tomorrowOrdersEyebrow: document.querySelector("#tomorrowOrdersEyebrow"),
+  tomorrowOrdersTitle: document.querySelector("#tomorrowOrdersTitle"),
+  tomorrowOrdersChip: document.querySelector("#tomorrowOrdersChip"),
+  tomorrowOrdersSearchLabel: document.querySelector("#tomorrowOrdersSearchLabel"),
   metadata: document.querySelector("#metadata"),
   status: document.querySelector("#status"),
   results: document.querySelector("#results"),
@@ -335,6 +342,7 @@ let pendingCartProduct = null;
 let pendingCartPriceSource = "list";
 let pendingReservationChoiceTouched = false;
 let pendingOrderImport = null;
+let tomorrowOrdersReportDateFilter = "";
 let pendingNoteProduct = null;
 let pendingArrivalProduct = null;
 let customerConfirmedForCurrentCart = false;
@@ -518,7 +526,14 @@ function lockApp(message = "") {
 
 function bindEvents() {
   dom.tabButtons.forEach((button) => {
-    button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+    button.addEventListener("click", () => {
+      if (button.dataset.tab === "tomorrow-orders") {
+        tomorrowOrdersReportDateFilter = "";
+        dom.tomorrowOrderSearch.value = "";
+        renderTomorrowOrders();
+      }
+      setActiveTab(button.dataset.tab);
+    });
   });
   dom.headerReminders.addEventListener("click", () => {
     dom.reminderStatusFilter.value = "open";
@@ -1205,7 +1220,8 @@ async function parseOrderImportFile(file) {
   if (extension === "pdf" || file.type === "application/pdf") return parsePdfOrderFile(file);
   if (["xlsx", "xls"].includes(extension)) return parseSpreadsheetOrderFile(file);
   if (extension === "csv" || file.type === "text/csv") return parseOrderImportRows(parseCsvRows(await file.text()), fileName);
-  throw new Error("נתמכים קבצי PDF, Excel או CSV בלבד.");
+  if (ORDER_IMPORT_IMAGE_EXTENSIONS.has(extension) || file.type.startsWith("image/")) return parseImageOrderFile(file);
+  throw new Error("נתמכים PDF, Excel, CSV או תמונה מהגלריה בפורמט JPG, PNG או WEBP.");
 }
 
 async function parsePdfOrderFile(file) {
@@ -1255,6 +1271,88 @@ async function parsePdfOrderFile(file) {
     declaredSubtotal,
     vatAmount,
   });
+}
+
+async function parseImageOrderFile(file) {
+  if (file.size > MAX_ORDER_IMPORT_IMAGE_BYTES) {
+    throw new Error("התמונה גדולה מדי. העלה צילום עד 12MB, רצוי JPG או PNG חד וברור.");
+  }
+
+  let worker = null;
+  let lastProgress = -1;
+  try {
+    worker = await createWorker(["heb", "eng"], 1, {
+      logger: ({ status, progress }) => {
+        const percentage = Math.round((Number(progress) || 0) * 100);
+        if (percentage === lastProgress || !status) return;
+        lastProgress = percentage;
+        const label = status.includes("recognizing") ? "קורא את הטקסט בתמונה" : "מכין זיהוי מתמונה";
+        dom.orderImportStatus.textContent = `${label}${percentage ? ` · ${percentage}%` : "..."}`;
+      },
+    });
+    const result = await worker.recognize(file);
+    const text = String(result?.data?.text || "").trim();
+    if (!text) throw new Error("לא נמצא טקסט בתמונה. נסה צילום חד יותר, ללא השתקפות ובתאורה טובה.");
+    return parseImageOrderText(text, file.name);
+  } catch (error) {
+    if (error instanceof Error && error.message) throw error;
+    throw new Error("לא הצלחתי לקרוא את התמונה. נסה JPG או PNG חד וברור.");
+  } finally {
+    if (worker) await worker.terminate();
+  }
+}
+
+function parseImageOrderText(text, fileName) {
+  const seenSkuKeys = new Set();
+  const rawLines = String(text)
+    .split(/\r?\n/)
+    .map((row) => cleanString(row))
+    .map((row) => {
+      const sku = getImportedSku(row);
+      if (!sku) return null;
+      const product = products.find((item) => item.skuKey === getSkuKey(sku));
+      const skuKey = product?.skuKey || getSkuKey(sku);
+      if (!skuKey || seenSkuKeys.has(skuKey)) return null;
+      seenSkuKeys.add(skuKey);
+      const quantity = getImageImportedQuantity(row);
+      const unitPrice = Math.max(0, Number(product?.price) || 0);
+      return {
+        sku: product?.sku || sku,
+        quantity,
+        rawUnitPrice: unitPrice,
+        rawLineTotal: roundMoney(quantity * unitPrice),
+        description: product?.description || "",
+        priceIncludesVat: true,
+      };
+    })
+    .filter(Boolean);
+
+  if (!rawLines.length) {
+    throw new Error("לא זוהו דגמים בתמונה. צלם את טבלת הפריטים מקרוב כך שהמק״טים יהיו קריאים.");
+  }
+
+  const proposal = finalizeImportedOrder({
+    fileName,
+    sourceType: "תמונה מהגלריה",
+    customerName: "",
+    customerPhone: "",
+    rawLines,
+    declaredTotal: null,
+    declaredSubtotal: null,
+    vatAmount: null,
+  });
+  proposal.warnings.unshift("בתמונה המחירים נטענים לפי המחירון. בדוק את הכמויות והמחירים בסל לפני שמירת ההזמנה.");
+  return proposal;
+}
+
+function getImageImportedQuantity(value) {
+  const text = cleanString(value);
+  const explicit =
+    text.match(/(\d+(?:[.,]\d+)?)\s*יח[׳']/)?.[1] ||
+    text.match(/(?:כמות|qty|quantity)\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i)?.[1] ||
+    text.match(/(?:^|\s)[x×]\s*(\d+(?:[.,]\d+)?)/i)?.[1];
+  const quantity = explicit ? Number(explicit.replace(",", ".")) : 1;
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
 async function parseSpreadsheetOrderFile(file) {
@@ -1320,8 +1418,22 @@ function groupPdfTextRows(items, pageNumber) {
 }
 
 function getImportedSku(value) {
-  const match = cleanString(value).toLocaleUpperCase("en-US").match(/(?:FJ|IT)-[A-Z0-9-]+/);
-  return match?.[0] || "";
+  const text = cleanString(value).toLocaleUpperCase("en-US");
+  if (!text) return "";
+
+  const textModelKey = getModelKey(text);
+  const matchingProduct = products.find((product) => {
+    const productModelKey = getModelKey(product.sku);
+    return productModelKey.length >= 4 && textModelKey.includes(productModelKey);
+  });
+  if (matchingProduct) return matchingProduct.sku;
+
+  const match = text.match(/(?:FJ|IT)\s*(?:[-–—_]\s*|\s+)?[A-Z0-9]{2,14}(?:\s*[-–—_]\s*[A-Z0-9]{1,14})*/);
+  if (!match) return "";
+  const compact = match[0].replace(/[^A-Z0-9]/g, "");
+  const brand = compact.slice(0, 2);
+  const model = compact.slice(2);
+  return brand && model ? `${brand}-${model}` : "";
 }
 
 function getImportedQuantity(value) {
@@ -1900,11 +2012,28 @@ function setActiveTab(tab) {
 
 function handleDashboardAction(action) {
   if (action === "tomorrow-orders") {
+    tomorrowOrdersReportDateFilter = "";
     dom.tomorrowOrderSearch.value = "";
     renderTomorrowOrders();
     setActiveTab("tomorrow-orders");
     window.setTimeout(() => dom.tomorrowOrderSearch.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
     dom.status.textContent = "נפתחה לשונית הזמנות למחר.";
+    return;
+  }
+
+  if (action === "sunday-orders") {
+    const sundayKey = getUpcomingSundayLocalDateKey(new Date());
+    const sundayOrders = orders.filter((order) => getOrderReportDateKey(order) === sundayKey);
+    if (!sundayOrders.length) {
+      dom.status.textContent = "אין כרגע הזמנות פתוחות ליום ראשון.";
+      return;
+    }
+    tomorrowOrdersReportDateFilter = sundayKey;
+    dom.tomorrowOrderSearch.value = "";
+    renderTomorrowOrders();
+    setActiveTab("tomorrow-orders");
+    window.setTimeout(() => dom.tomorrowOrderSearch.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    dom.status.textContent = `נפתחו ${sundayOrders.length.toLocaleString("he-IL")} הזמנות פתוחות ליום ראשון.`;
     return;
   }
 
@@ -5507,14 +5636,21 @@ function dashboardSundayOrdersStat(orderCount, grossValue, sundayKey) {
   const excludeVat = dashboardVatExclusion.sunday;
   const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
+  const sundayLabel = formatSundayOrderDate(sundayKey);
+  const countControl = orderCount
+    ? `<button type="button" class="dashboard-split-value dashboard-split-count" data-dashboard-action="sunday-orders" aria-label="הצג הזמנות פתוחות ליום ראשון ${escapeHtml(sundayLabel)}">
+        <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+        <small>${escapeHtml(sundayLabel)} · הזמנות פתוחות</small>
+      </button>`
+    : `<div class="dashboard-split-value dashboard-split-count" aria-label="אין הזמנות פתוחות ליום ראשון ${escapeHtml(sundayLabel)}">
+        <strong>0</strong>
+        <small>${escapeHtml(sundayLabel)} · אין הזמנות</small>
+      </div>`;
   return `
     <div class="dashboard-stat dashboard-link-stat sunday-orders dashboard-split-stat dashboard-split-compact">
-      ${dashboardStatHeading("מכירות ליום ראשון", "sunday-orders")}
+      ${dashboardStatHeading("הזמנות ליום ראשון", "sunday-orders")}
       <div class="dashboard-split-values">
-        <button type="button" class="dashboard-split-value dashboard-split-count" data-dashboard-action="tomorrow-orders">
-          <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
-          <small>${escapeHtml(formatReminderDate(sundayKey))}</small>
-        </button>
+        ${countControl}
         <button type="button" class="dashboard-split-value dashboard-split-money" data-toggle-dashboard-vat="sunday" aria-pressed="${excludeVat}">
           <strong>${escapeHtml(formatPrice(displayValue))}</strong>
           <small>${vatLabel}</small>
@@ -6476,6 +6612,13 @@ function isReminderOverdue(reminder) {
 function formatReminderDate(value) {
   const date = new Date(`${value}T12:00:00`);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("he-IL");
+}
+
+function formatSundayOrderDate(value) {
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
 }
 
 function formatShortDateTime(value) {
@@ -7627,12 +7770,20 @@ function renderOrders() {
 
 function renderTomorrowOrders() {
   const query = normalizeSearch(dom.tomorrowOrderSearch.value);
-  const tomorrowOrders = orders.filter((order) => isOrderForTomorrow(order));
+  const reportDateFilter = normalizeDateInput(tomorrowOrdersReportDateFilter);
+  const tomorrowOrders = reportDateFilter
+    ? orders.filter((order) => getOrderReportDateKey(order) === reportDateFilter)
+    : orders.filter((order) => isOrderForTomorrow(order));
   const visibleOrders = filterOrdersByQuery(tomorrowOrders, query).sort(compareOrdersByCreatedAt);
+  const isSundayView = Boolean(reportDateFilter);
+  if (dom.tomorrowOrdersEyebrow) dom.tomorrowOrdersEyebrow.textContent = isSundayView ? "דוחות יום ראשון" : "דוחות מחר";
+  if (dom.tomorrowOrdersTitle) dom.tomorrowOrdersTitle.textContent = isSundayView ? "הזמנות פתוחות ליום ראשון" : "הזמנות למחר";
+  if (dom.tomorrowOrdersChip) dom.tomorrowOrdersChip.textContent = isSundayView ? formatSundayOrderDate(reportDateFilter) : "מוכן לאספקה";
+  if (dom.tomorrowOrdersSearchLabel) dom.tomorrowOrdersSearchLabel.textContent = isSundayView ? "חיפוש בהזמנות ליום ראשון" : "חיפוש בהזמנות למחר";
 
   if (!visibleOrders.length) {
     dom.tomorrowOrdersList.replaceChildren(
-      emptyState(query ? "לא נמצאו הזמנות למחר שמתאימות לחיפוש." : "אין הזמנות שמדווחות למחר."),
+      emptyState(query ? `לא נמצאו ${isSundayView ? "הזמנות ליום ראשון" : "הזמנות למחר"} שמתאימות לחיפוש.` : isSundayView ? "אין הזמנות פתוחות ליום ראשון." : "אין הזמנות שמדווחות למחר."),
     );
     return;
   }
