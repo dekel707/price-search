@@ -6517,6 +6517,84 @@ body {
   }
 }
 
+/* Tomorrow orders use a calmer amber that blends with the rest of the app. */
+.orders-panel.tomorrow-orders-panel .panel-header h2,
+.orders-panel.tomorrow-orders-panel .eyebrow {
+  color: #f7dec4;
+}
+
+.orders-panel-icon.tomorrow {
+  border-color: rgba(224, 163, 103, 0.78);
+  background: linear-gradient(145deg, #87542d, #be7a47);
+  color: #fff8ef;
+  box-shadow: 0 8px 18px rgba(124, 73, 37, 0.22);
+}
+
+.orders-panel .orders-panel-chip.tomorrow {
+  border-color: rgba(220, 160, 102, 0.56);
+  background: linear-gradient(135deg, rgba(111, 66, 37, 0.66), rgba(192, 125, 72, 0.13));
+  color: #f8ddbd;
+}
+
+.orders-panel .order-card.tomorrow-order-card {
+  border-color: rgba(210, 145, 82, 0.5);
+  background:
+    radial-gradient(circle at 100% 0, rgba(185, 113, 61, 0.11), transparent 39%),
+    linear-gradient(145deg, rgba(55, 38, 29, 0.98), rgba(15, 25, 36, 0.99));
+}
+
+.orders-panel .order-card.tomorrow-order-card:hover {
+  border-color: rgba(234, 174, 111, 0.74);
+  background:
+    radial-gradient(circle at 100% 0, rgba(203, 132, 75, 0.16), transparent 40%),
+    linear-gradient(145deg, rgba(69, 46, 31, 0.99), rgba(19, 30, 42, 1));
+}
+
+.tomorrow-order-card .order-card-kind-icon.calendar {
+  border-color: rgba(229, 168, 106, 0.68);
+  background: linear-gradient(145deg, rgba(128, 75, 38, 0.74), rgba(201, 133, 77, 0.16));
+  color: #f9ddbe;
+}
+
+.orders-panel .order-card.tomorrow-order-card::before {
+  background: #c78953;
+  box-shadow: 0 0 12px rgba(199, 137, 83, 0.34);
+}
+
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete) {
+  border-color: rgba(218, 155, 96, 0.59);
+  background: linear-gradient(145deg, rgba(102, 62, 35, 0.84), rgba(55, 39, 31, 0.92));
+  color: #f8dfc3;
+}
+
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete):hover,
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete):focus-visible {
+  border-color: #f2c28d;
+  background: linear-gradient(145deg, #a96838, #70462e);
+  color: #fff9f0;
+}
+
+.orders-panel .tomorrow-order-card .order-action-delete {
+  border-color: rgba(255, 102, 128, 0.72);
+  background: rgba(174, 38, 67, 0.25);
+  color: #ffb5c2;
+}
+
+@media (max-width: 620px) {
+  .orders-panel .order-card.tomorrow-order-card {
+    border-color: rgba(210, 145, 82, 0.56);
+    background:
+      radial-gradient(circle at 100% 0, rgba(185, 113, 61, 0.1), transparent 44%),
+      linear-gradient(150deg, rgba(55, 38, 29, 0.99), rgba(15, 25, 36, 1));
+  }
+
+  .orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete) {
+    min-height: 42px;
+    border-color: rgba(218, 155, 96, 0.63);
+    background: linear-gradient(145deg, rgba(105, 65, 37, 0.9), rgba(53, 38, 31, 0.96));
+  }
+}
+
 /* Tomorrow orders: a restrained orange variant with the same action language as Orders. */
 .orders-panel.tomorrow-orders-panel {
   border-color: rgba(232, 151, 72, 0.48);
@@ -8351,5 +8429,83 @@ body {
   .order-import-line b {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+}
+
+/* Final tomorrow-order palette: deliberately placed after legacy variants. */
+.orders-panel.tomorrow-orders-panel .panel-header h2,
+.orders-panel.tomorrow-orders-panel .eyebrow {
+  color: #f7dec4;
+}
+
+.orders-panel-icon.tomorrow {
+  border-color: rgba(224, 163, 103, 0.78);
+  background: linear-gradient(145deg, #87542d, #be7a47);
+  color: #fff8ef;
+  box-shadow: 0 8px 18px rgba(124, 73, 37, 0.22);
+}
+
+.orders-panel .orders-panel-chip.tomorrow {
+  border-color: rgba(220, 160, 102, 0.56);
+  background: linear-gradient(135deg, rgba(111, 66, 37, 0.66), rgba(192, 125, 72, 0.13));
+  color: #f8ddbd;
+}
+
+.orders-panel .order-card.tomorrow-order-card {
+  border-color: rgba(210, 145, 82, 0.5);
+  background:
+    radial-gradient(circle at 100% 0, rgba(185, 113, 61, 0.11), transparent 39%),
+    linear-gradient(145deg, rgba(55, 38, 29, 0.98), rgba(15, 25, 36, 0.99));
+}
+
+.orders-panel .order-card.tomorrow-order-card:hover {
+  border-color: rgba(234, 174, 111, 0.74);
+  background:
+    radial-gradient(circle at 100% 0, rgba(203, 132, 75, 0.16), transparent 40%),
+    linear-gradient(145deg, rgba(69, 46, 31, 0.99), rgba(19, 30, 42, 1));
+}
+
+.tomorrow-order-card .order-card-kind-icon.calendar {
+  border-color: rgba(229, 168, 106, 0.68);
+  background: linear-gradient(145deg, rgba(128, 75, 38, 0.74), rgba(201, 133, 77, 0.16));
+  color: #f9ddbe;
+}
+
+.orders-panel .order-card.tomorrow-order-card::before {
+  background: #c78953;
+  box-shadow: 0 0 12px rgba(199, 137, 83, 0.34);
+}
+
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete) {
+  border-color: rgba(218, 155, 96, 0.59);
+  background: linear-gradient(145deg, rgba(102, 62, 35, 0.84), rgba(55, 39, 31, 0.92));
+  color: #f8dfc3;
+}
+
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete):hover,
+.orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete):focus-visible {
+  border-color: #f2c28d;
+  background: linear-gradient(145deg, #a96838, #70462e);
+  color: #fff9f0;
+}
+
+.orders-panel .tomorrow-order-card .order-action-delete {
+  border-color: rgba(255, 102, 128, 0.72);
+  background: rgba(174, 38, 67, 0.25);
+  color: #ffb5c2;
+}
+
+@media (max-width: 620px) {
+  .orders-panel .order-card.tomorrow-order-card {
+    border-color: rgba(210, 145, 82, 0.56);
+    background:
+      radial-gradient(circle at 100% 0, rgba(185, 113, 61, 0.1), transparent 44%),
+      linear-gradient(150deg, rgba(55, 38, 29, 0.99), rgba(15, 25, 36, 1));
+  }
+
+  .orders-panel .tomorrow-order-card .order-action-button:not(.order-action-whatsapp):not(.order-action-delete) {
+    min-height: 42px;
+    border-color: rgba(218, 155, 96, 0.63);
+    background: linear-gradient(145deg, rgba(105, 65, 37, 0.9), rgba(53, 38, 31, 0.96));
   }
 }
