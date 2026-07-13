@@ -6008,6 +6008,20 @@ body {
   background: linear-gradient(145deg, rgba(10, 39, 56, 0.98), rgba(9, 25, 39, 0.98));
 }
 
+.orders-panel .order-card.completed-order-card {
+  border-color: rgba(66, 172, 139, 0.44);
+  background:
+    radial-gradient(circle at 100% 0, rgba(27, 184, 132, 0.12), transparent 36%),
+    linear-gradient(145deg, rgba(9, 48, 47, 0.98), rgba(5, 29, 36, 0.99));
+}
+
+.orders-panel .order-card.completed-order-card:hover {
+  border-color: rgba(100, 229, 184, 0.72);
+  background:
+    radial-gradient(circle at 100% 0, rgba(38, 213, 160, 0.2), transparent 39%),
+    linear-gradient(145deg, rgba(10, 63, 59, 1), rgba(6, 36, 43, 1));
+}
+
 .orders-panel .order-card.tomorrow-order-card:hover {
   border-color: rgba(151, 156, 255, 0.72);
   background: linear-gradient(145deg, rgba(34, 37, 80, 0.99), rgba(16, 27, 62, 0.99));
