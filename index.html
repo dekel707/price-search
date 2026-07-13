@@ -73,8 +73,8 @@
         <button class="tab-button" type="button" data-tab="categories">קטגוריות</button>
         <button class="tab-button" type="button" data-tab="drafts">טיוטות</button>
         <button class="tab-button" type="button" data-tab="orders">הזמנות פתוחות</button>
-        <button class="tab-button" type="button" data-tab="completed-orders">הזמנות שהושלמו</button>
         <button class="tab-button" type="button" data-tab="tomorrow-orders">הזמנות למחר</button>
+        <button class="tab-button" type="button" data-tab="completed-orders">הזמנות שהושלמו</button>
       </nav>
 
       <section class="tab-panel active" data-tab-panel="search">
@@ -232,16 +232,6 @@
             <span>מספר וואטסאפ קבוע לשליחת הזמנות</span>
             <input id="whatsappNumber" type="tel" inputmode="tel" autocomplete="tel" placeholder="לדוגמה 0501234567" />
           </label>
-
-          <section class="order-import" aria-label="ייבוא הזמנה מקובץ">
-            <div>
-              <strong>ייבוא הזמנה מקובץ</strong>
-              <small>PDF, Excel או תמונה מהגלריה. המערכת תזהה דגמים וכמויות ותציג בדיקה לפני טעינה לסל.</small>
-            </div>
-            <label class="secondary-button order-import-button" for="orderImportInput">העלה קובץ או תמונה</label>
-            <input id="orderImportInput" type="file" accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,image/*" />
-            <small class="order-import-status" id="orderImportStatus" aria-live="polite"></small>
-          </section>
 
           <div class="cart-items" id="cartItems"></div>
 
