@@ -232,6 +232,16 @@
             <input id="whatsappNumber" type="tel" inputmode="tel" autocomplete="tel" placeholder="לדוגמה 0501234567" />
           </label>
 
+          <section class="order-import" aria-label="ייבוא הזמנה מקובץ">
+            <div>
+              <strong>ייבוא הזמנה מקובץ</strong>
+              <small>PDF או Excel. המערכת תזהה את הלקוח, הדגמים, הכמויות והמחירים ותציג בדיקה לפני טעינה לסל.</small>
+            </div>
+            <label class="secondary-button order-import-button" for="orderImportInput">העלה PDF / Excel</label>
+            <input id="orderImportInput" type="file" accept=".pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" />
+            <small class="order-import-status" id="orderImportStatus" aria-live="polite"></small>
+          </section>
+
           <div class="cart-items" id="cartItems"></div>
 
           <div class="cart-footer">
@@ -791,6 +801,38 @@
           <button class="file-button" id="confirmCartCustomer" type="submit">הוסף לסל</button>
         </div>
       </form>
+    </section>
+
+    <section class="modal-backdrop" id="orderImportDialog" role="dialog" aria-modal="true" aria-labelledby="orderImportTitle" hidden>
+      <section class="customer-dialog order-import-dialog">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">בדיקה לפני טעינה לסל</p>
+            <h2 id="orderImportTitle">ייבוא הזמנה מקובץ</h2>
+          </div>
+          <button class="dialog-close" id="cancelOrderImportTop" type="button" aria-label="סגור">×</button>
+        </div>
+
+        <div class="order-import-review" id="orderImportReview"></div>
+
+        <div class="order-import-customer-fields">
+          <label class="field-wrap">
+            <span>שם לקוח</span>
+            <input id="orderImportCustomerName" type="text" autocomplete="off" placeholder="שם הלקוח מהקובץ" />
+          </label>
+          <label class="field-wrap">
+            <span>טלפון לקוח</span>
+            <input id="orderImportCustomerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="אם הופיע בקובץ" />
+          </label>
+        </div>
+
+        <p class="order-import-note">טעינה לסל עדיין אינה שמירת הזמנה: אפשר לבדוק ולערוך את כל השורות, ורק אחר כך ללחוץ על „שמור הזמנה”.</p>
+
+        <div class="dialog-actions order-import-actions">
+          <button class="secondary-button" id="cancelOrderImport" type="button">ביטול</button>
+          <button class="file-button" id="confirmOrderImport" type="button">טען לסל לבדיקה</button>
+        </div>
+      </section>
     </section>
 
     <section class="modal-backdrop" id="noteDialog" role="dialog" aria-modal="true" aria-labelledby="noteDialogTitle" hidden>
