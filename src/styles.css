@@ -8098,3 +8098,249 @@ body {
     font-size: 0.9rem;
   }
 }
+
+/* Importing an order always stops at a review screen before it can affect reports. */
+.order-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid rgba(86, 176, 205, 0.32);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(9, 43, 63, 0.64), rgba(10, 27, 48, 0.72));
+}
+
+.order-import > div,
+.order-import-status {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.order-import > div strong {
+  color: #d9f7ff;
+  font-size: 0.9rem;
+}
+
+.order-import > div small,
+.order-import-status {
+  color: #9eb7c8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.order-import-status {
+  grid-column: 1 / -1;
+}
+
+#orderImportInput {
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.order-import-button {
+  min-width: 156px;
+  padding-inline: 14px;
+  border-color: rgba(88, 203, 226, 0.58);
+  color: #d8f8ff;
+}
+
+.order-import-dialog {
+  width: min(100%, 680px);
+}
+
+.order-import-review {
+  display: grid;
+  gap: 11px;
+}
+
+.order-import-source,
+.order-import-summary-grid > div,
+.order-import-line,
+.order-import-tax-note,
+.order-import-note {
+  border: 1px solid rgba(109, 167, 203, 0.23);
+  border-radius: 11px;
+  background: rgba(5, 22, 39, 0.62);
+}
+
+.order-import-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+}
+
+.order-import-source span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(45, 184, 203, 0.2);
+  color: #7bece7;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.order-import-source strong {
+  overflow: hidden;
+  color: #daeaf3;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.order-import-summary-grid > div {
+  display: grid;
+  gap: 4px;
+  min-height: 70px;
+  padding: 10px;
+}
+
+.order-import-summary-grid span {
+  color: #9db8ca;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.order-import-summary-grid strong {
+  color: #e7f5fc;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.order-import-summary-grid small {
+  color: #7debdc;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.order-import-summary-grid .mismatch {
+  border-color: rgba(242, 151, 102, 0.58);
+}
+
+.order-import-summary-grid .mismatch small {
+  color: #ffc58c;
+}
+
+.order-import-tax-note,
+.order-import-note {
+  margin: 0;
+  padding: 9px 11px;
+  color: #aac4d3;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.order-import-customer-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.45fr);
+  gap: 10px;
+}
+
+.order-import-lines {
+  display: grid;
+  gap: 7px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.order-import-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 10px;
+}
+
+.order-import-line > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.order-import-line strong {
+  color: #e7f5fc;
+  font-size: 0.77rem;
+}
+
+.order-import-line span {
+  overflow: hidden;
+  color: #a4c0d0;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-import-line > span {
+  color: #c9dce9;
+  font-weight: 800;
+}
+
+.order-import-line b {
+  color: #8ceedd;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.order-import-line.unresolved {
+  border-color: rgba(247, 154, 110, 0.58);
+}
+
+.order-import-line.unresolved b {
+  color: #ffc28a;
+}
+
+.order-import-warnings {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border: 1px solid rgba(246, 171, 96, 0.42);
+  border-radius: 11px;
+  background: rgba(126, 73, 25, 0.18);
+  color: #ffd39d;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.order-import-actions .file-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 620px) {
+  .order-import {
+    grid-template-columns: 1fr;
+  }
+
+  .order-import-button {
+    width: 100%;
+  }
+
+  .order-import-summary-grid,
+  .order-import-customer-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .order-import-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .order-import-line b {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
