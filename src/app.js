@@ -5037,15 +5037,18 @@ function dashboardTomorrowOrdersStat(orderCount, grossValue) {
   const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
   return `
-    <div class="dashboard-stat dashboard-link-stat tomorrow-orders dashboard-split-stat">
-      <button type="button" class="dashboard-card-action" data-dashboard-action="tomorrow-orders">
-        ${dashboardStatHeading("הזמנות למחר", "tomorrow-orders")}
-        <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
-      </button>
-      <button type="button" class="dashboard-money-value dashboard-inline-money" data-toggle-dashboard-vat="tomorrow" aria-pressed="${excludeVat}">
-        <strong>${escapeHtml(formatPrice(displayValue))}</strong>
-        <small>${vatLabel}</small>
-      </button>
+    <div class="dashboard-stat dashboard-link-stat tomorrow-orders dashboard-split-stat dashboard-split-compact">
+      ${dashboardStatHeading("הזמנות למחר", "tomorrow-orders")}
+      <div class="dashboard-split-values">
+        <button type="button" class="dashboard-split-value dashboard-split-count" data-dashboard-action="tomorrow-orders">
+          <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+          <small>הזמנות</small>
+        </button>
+        <button type="button" class="dashboard-split-value dashboard-split-money" data-toggle-dashboard-vat="tomorrow" aria-pressed="${excludeVat}">
+          <strong>${escapeHtml(formatPrice(displayValue))}</strong>
+          <small>${vatLabel}</small>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -5055,16 +5058,18 @@ function dashboardSundayOrdersStat(orderCount, grossValue, sundayKey) {
   const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
   return `
-    <div class="dashboard-stat dashboard-link-stat sunday-orders dashboard-split-stat">
-      <button type="button" class="dashboard-card-action" data-dashboard-action="tomorrow-orders">
-        ${dashboardStatHeading("מכירות ליום ראשון", "sunday-orders")}
-        <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
-        <small>${escapeHtml(formatReminderDate(sundayKey))}</small>
-      </button>
-      <button type="button" class="dashboard-money-value dashboard-inline-money" data-toggle-dashboard-vat="sunday" aria-pressed="${excludeVat}">
-        <strong>${escapeHtml(formatPrice(displayValue))}</strong>
-        <small>${vatLabel}</small>
-      </button>
+    <div class="dashboard-stat dashboard-link-stat sunday-orders dashboard-split-stat dashboard-split-compact">
+      ${dashboardStatHeading("מכירות ליום ראשון", "sunday-orders")}
+      <div class="dashboard-split-values">
+        <button type="button" class="dashboard-split-value dashboard-split-count" data-dashboard-action="tomorrow-orders">
+          <strong>${escapeHtml(orderCount.toLocaleString("he-IL"))}</strong>
+          <small>${escapeHtml(formatReminderDate(sundayKey))}</small>
+        </button>
+        <button type="button" class="dashboard-split-value dashboard-split-money" data-toggle-dashboard-vat="sunday" aria-pressed="${excludeVat}">
+          <strong>${escapeHtml(formatPrice(displayValue))}</strong>
+          <small>${vatLabel}</small>
+        </button>
+      </div>
     </div>
   `;
 }
