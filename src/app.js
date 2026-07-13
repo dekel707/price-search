@@ -2915,7 +2915,7 @@ function renderCustomerOrderDetails(order) {
     const unitPriceLabel = item.fromReservation
       ? "משריון"
       : isBonusOrderItem(item)
-        ? "בונוס 10+1 · ₪0"
+        ? `${getBonusOrderItemLabel(item)} · ₪0`
         : `${formatPrice(item.unitPrice)}${item.priceSource === "display" ? " · תצוגה" : ""}`;
     const itemTotalLabel = item.fromReservation ? "משריון" : formatPrice(itemTotal);
     row.innerHTML = `
@@ -6842,6 +6842,7 @@ function addTenPlusOneToCart(product, options = {}) {
     fromReservation: false,
     unitPrice: 0,
     priceSource: "bonus",
+    bonusType: "ten-plus-one",
   });
   cart = orderCartLines(cart);
   saveCart();
@@ -6850,17 +6851,20 @@ function addTenPlusOneToCart(product, options = {}) {
 }
 
 function upsertCartLine(product, quantity, options) {
+  const bonusType = normalizeBonusType(options.bonusType);
   const lineKey = createCartLineKey(
     product.skuKey,
     options.fromReservation,
     options.unitPrice,
     options.priceSource,
+    bonusType,
   );
   const existing = cart.find((line) => line.lineKey === lineKey);
   if (existing) {
     existing.quantity += quantity;
     existing.unitPrice = options.unitPrice;
     existing.priceSource = options.priceSource;
+    existing.bonusType = bonusType;
     return;
   }
 
@@ -6872,27 +6876,29 @@ function upsertCartLine(product, quantity, options) {
     listPrice: product.price,
     unitPrice: options.unitPrice,
     priceSource: options.priceSource,
+    bonusType,
     quantity,
     fromReservation: Boolean(options.fromReservation),
   });
 }
 
-function createCartLineKey(skuKey, fromReservation, unitPrice = 0, priceSource = "list") {
+function createCartLineKey(skuKey, fromReservation, unitPrice = 0, priceSource = "list", bonusType = "") {
   const normalizedSku = getSkuKey(skuKey);
   if (fromReservation) return `${normalizedSku}::reservation`;
   const normalizedPrice = roundMoney(Math.max(0, Number(unitPrice) || 0)).toFixed(2);
-  return `${normalizedSku}::cash::${normalizePriceSource(priceSource)}::${normalizedPrice}`;
+  return `${normalizedSku}::cash::${normalizePriceSource(priceSource)}::${normalizedPrice}::${normalizeBonusType(bonusType)}`;
 }
 
 function mergeCartLines(lines) {
   const merged = new Map();
   lines.forEach((line) => {
-    const lineKey = createCartLineKey(line.skuKey, line.fromReservation, line.unitPrice, line.priceSource);
+    const bonusType = normalizeBonusType(line.bonusType);
+    const lineKey = createCartLineKey(line.skuKey, line.fromReservation, line.unitPrice, line.priceSource, bonusType);
     const existing = merged.get(lineKey);
     if (existing) {
       existing.quantity += line.quantity;
     } else {
-      merged.set(lineKey, { ...line, lineKey });
+      merged.set(lineKey, { ...line, bonusType, lineKey });
     }
   });
   return orderCartLines([...merged.values()]);
@@ -7660,7 +7666,7 @@ function renderCartLine(line) {
   const price = line.fromReservation
     ? createReservationPriceField()
     : isBonusOrderItem(line)
-      ? createBonusPriceField()
+      ? createBonusPriceField(line)
       : createNumberField("מחיר יחידה", line.unitPrice, {
         min: 0,
         step: 0.01,
@@ -7703,7 +7709,7 @@ function renderCartLine(line) {
 
   const bonusBadge = document.createElement("div");
   bonusBadge.className = "bonus-cart-badge";
-  bonusBadge.textContent = "בונוס 10+1 · יחידה ללא עלות";
+  bonusBadge.textContent = `${getBonusOrderItemLabel(line)} · יחידה ללא עלות`;
   bonusBadge.hidden = !isBonusOrderItem(line);
 
   header.append(title, remove);
@@ -7746,10 +7752,10 @@ function createReservationPriceField() {
   return field;
 }
 
-function createBonusPriceField() {
+function createBonusPriceField(line) {
   const field = document.createElement("div");
   field.className = "field-wrap compact-field bonus-price-field";
-  field.innerHTML = "<span>מחיר יחידה</span><strong>₪0 · בונוס</strong>";
+  field.innerHTML = `<span>מחיר יחידה</span><strong>₪0 · ${escapeHtml(getBonusOrderItemLabel(line))}</strong>`;
   return field;
 }
 
@@ -8043,7 +8049,17 @@ function createOrderTextDetails(order, options = {}) {
 
   order.items.forEach((item) => {
     const line = document.createElement("p");
-    line.textContent = formatOrderLine(item);
+    const orderLine = document.createElement("span");
+    orderLine.textContent = formatOrderLine(item);
+    line.append(orderLine);
+
+    const shortDescription = getOrderItemShortDescription(item);
+    if (shortDescription) {
+      const description = document.createElement("small");
+      description.className = "order-item-short-description";
+      description.textContent = shortDescription;
+      line.append(description);
+    }
     details.append(line);
   });
 
@@ -8137,7 +8153,7 @@ function formatQuantityUnit(quantity) {
 function formatOrderLine(item) {
   const prefix = `${item.quantity} ${formatQuantityUnit(item.quantity)} ${formatOrderItemModel(item)}`;
   if (item.fromReservation || item.priceSource === "reservation") return `${prefix} · משריון`;
-  if (isBonusOrderItem(item)) return `${prefix} · בונוס 10+1 · 0 ש״ח`;
+  if (isBonusOrderItem(item)) return `${prefix} · ${getBonusOrderItemLabel(item)} · 0 ש״ח`;
   const line = `${prefix} לפי ${formatOrderPrice(item)}`;
   return item.priceSource === "display" ? `${line} · הנחת תצוגה 15%` : line;
 }
@@ -8153,12 +8169,56 @@ function formatOrderItemModel(item) {
   return cleanString(item.description) || "פריט";
 }
 
+function getOrderItemShortDescription(item) {
+  const product = getProductBySku(item?.skuKey || item?.sku);
+  const description = cleanString(product?.description || item?.description);
+  if (!description) return "";
+
+  const conciseLabels = [
+    [/4\s*דלתות/, "4 דלתות"],
+    [/(?:מכונת\s+כביסה|מ\.?\s*כביסה)/, "מכונת כביסה"],
+    [/(?:מייבש\s+כביסה|מייבש)/, "מייבש כביסה"],
+    [/מקרר\s+משרדי/, "מקרר משרדי"],
+    [/מקרר\s+ויטרינה/, "מקרר ויטרינה"],
+    [/תנור\s+בנוי/, "תנור בנוי"],
+    [/מדיח/, "מדיח כלים"],
+    [/מקפיא\s+(\d+)\s+מגירות/, (_, drawers) => `מקפיא ${drawers} מגירות`],
+    [/מקרר\s+מקפיא\s+עליון/, "מקרר מקפיא עליון"],
+    [/מקרר\s+מקפיא\s+תחתון/, "מקרר מקפיא תחתון"],
+    [/מקרר/, "מקרר"],
+    [/מקפיא/, "מקפיא"],
+    [/כיריים/, "כיריים"],
+    [/מיקרוגל/, "מיקרוגל"],
+    [/קולט/, "קולט אדים"],
+  ];
+  const match = conciseLabels.find(([pattern]) => pattern.test(description));
+  if (match) return typeof match[1] === "function" ? description.replace(match[0], match[1]) : match[1];
+
+  return cleanString(
+    description
+      .replace(/\b\d+(?:[.,]\d+)?\s*(?:ליטר|קילו|ק״ג|ק"ג|ס"מ)\b/gi, "")
+      .replace(/\b(?:NO-?FROST|NF|DE-?FROST|DF)\b/gi, "")
+      .replace(/\b(?:לבן|לבנה|שחור|שחורה|כסוף|נירוסטה|שמנת)\b/g, ""),
+  )
+    .split(" ")
+    .slice(0, 4)
+    .join(" ");
+}
+
 function isReservationOrderItem(item) {
   return Boolean(item?.fromReservation || item?.priceSource === "reservation");
 }
 
 function isBonusOrderItem(item) {
   return item?.priceSource === "bonus";
+}
+
+function isTenPlusOneBonusItem(item) {
+  return isBonusOrderItem(item) && normalizeBonusType(item?.bonusType) === "ten-plus-one";
+}
+
+function getBonusOrderItemLabel(item) {
+  return isTenPlusOneBonusItem(item) ? "בונוס 10+1" : "בונוס";
 }
 
 function getProductBySku(value) {
@@ -8976,14 +9036,16 @@ function readCart() {
       const fromReservation = Boolean(line.fromReservation || line.priceSource === "reservation");
       const unitPrice = fromReservation ? 0 : parsePrice(line.unitPrice) ?? 0;
       const priceSource = fromReservation ? "reservation" : normalizePriceSource(line.priceSource);
+      const bonusType = normalizeBonusType(line.bonusType);
       return {
-        lineKey: createCartLineKey(skuKey, fromReservation, unitPrice, priceSource),
+        lineKey: createCartLineKey(skuKey, fromReservation, unitPrice, priceSource, bonusType),
         skuKey,
         sku: cleanString(line.sku),
         description: cleanString(line.description),
         listPrice: parsePrice(line.listPrice) ?? 0,
         unitPrice,
         priceSource,
+        bonusType,
         quantity: parseQuantity(line.quantity),
         fromReservation,
       };
@@ -9024,6 +9086,7 @@ function normalizeOrders(value) {
             listPrice: parsePrice(line.listPrice) ?? 0,
             unitPrice: parsePrice(line.unitPrice) ?? 0,
             priceSource: normalizePriceSource(line.priceSource),
+            bonusType: normalizeBonusType(line.bonusType),
             quantity: parseQuantity(line.quantity),
             lineTotal: parsePrice(line.lineTotal) ?? 0,
             fromReservation: Boolean(line.fromReservation || line.priceSource === "reservation"),
@@ -9428,6 +9491,10 @@ function formatPlainPrice(price) {
 
 function normalizePriceSource(value) {
   return ["list", "last", "custom", "display", "reservation", "bonus"].includes(value) ? value : "custom";
+}
+
+function normalizeBonusType(value) {
+  return value === "ten-plus-one" ? "ten-plus-one" : "";
 }
 
 function normalizeOrderType(value) {
