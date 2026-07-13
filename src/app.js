@@ -267,6 +267,7 @@ const dom = {
   dashboardInsights: document.querySelector("#dashboardInsights"),
   dashboardTrends: document.querySelector("#dashboardTrends"),
   dashboardTrendsMeta: document.querySelector("#dashboardTrendsMeta"),
+  dashboardSignals: document.querySelector("#dashboardSignals"),
   dashboardRecentOrders: document.querySelector("#dashboardRecentOrders"),
   dashboardLowReservations: document.querySelector("#dashboardLowReservations"),
   dashboardTopProducts: document.querySelector("#dashboardTopProducts"),
@@ -6121,10 +6122,12 @@ function renderDashboardTrends(reference = new Date()) {
     dom.dashboardTrends.replaceChildren(
       dashboardEmpty("אין עדיין מספיק מכר מתועד לניתוח מגמות. המגמות יתחילו להופיע אחרי הזמנות שנשמרו במערכת."),
     );
+    renderDashboardSmartSignals(analysis, reference);
     return;
   }
 
   dom.dashboardTrends.replaceChildren(...analysis.trends.map(renderDashboardTrendCard));
+  renderDashboardSmartSignals(analysis, reference);
 }
 
 function getDashboardTrendAnalysis(reference = new Date()) {
@@ -6139,6 +6142,7 @@ function getDashboardTrendAnalysis(reference = new Date()) {
   const product = getStableProductTrend(current, previous);
 
   return {
+    periods,
     current,
     previous,
     trends: [
@@ -6218,6 +6222,7 @@ function isOrderInDashboardTrendPeriod(order, start, end) {
 
 function getDashboardTrendPeriodStats(orderList) {
   const customersInPeriod = new Set();
+  const customersByKey = new Map();
   const productsByKey = new Map();
   let revenue = 0;
   let units = 0;
@@ -6229,6 +6234,7 @@ function getDashboardTrendPeriodStats(orderList) {
     let hasPaidLine = false;
     const customer = getOrderCustomer(order);
     const customerKey = customer?.id || normalizeSearch(order.customerName);
+    const customerName = cleanString(customer?.name || order.customerName || "לקוח ללא שם");
 
     order.items.forEach((item) => {
       if (isReservationOrderItem(item)) return;
@@ -6242,22 +6248,38 @@ function getDashboardTrendPeriodStats(orderList) {
       completeLines += 1;
       hasPaidLine = true;
       units += quantity;
-      if (!isBonus) revenue = roundMoney(revenue + quantity * unitPrice);
+      const lineRevenue = isBonus ? 0 : roundMoney(quantity * unitPrice);
+      revenue = roundMoney(revenue + lineRevenue);
 
       const key = item.skuKey || item.sku || item.description || "מוצר";
       const label = cleanString(item.description || item.sku || "מוצר ללא שם");
       const product = productsByKey.get(key) || {
         label,
         units: 0,
+        revenue: 0,
         orderIds: new Set(),
         totalLines: 0,
         completeLines: 0,
       };
       product.units += quantity;
+      product.revenue = roundMoney(product.revenue + lineRevenue);
       product.orderIds.add(order.id);
       product.totalLines += 1;
       product.completeLines += 1;
       productsByKey.set(key, product);
+
+      if (customerKey) {
+        const customerStats = customersByKey.get(customerKey) || {
+          name: customerName,
+          revenue: 0,
+          units: 0,
+          orderIds: new Set(),
+        };
+        customerStats.revenue = roundMoney(customerStats.revenue + lineRevenue);
+        customerStats.units += quantity;
+        customerStats.orderIds.add(order.id);
+        customersByKey.set(customerKey, customerStats);
+      }
     });
 
     if (!hasPaidLine) return;
@@ -6273,6 +6295,7 @@ function getDashboardTrendPeriodStats(orderList) {
     totalLines,
     completeLines,
     productsByKey,
+    customersByKey,
   };
 }
 
@@ -6301,7 +6324,7 @@ function getStableProductTrend(current, previous) {
 }
 
 function emptyTrendProduct() {
-  return { label: "", units: 0, orderIds: new Set(), totalLines: 0, completeLines: 0 };
+  return { label: "", units: 0, revenue: 0, orderIds: new Set(), totalLines: 0, completeLines: 0 };
 }
 
 function getTrendDataAccuracy(current, previous) {
@@ -6416,6 +6439,160 @@ function renderDashboardTrendCard(trend) {
       <span>דיוק ${Math.round(trend.accuracy)}%</span>
       <span>חשיבות ${Math.round(trend.importance)}%</span>
     </div>
+  `;
+  return card;
+}
+
+function renderDashboardSmartSignals(analysis, reference = new Date()) {
+  if (!dom.dashboardSignals) return;
+  const signals = getDashboardSmartSignals(analysis, reference);
+  if (!signals.length) {
+    dom.dashboardSignals.replaceChildren(dashboardEmpty("המדדים יופיעו לאחר שתישמר פעילות מכר."));
+    return;
+  }
+  dom.dashboardSignals.replaceChildren(...signals.map(renderDashboardSmartSignal));
+}
+
+function getDashboardSmartSignals(analysis, reference) {
+  const current = analysis.current;
+  const customerRows = [...current.customersByKey.values()];
+  const productRows = [...current.productsByKey.values()];
+  const currentOrders = orders.filter((order) =>
+    isOrderInDashboardTrendPeriod(order, analysis.periods.currentStart, analysis.periods.currentEnd),
+  );
+  if (!currentOrders.length) return [];
+
+  const activeCustomers = customerRows.length;
+  const repeatCustomers = customerRows.filter((customer) => customer.orderIds.size >= 2).length;
+  const repeatRate = activeCustomers ? Math.round((repeatCustomers / activeCustomers) * 100) : 0;
+  const topCustomer = [...customerRows].sort((a, b) => b.revenue - a.revenue || b.units - a.units)[0] || null;
+  const topCustomerShare = getDashboardShare(topCustomer?.revenue || topCustomer?.units || 0, current.revenue || current.units);
+  const topProducts = [...productRows].sort((a, b) => b.revenue - a.revenue || b.units - a.units).slice(0, 3);
+  const topProductsValue = topProducts.reduce(
+    (sum, product) => sum + (current.revenue ? product.revenue : product.units),
+    0,
+  );
+  const topProductsShare = getDashboardShare(topProductsValue, current.revenue || current.units);
+
+  const todayKey = getLocalDateKey(reference);
+  const openPipelineOrders = orders.filter(
+    (order) => !isOrderCompleted(order) && getOrderReportDateKey(order) > todayKey,
+  );
+  const pipelineValue = openPipelineOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
+  const reservationMix = getDashboardReservationMix(currentOrders);
+  const weeklyMomentum = getDashboardWeeklyMomentum(reference);
+
+  return [
+    {
+      label: "שימור לקוחות",
+      value: activeCustomers ? `${repeatRate}%` : "אין נתונים",
+      detail: activeCustomers
+        ? `${repeatCustomers.toLocaleString("he-IL")} מתוך ${activeCustomers.toLocaleString("he-IL")} לקוחות חזרו להזמין`
+        : "אין לקוחות פעילים ב־30 הימים האחרונים",
+      tone: activeCustomers < 4 ? "red" : repeatRate >= 45 ? "green" : repeatRate >= 25 ? "orange" : "red",
+    },
+    {
+      label: "תלות בלקוח מוביל",
+      value: topCustomer ? `${topCustomerShare}%` : "אין נתונים",
+      detail: topCustomer
+        ? `${topCustomer.name} אחראי ל־${formatDashboardSignalValue(topCustomer.revenue, topCustomer.units)}`
+        : "אין מכר מתועד בתקופה",
+      tone: topCustomerShare <= 35 ? "green" : topCustomerShare <= 55 ? "orange" : "red",
+    },
+    {
+      label: "ריכוז מוצרים",
+      value: topProducts.length ? `${topProductsShare}%` : "אין נתונים",
+      detail: topProducts.length
+        ? `${topProducts.length.toLocaleString("he-IL")} המוצרים המובילים מחזיקים בחלק זה מהמכר`
+        : "אין מכר מוצרי בתקופה",
+      tone: topProductsShare <= 60 ? "green" : topProductsShare <= 80 ? "orange" : "red",
+    },
+    {
+      label: "צבר הזמנות פתוח",
+      value: openPipelineOrders.length ? `${openPipelineOrders.length.toLocaleString("he-IL")} הזמנות` : "אין צבר",
+      detail: openPipelineOrders.length
+        ? `${formatPrice(pipelineValue)} להזמנות שמדווחות אחרי היום · לא תחזית`
+        : "אין הזמנות פתוחות שמדווחות אחרי היום",
+      tone: "blue",
+    },
+    {
+      label: "קצב מכר · 7 ימים",
+      value: weeklyMomentum.label,
+      detail: weeklyMomentum.detail,
+      tone: weeklyMomentum.tone,
+    },
+    {
+      label: "שילוב מכר משריון",
+      value: reservationMix.totalUnits ? `${reservationMix.share}%` : "אין נתונים",
+      detail: reservationMix.totalUnits
+        ? `${reservationMix.reservationUnits.toLocaleString("he-IL")} יח׳ משריון מתוך ${reservationMix.totalUnits.toLocaleString("he-IL")} יח׳ בתקופה`
+        : "לא נרשמו יחידות ב־30 הימים האחרונים",
+      tone: reservationMix.share <= 35 ? "green" : reservationMix.share <= 60 ? "orange" : "red",
+    },
+  ];
+}
+
+function getDashboardShare(part, total) {
+  if (!Number.isFinite(part) || !Number.isFinite(total) || total <= 0) return 0;
+  return Math.round(Math.min(100, Math.max(0, (part / total) * 100)));
+}
+
+function formatDashboardSignalValue(revenue, units) {
+  return revenue > 0 ? formatPrice(revenue) : `${units.toLocaleString("he-IL")} יח׳`;
+}
+
+function getDashboardReservationMix(orderList) {
+  const summary = orderList.reduce(
+    (summary, order) => {
+      order.items.forEach((item) => {
+        const quantity = parseTrendQuantity(item.quantity);
+        if (quantity === null) return;
+        summary.totalUnits += quantity;
+        if (isReservationOrderItem(item)) summary.reservationUnits += quantity;
+      });
+      return summary;
+    },
+    { totalUnits: 0, reservationUnits: 0, share: 0 },
+  );
+  return { ...summary, share: getDashboardShare(summary.reservationUnits, summary.totalUnits) };
+}
+
+function getDashboardWeeklyMomentum(reference) {
+  const end = getLocalDateKey(reference);
+  const start = shiftLocalDateKeyByDays(end, -6);
+  const previousEnd = shiftLocalDateKeyByDays(start, -1);
+  const previousStart = shiftLocalDateKeyByDays(previousEnd, -6);
+  const current = getDashboardTrendPeriodStats(
+    orders.filter((order) => isOrderInDashboardTrendPeriod(order, start, end)),
+  );
+  const previous = getDashboardTrendPeriodStats(
+    orders.filter((order) => isOrderInDashboardTrendPeriod(order, previousStart, previousEnd)),
+  );
+  const hasBaseline = previous.orderCount >= 2 && current.orderCount + previous.orderCount >= 4 && previous.revenue > 0;
+  if (!hasBaseline) {
+    return {
+      label: "אין בסיס",
+      detail: `${formatPrice(current.revenue)} ב־7 הימים האחרונים · לא מוצג אחוז לפני שיש מספיק הזמנות`,
+      tone: "orange",
+    };
+  }
+
+  const change = ((current.revenue - previous.revenue) / previous.revenue) * 100;
+  const direction = change > 0 ? "עלייה" : change < 0 ? "ירידה" : "יציב";
+  return {
+    label: `${direction} ${Math.abs(change).toLocaleString("he-IL", { maximumFractionDigits: 0 })}%`,
+    detail: `${formatPrice(current.revenue)} לעומת ${formatPrice(previous.revenue)} בשבעת הימים הקודמים`,
+    tone: change > 0 ? "green" : change < 0 ? "orange" : "blue",
+  };
+}
+
+function renderDashboardSmartSignal(signal) {
+  const card = document.createElement("article");
+  card.className = `dashboard-smart-signal ${signal.tone}`;
+  card.innerHTML = `
+    <span>${escapeHtml(signal.label)}</span>
+    <strong>${escapeHtml(signal.value)}</strong>
+    <small>${escapeHtml(signal.detail)}</small>
   `;
   return card;
 }

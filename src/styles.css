@@ -6595,6 +6595,112 @@ body {
   }
 }
 
+/* Compact management signals. */
+.dashboard-smart-signals-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(92, 161, 188, 0.16);
+  color: #dceff6;
+}
+
+.dashboard-smart-signals-header strong {
+  color: #75e1d3;
+  font-size: 0.82rem;
+}
+
+.dashboard-smart-signals-header span {
+  color: #8faeba;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.dashboard-smart-signals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.dashboard-smart-signal {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(113, 160, 183, 0.24);
+  border-right: 3px solid var(--smart-signal-color, #63d6cc);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(7, 27, 43, 0.72), rgba(5, 19, 33, 0.7));
+}
+
+.dashboard-smart-signal.green { --smart-signal-color: #56d79b; }
+.dashboard-smart-signal.orange { --smart-signal-color: #efa75f; }
+.dashboard-smart-signal.red { --smart-signal-color: #ef7888; }
+.dashboard-smart-signal.blue { --smart-signal-color: #68c6ee; }
+
+.dashboard-smart-signal > span {
+  overflow: hidden;
+  color: #b9d7e4;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-smart-signal strong {
+  overflow: hidden;
+  color: #effbff;
+  font-size: 1.06rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-smart-signal small {
+  color: #91adba;
+  font-size: 0.62rem;
+  font-weight: 750;
+  line-height: 1.42;
+}
+
+@media (max-width: 719px) {
+  .dashboard-smart-signals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .dashboard-smart-signals-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dashboard-smart-signals-header span {
+    font-size: 0.64rem;
+    text-align: right;
+  }
+
+  .dashboard-smart-signal {
+    gap: 4px;
+    padding: 9px;
+    border-radius: 9px;
+  }
+
+  .dashboard-smart-signal > span {
+    font-size: 0.63rem;
+  }
+
+  .dashboard-smart-signal strong {
+    font-size: 0.94rem;
+  }
+
+  .dashboard-smart-signal small {
+    font-size: 0.58rem;
+    line-height: 1.35;
+  }
+}
+
 /* Tomorrow orders: a restrained orange variant with the same action language as Orders. */
 .orders-panel.tomorrow-orders-panel {
   border-color: rgba(232, 151, 72, 0.48);
@@ -8802,6 +8908,75 @@ button.calendar-day {
 }
 
 /* Final tomorrow-order palette: deliberately placed after legacy variants. */
+
+/* Final mobile override: keep timing cards small enough for the calendar to stay in view. */
+@media (max-width: 719px) {
+  .calendar-zmanim-panel {
+    gap: 7px;
+    padding: 9px 10px;
+    border-radius: 10px;
+  }
+
+  .calendar-zmanim-header {
+    align-items: center;
+    flex-direction: row;
+    gap: 7px;
+  }
+
+  .calendar-zmanim-header > div {
+    gap: 0;
+    min-width: 0;
+  }
+
+  .calendar-zmanim-header span {
+    font-size: 0.57rem;
+  }
+
+  .calendar-zmanim-header strong {
+    font-size: 0.74rem;
+  }
+
+  .calendar-zmanim-header small {
+    font-size: 0.55rem;
+    line-height: 1.2;
+    text-align: left;
+  }
+
+  .calendar-zmanim-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .calendar-zmanim-card {
+    gap: 2px;
+    padding: 7px;
+    border-radius: 8px;
+  }
+
+  .calendar-zmanim-card > span {
+    font-size: 0.55rem;
+  }
+
+  .calendar-zmanim-card strong {
+    font-size: 0.66rem;
+  }
+
+  .calendar-zmanim-card small {
+    font-size: 0.54rem;
+  }
+
+  .calendar-zmanim-card > div {
+    gap: 3px;
+    margin-top: 1px;
+  }
+
+  .calendar-zmanim-card b {
+    padding: 2px 3px;
+    border-radius: 4px;
+    font-size: 0.53rem;
+  }
+}
+
 .orders-panel.tomorrow-orders-panel .panel-header h2,
 .orders-panel.tomorrow-orders-panel .eyebrow {
   color: #f7dec4;
