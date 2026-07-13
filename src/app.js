@@ -31,6 +31,9 @@ const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
 const ORDER_REPORT_CUTOFF_HOUR = 15;
 const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_ORDER_IMPORT_OCR_PAGES = 8;
+const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
+const ORDER_COMPLETION_MIGRATION_VERSION = 1;
 const ORDER_IMPORT_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 const GENERAL_PRODUCT = { sku: "כללי", description: "מוצר כללי", price: 0 };
 const CLOUD_STATE_ENDPOINT = "/api/state";
@@ -303,6 +306,8 @@ const dom = {
   draftsList: document.querySelector("#draftsList"),
   orderSearch: document.querySelector("#orderSearch"),
   ordersList: document.querySelector("#ordersList"),
+  completedOrderSearch: document.querySelector("#completedOrderSearch"),
+  completedOrdersList: document.querySelector("#completedOrdersList"),
   tomorrowOrderSearch: document.querySelector("#tomorrowOrderSearch"),
   tomorrowOrdersList: document.querySelector("#tomorrowOrdersList"),
   tomorrowOrdersEyebrow: document.querySelector("#tomorrowOrdersEyebrow"),
@@ -330,6 +335,7 @@ let reservations = [];
 let reservationSeedVersion = 0;
 let reminders = [];
 let collections = [];
+let orderCompletionMigrationVersion = 0;
 let openCollectionDetails = new Set();
 let openReservationCustomerIds = new Set();
 let pendingReservationQuantities = new Map();
@@ -428,6 +434,7 @@ async function startApp() {
     reservationSeedVersion = RESERVATION_SEED_VERSION;
     saveReservations({ sync: false });
   }
+  if (completeDueOrders()) saveOrders();
 
   render();
   registerServiceWorker();
@@ -443,6 +450,11 @@ function startIsraelClock() {
 function updateIsraelClock() {
   if (!dom.ownerStatus) return;
   dom.ownerStatus.textContent = `דקל אזמי · ${israelDateTimeFormatter.format(new Date())}`;
+  if (appStarted && completeDueOrders()) {
+    saveOrders();
+    queueCloudSave();
+    render();
+  }
 }
 
 function bindAuthEvents() {
@@ -999,6 +1011,7 @@ function bindEvents() {
     saveSettings({ sync: true });
     renderCart();
     renderOrders();
+    renderCompletedOrders();
   });
   dom.customerName.addEventListener("input", () => {
     const previousCustomerId = settings.customerId;
@@ -1026,6 +1039,7 @@ function bindEvents() {
     saveSettings();
     renderCart();
     renderOrders();
+    renderCompletedOrders();
     renderTomorrowOrders();
     renderCustomerHint();
   });
@@ -1046,9 +1060,11 @@ function bindEvents() {
   dom.draftsList.addEventListener("change", handleDraftFieldChange);
   dom.draftsList.addEventListener("click", handleDraftActionClick);
   dom.orderSearch.addEventListener("input", renderOrders);
+  dom.completedOrderSearch.addEventListener("input", renderCompletedOrders);
   dom.tomorrowOrderSearch.addEventListener("input", renderTomorrowOrders);
   dom.soldProductsSearch.addEventListener("input", renderSoldProductsPanel);
   dom.ordersList.addEventListener("click", handleOrderActionClick);
+  dom.completedOrdersList.addEventListener("click", handleOrderActionClick);
   dom.tomorrowOrdersList.addEventListener("click", handleOrderActionClick);
   dom.customerOrders.addEventListener("click", handleOrderActionClick);
   dom.clearSearch.addEventListener("click", () => {
@@ -1112,7 +1128,9 @@ async function hydrateCloudState() {
         !state.customers.length ||
         sharedStateResult.seededReservations ||
         sharedStateResult.removedDraftReminders ||
-        sharedStateResult.migratedCollectionReminders
+        sharedStateResult.migratedCollectionReminders ||
+        sharedStateResult.migratedCompletedOrders ||
+        Number(state.orderCompletionMigrationVersion || 0) < ORDER_COMPLETION_MIGRATION_VERSION
       ) {
         queueCloudSave(0);
       }
@@ -1217,11 +1235,12 @@ async function handleOrderImportUpload(event) {
 async function parseOrderImportFile(file) {
   const fileName = cleanString(file.name);
   const extension = fileName.split(".").pop()?.toLocaleLowerCase("en-US") || "";
-  if (extension === "pdf" || file.type === "application/pdf") return parsePdfOrderFile(file);
+  const mimeType = cleanString(file.type).toLocaleLowerCase("en-US");
+  if (extension === "pdf" || mimeType === "application/pdf") return parsePdfOrderFile(file);
   if (["xlsx", "xls"].includes(extension)) return parseSpreadsheetOrderFile(file);
-  if (extension === "csv" || file.type === "text/csv") return parseOrderImportRows(parseCsvRows(await file.text()), fileName);
-  if (ORDER_IMPORT_IMAGE_EXTENSIONS.has(extension) || file.type.startsWith("image/")) return parseImageOrderFile(file);
-  throw new Error("נתמכים PDF, Excel, CSV או תמונה מהגלריה בפורמט JPG, PNG או WEBP.");
+  if (extension === "csv" || mimeType === "text/csv") return parseOrderImportRows(parseCsvRows(await file.text()), fileName);
+  if (ORDER_IMPORT_IMAGE_EXTENSIONS.has(extension) || mimeType.startsWith("image/")) return parseImageOrderFile(file);
+  throw new Error("נתמכים PDF, Excel, CSV או תמונה מהגלריה בפורמט JPG, PNG, WEBP או HEIC.");
 }
 
 async function parsePdfOrderFile(file) {
@@ -1236,23 +1255,40 @@ async function parsePdfOrderFile(file) {
   }
 
   const productRows = rows.filter((row) => getImportedSku(row.text));
-  if (!productRows.length) throw new Error("לא נמצאו דגמים קריאים ב־PDF.");
+  if (!productRows.length) {
+    const ocrText = await extractPdfTextWithOcr(documentProxy);
+    if (!ocrText) throw new Error("לא נמצאו דגמים קריאים ב־PDF. נסה צילום חד של טבלת הפריטים או PDF שאינו סרוק.");
+    const proposal = parseImageOrderText(ocrText, file.name, { sourceType: "PDF סרוק" });
+    proposal.warnings.unshift("ה־PDF נסרק כתמונה. בדוק את הדגמים, הכמויות והמחירים לפני טעינה לסל.");
+    return proposal;
+  }
 
   const rawLines = productRows.map((row) => {
     const sku = getImportedSku(row.text);
+    const product = findImportedProduct(row.text) || getProductBySku(sku);
     const quantity = getImportedQuantity(row.text);
     const pricing = getPdfRowPricing(row);
-    const rawLineTotal = pricing.rawLineTotal;
-    if (!Number.isFinite(rawLineTotal) || rawLineTotal < 0) {
+    const rawUnitPrice =
+      Number.isFinite(pricing.rawUnitPrice) && pricing.rawUnitPrice >= 0
+        ? pricing.rawUnitPrice
+        : Number.isFinite(pricing.rawLineTotal)
+          ? roundMoney(pricing.rawLineTotal / quantity)
+          : parsePrice(product?.price);
+    if (!Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
       throw new Error(`לא נמצא מחיר לשורה של ${sku}.`);
     }
+    const rawLineTotal =
+      Number.isFinite(pricing.rawLineTotal) && pricing.rawLineTotal >= 0
+        ? pricing.rawLineTotal
+        : roundMoney(rawUnitPrice * quantity);
     return {
-      sku,
+      sku: product?.sku || sku,
       quantity,
-      rawUnitPrice: Number.isFinite(pricing.rawUnitPrice) ? pricing.rawUnitPrice : roundMoney(rawLineTotal / quantity),
+      rawUnitPrice,
       rawLineTotal,
-      description: "",
+      description: product?.description || "",
       priceIncludesVat: false,
+      usedListPrice: !Number.isFinite(pricing.rawUnitPrice) && !Number.isFinite(pricing.rawLineTotal),
     };
   });
 
@@ -1279,18 +1315,10 @@ async function parseImageOrderFile(file) {
   }
 
   let worker = null;
-  let lastProgress = -1;
   try {
-    worker = await createWorker(["heb", "eng"], 1, {
-      logger: ({ status, progress }) => {
-        const percentage = Math.round((Number(progress) || 0) * 100);
-        if (percentage === lastProgress || !status) return;
-        lastProgress = percentage;
-        const label = status.includes("recognizing") ? "קורא את הטקסט בתמונה" : "מכין זיהוי מתמונה";
-        dom.orderImportStatus.textContent = `${label}${percentage ? ` · ${percentage}%` : "..."}`;
-      },
-    });
-    const result = await worker.recognize(file);
+    worker = await createOrderOcrWorker();
+    const imageSource = await prepareOrderImageForOcr(file);
+    const result = await worker.recognize(imageSource);
     const text = String(result?.data?.text || "").trim();
     if (!text) throw new Error("לא נמצא טקסט בתמונה. נסה צילום חד יותר, ללא השתקפות ובתאורה טובה.");
     return parseImageOrderText(text, file.name);
@@ -1302,27 +1330,97 @@ async function parseImageOrderFile(file) {
   }
 }
 
-function parseImageOrderText(text, fileName) {
+async function createOrderOcrWorker() {
+  let lastProgress = -1;
+  const worker = await createWorker(["heb", "eng"], 1, {
+    logger: ({ status, progress }) => {
+      const percentage = Math.round((Number(progress) || 0) * 100);
+      if (percentage === lastProgress || !status) return;
+      lastProgress = percentage;
+      const label = status.includes("recognizing") ? "קורא את הטקסט" : "מכין זיהוי";
+      dom.orderImportStatus.textContent = `${label}${percentage ? ` · ${percentage}%` : "..."}`;
+    },
+  });
+  await worker.setParameters({ preserve_interword_spaces: "1", tessedit_pageseg_mode: "6" });
+  return worker;
+}
+
+async function prepareOrderImageForOcr(file) {
+  if (!globalThis.createImageBitmap) return file;
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(file);
+    const sourceWidth = Math.max(1, bitmap.width);
+    const sourceHeight = Math.max(1, bitmap.height);
+    const upscale = sourceWidth < 1600 ? Math.min(2, 1600 / sourceWidth) : 1;
+    const maxScale = Math.sqrt(MAX_ORDER_IMPORT_OCR_PIXELS / (sourceWidth * sourceHeight));
+    const scale = Math.max(0.25, Math.min(upscale, maxScale));
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return file;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
+    context.filter = "grayscale(1) contrast(1.3)";
+    context.drawImage(bitmap, 0, 0, width, height);
+    context.filter = "none";
+    return canvas.toDataURL("image/png");
+  } catch {
+    return file;
+  } finally {
+    bitmap?.close?.();
+  }
+}
+
+async function extractPdfTextWithOcr(documentProxy) {
+  let worker = null;
+  try {
+    worker = await createOrderOcrWorker();
+    const pages = Math.min(documentProxy.numPages, MAX_ORDER_IMPORT_OCR_PAGES);
+    const textParts = [];
+    for (let pageNumber = 1; pageNumber <= pages; pageNumber += 1) {
+      dom.orderImportStatus.textContent = `קורא PDF סרוק · עמוד ${pageNumber} מתוך ${pages}...`;
+      const page = await documentProxy.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 2 });
+      const scale = Math.min(1, Math.sqrt(MAX_ORDER_IMPORT_OCR_PIXELS / (viewport.width * viewport.height)));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(viewport.width * scale));
+      canvas.height = Math.max(1, Math.round(viewport.height * scale));
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) continue;
+      await page.render({ canvasContext: context, viewport: page.getViewport({ scale: 2 * scale }) }).promise;
+      const result = await worker.recognize(canvas.toDataURL("image/png"));
+      const text = cleanString(result?.data?.text || "");
+      if (text) textParts.push(text);
+    }
+    return textParts.join("\n");
+  } finally {
+    if (worker) await worker.terminate();
+  }
+}
+
+function parseImageOrderText(text, fileName, options = {}) {
   const seenSkuKeys = new Set();
-  const rawLines = String(text)
-    .split(/\r?\n/)
-    .map((row) => cleanString(row))
-    .map((row) => {
-      const sku = getImportedSku(row);
-      if (!sku) return null;
-      const product = products.find((item) => item.skuKey === getSkuKey(sku));
-      const skuKey = product?.skuKey || getSkuKey(sku);
+  const rawLines = getOcrOrderCandidates(text)
+    .map((candidate) => {
+      const product = findImportedProduct(candidate);
+      if (!product) return null;
+      const skuKey = product.skuKey;
       if (!skuKey || seenSkuKeys.has(skuKey)) return null;
       seenSkuKeys.add(skuKey);
-      const quantity = getImageImportedQuantity(row);
-      const unitPrice = Math.max(0, Number(product?.price) || 0);
+      const quantity = getImageImportedQuantity(candidate);
+      const unitPrice = Math.max(0, Number(product.price) || 0);
       return {
-        sku: product?.sku || sku,
+        sku: product.sku,
         quantity,
         rawUnitPrice: unitPrice,
         rawLineTotal: roundMoney(quantity * unitPrice),
-        description: product?.description || "",
+        description: product.description,
         priceIncludesVat: true,
+        usedListPrice: true,
       };
     })
     .filter(Boolean);
@@ -1333,7 +1431,7 @@ function parseImageOrderText(text, fileName) {
 
   const proposal = finalizeImportedOrder({
     fileName,
-    sourceType: "תמונה מהגלריה",
+    sourceType: options.sourceType || "תמונה מהגלריה",
     customerName: "",
     customerPhone: "",
     rawLines,
@@ -1341,8 +1439,27 @@ function parseImageOrderText(text, fileName) {
     declaredSubtotal: null,
     vatAmount: null,
   });
-  proposal.warnings.unshift("בתמונה המחירים נטענים לפי המחירון. בדוק את הכמויות והמחירים בסל לפני שמירת ההזמנה.");
+  proposal.warnings.unshift(
+    options.sourceType === "PDF סרוק"
+      ? "ב־PDF הסרוק המחירים נטענים לפי המחירון. בדוק את הכמויות והמחירים בסל לפני שמירת ההזמנה."
+      : "בתמונה המחירים נטענים לפי המחירון. בדוק את הכמויות והמחירים בסל לפני שמירת ההזמנה.",
+  );
   return proposal;
+}
+
+function getOcrOrderCandidates(value) {
+  const rows = String(value)
+    .split(/\r?\n/)
+    .map((row) => cleanString(row))
+    .filter(Boolean);
+  const candidates = [];
+  rows.forEach((row, index) => {
+    candidates.push(row);
+    if (rows[index + 1]) candidates.push(`${row} ${rows[index + 1]}`);
+    if (rows[index - 1]) candidates.push(`${rows[index - 1]} ${row}`);
+  });
+  if (!candidates.length && cleanString(value)) candidates.push(cleanString(value));
+  return [...new Set(candidates)];
 }
 
 function getImageImportedQuantity(value) {
@@ -1350,7 +1467,8 @@ function getImageImportedQuantity(value) {
   const explicit =
     text.match(/(\d+(?:[.,]\d+)?)\s*יח[׳']/)?.[1] ||
     text.match(/(?:כמות|qty|quantity)\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i)?.[1] ||
-    text.match(/(?:^|\s)[x×]\s*(\d+(?:[.,]\d+)?)/i)?.[1];
+    text.match(/(?:^|\s)[x×]\s*(\d+(?:[.,]\d+)?)/i)?.[1] ||
+    text.match(/(\d+(?:[.,]\d+)?)\s*[x×](?:\s|$)/i)?.[1];
   const quantity = explicit ? Number(explicit.replace(",", ".")) : 1;
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
@@ -1363,20 +1481,18 @@ async function parseSpreadsheetOrderFile(file) {
 function parseOrderImportRows(rows, fileName = "קובץ הזמנה") {
   const normalizedRows = (rows || []).map((row) => (Array.isArray(row) ? row.map((cell) => cleanString(cell)) : []));
   const headerRowIndex = findOrderImportHeaderRow(normalizedRows);
-  if (headerRowIndex < 0) throw new Error("לא נמצאה כותרת עם מק״ט/דגם וכמות בקובץ.");
-
-  const columns = getOrderImportColumns(normalizedRows[headerRowIndex]);
-  const rawLines = normalizedRows
-    .slice(headerRowIndex + 1)
-    .map((row) => createSpreadsheetImportLine(row, columns))
+  const columns = headerRowIndex >= 0 ? getOrderImportColumns(normalizedRows[headerRowIndex]) : null;
+  const dataRows = headerRowIndex >= 0 ? normalizedRows.slice(headerRowIndex + 1) : normalizedRows;
+  const rawLines = dataRows
+    .map((row) => columns ? createSpreadsheetImportLine(row, columns) : createFlexibleSpreadsheetImportLine(row))
     .filter(Boolean);
-  if (!rawLines.length) throw new Error("לא נמצאו שורות הזמנה לאחר הכותרת.");
+  if (!rawLines.length) throw new Error("לא נמצאו דגמים או שורות הזמנה תקינות בקובץ.");
 
   const summary = getSpreadsheetImportSummary(normalizedRows, headerRowIndex);
   const customerInfo = getSpreadsheetCustomerInfo(normalizedRows, headerRowIndex);
   return finalizeImportedOrder({
     fileName,
-    sourceType: "Excel",
+    sourceType: headerRowIndex >= 0 ? "Excel" : "Excel · זיהוי גמיש",
     customerName: customerInfo.name,
     customerPhone: customerInfo.phone,
     rawLines,
@@ -1429,11 +1545,53 @@ function getImportedSku(value) {
   if (matchingProduct) return matchingProduct.sku;
 
   const match = text.match(/(?:FJ|IT)\s*(?:[-–—_]\s*|\s+)?[A-Z0-9]{2,14}(?:\s*[-–—_]\s*[A-Z0-9]{1,14})*/);
-  if (!match) return "";
-  const compact = match[0].replace(/[^A-Z0-9]/g, "");
-  const brand = compact.slice(0, 2);
-  const model = compact.slice(2);
-  return brand && model ? `${brand}-${model}` : "";
+  if (match) {
+    const compact = match[0].replace(/[^A-Z0-9]/g, "");
+    const brand = compact.slice(0, 2);
+    const model = compact.slice(2);
+    if (brand && model) return `${brand}-${model}`;
+  }
+
+  return findImportedProductByDescription(value)?.sku || "";
+}
+
+function findImportedProduct(value) {
+  const sku = getImportedSku(value);
+  return getProductBySku(sku) || findImportedProductByDescription(value);
+}
+
+function findImportedProductByDescription(value) {
+  const normalized = normalizeSearch(value);
+  if (!normalized) return null;
+  const exact = products.find((product) => {
+    const description = normalizeSearch(product.description);
+    return description.length >= 8 && normalized.includes(description);
+  });
+  if (exact) return exact;
+
+  const stopWords = new Set([
+    "מקרר", "מקפיא", "מכונת", "כביסה", "מייבש", "תנור", "מדיח", "מוצר", "מוצרים", "ליטר", "nofrost", "frost", "לבן", "לבנה", "שחור", "שחורה", "נירוסטה", "שמנת",
+  ]);
+  const sourceTokens = new Set(
+    normalized.split(" ").filter((token) => token.length >= 3 && !stopWords.has(token)),
+  );
+  if (!sourceTokens.size) return null;
+
+  const matches = products
+    .map((product) => {
+      const productTokens = [...new Set(normalizeSearch(product.description).split(" "))]
+        .filter((token) => token.length >= 3 && !stopWords.has(token));
+      const shared = productTokens.filter((token) => sourceTokens.has(token));
+      const score = shared.reduce((sum, token) => sum + Math.min(token.length, 8), 0);
+      return { product, shared, score };
+    })
+    .filter((candidate) => candidate.shared.length >= 2 && candidate.score >= 7)
+    .sort((first, second) => second.score - first.score || second.shared.length - first.shared.length);
+  if (!matches.length) return null;
+  if (matches[1] && matches[0].score - matches[1].score < 2 && matches[0].shared.length === matches[1].shared.length) {
+    return null;
+  }
+  return matches[0].product;
 }
 
 function getImportedQuantity(value) {
@@ -1486,7 +1644,8 @@ function getPdfCustomerInfo(rows, firstProductRow) {
 function findOrderImportHeaderRow(rows) {
   return rows.findIndex((row) => {
     const text = normalizeOrderImportHeader(row.join(" "));
-    return (text.includes("מקט") || text.includes("דגם") || text.includes("sku")) && text.includes("כמות");
+    const hasProduct = text.includes("מקט") || text.includes("דגם") || text.includes("sku") || text.includes("מוצר") || text.includes("תיאור") || text.includes("description");
+    return hasProduct && (text.includes("כמות") || text.includes("qty") || text.includes("quantity"));
   });
 }
 
@@ -1504,23 +1663,49 @@ function getOrderImportColumns(headerRow) {
 }
 
 function createSpreadsheetImportLine(row, columns) {
-  const sku = getImportedSku(row[columns.sku]);
+  const source = row.join(" ");
+  const product = findImportedProduct(row[columns.sku] || row[columns.description] || source);
+  const sku = product?.sku || getImportedSku(row[columns.sku] || row[columns.description] || source);
   if (!sku) return null;
-  const quantity = getImportedQuantity(row[columns.quantity]);
+  const quantity = getImportedQuantity(columns.quantity >= 0 ? row[columns.quantity] : source);
   const rawLineTotal = parseImportAmount(row[columns.total]);
   const rawUnitPrice =
     parseImportAmount(row[columns.grossPrice]) ??
     parseImportAmount(row[columns.afterDiscount]) ??
     parseImportAmount(row[columns.unitPrice]) ??
-    (Number.isFinite(rawLineTotal) ? roundMoney(rawLineTotal / quantity) : null);
+    (Number.isFinite(rawLineTotal) ? roundMoney(rawLineTotal / quantity) : null) ??
+    parsePrice(product?.price);
   if (!Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) return null;
   return {
-    sku,
+    sku: product?.sku || sku,
     quantity,
     rawUnitPrice,
     rawLineTotal: Number.isFinite(rawLineTotal) ? rawLineTotal : roundMoney(rawUnitPrice * quantity),
-    description: cleanString(row[columns.description]),
+    description: cleanString(row[columns.description] || product?.description),
     priceIncludesVat: columns.grossPrice >= 0,
+    usedListPrice: !Number.isFinite(parseImportAmount(row[columns.grossPrice])) &&
+      !Number.isFinite(parseImportAmount(row[columns.afterDiscount])) &&
+      !Number.isFinite(parseImportAmount(row[columns.unitPrice])) &&
+      !Number.isFinite(rawLineTotal),
+  };
+}
+
+function createFlexibleSpreadsheetImportLine(row) {
+  const source = row.join(" ");
+  const product = findImportedProduct(source);
+  if (!product) return null;
+  const quantity = getImageImportedQuantity(source);
+  const values = row.map(parseImportAmount).filter((value) => Number.isFinite(value) && value >= 0);
+  const possibleTotal = values.find((value) => value > Number(product.price || 0) && value / quantity >= 1) ?? null;
+  const possibleUnitPrice = possibleTotal ? roundMoney(possibleTotal / quantity) : Number(product.price) || 0;
+  return {
+    sku: product.sku,
+    quantity,
+    rawUnitPrice: possibleUnitPrice,
+    rawLineTotal: possibleTotal ?? roundMoney(possibleUnitPrice * quantity),
+    description: product.description,
+    priceIncludesVat: false,
+    usedListPrice: !possibleTotal,
   };
 }
 
@@ -1538,7 +1723,7 @@ function getSpreadsheetImportSummary(rows, headerRowIndex) {
 }
 
 function getSpreadsheetCustomerInfo(rows, headerRowIndex) {
-  const topRows = rows.slice(0, headerRowIndex);
+  const topRows = rows.slice(0, headerRowIndex >= 0 ? headerRowIndex : Math.min(rows.length, 12));
   for (const row of topRows) {
     const cells = row.map(cleanString);
     const labelIndex = cells.findIndex((cell) => /לקוח|לכבוד|customer/.test(normalizeOrderImportHeader(cell)));
@@ -1598,10 +1783,12 @@ function finalizeImportedOrder(input) {
   }
 
   const unresolved = lines.filter((line) => !line.product);
+  const listPricedLines = lines.filter((line) => line.usedListPrice).length;
   const matchesTotal = !declaredTotal || isAmountClose(calculatedTotal, declaredTotal);
   const warnings = [];
   if (!input.customerName) warnings.push("לא זוהה שם לקוח. אפשר להזין אותו ידנית לפני טעינה לסל.");
   if (unresolved.length) warnings.push(`${unresolved.length.toLocaleString("he-IL")} דגמים לא נמצאו במחירון ולכן לא ייטענו לסל.`);
+  if (listPricedLines) warnings.push(`${listPricedLines.toLocaleString("he-IL")} שורות קיבלו מחיר מהמחירון כי לא זוהה מחיר בקובץ.`);
   if (declaredTotal && !matchesTotal) warnings.push("הסכום המחושב אינו תואם לסכום הסופי בקובץ.");
   if (!declaredTotal) warnings.push("לא זוהה סכום סופי בקובץ; בדוק את הסכום לפני טעינה לסל.");
 
@@ -1616,6 +1803,7 @@ function finalizeImportedOrder(input) {
     calculatedTotal,
     matchesTotal,
     unresolved,
+    listPricedLines,
     warnings,
   };
 }
@@ -1956,6 +2144,7 @@ function render() {
   renderCart();
   renderDrafts();
   renderOrders();
+  renderCompletedOrders();
   renderTomorrowOrders();
 
   const query = normalizeSearch(dom.searchInput.value);
@@ -6692,6 +6881,28 @@ function isOrderForTomorrow(order, reference = new Date()) {
   return getOrderReportDateKey(order) > getLocalDateKey(reference);
 }
 
+function isOrderCompleted(order) {
+  return Boolean(cleanString(order?.completedAt));
+}
+
+function completeDueOrders(options = {}) {
+  const todayKey = getLocalDateKey(new Date());
+  const completeExistingOrders = Boolean(options.completeExistingOrders);
+  let moved = 0;
+
+  orders = orders.map((order) => {
+    if (isOrderCompleted(order)) return order;
+    const shouldComplete =
+      getOrderReportDateKey(order) < todayKey ||
+      (completeExistingOrders && !isOrderForTomorrow(order));
+    if (!shouldComplete) return order;
+    moved += 1;
+    return { ...order, completedAt: new Date().toISOString() };
+  });
+
+  return moved;
+}
+
 function compareOrdersByCreatedAt(a, b) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
@@ -7322,6 +7533,7 @@ function saveOrder(options = {}) {
     id: originalOrder?.id || `order-${now.getTime()}`,
     createdAt,
     updatedAt: originalOrder ? now.toISOString() : "",
+    completedAt: cleanString(originalOrder?.completedAt),
     reportDate: getOrderReportDateForDraft(createdAt, orderReportTomorrow),
     customerId: customer?.id || "",
     customerName,
@@ -7761,16 +7973,31 @@ function createBonusPriceField(line) {
 
 function renderOrders() {
   const query = normalizeSearch(dom.orderSearch.value);
-  const regularOrders = orders.filter((order) => !isOrderForTomorrow(order));
-  const visibleOrders = filterOrdersByQuery(regularOrders, query).sort(compareOrdersByCreatedAt);
+  const openOrders = orders.filter((order) => !isOrderCompleted(order));
+  const visibleOrders = filterOrdersByQuery(openOrders, query).sort(compareOrdersByCreatedAt);
 
   if (!visibleOrders.length) {
-    dom.ordersList.replaceChildren(emptyState(query ? "לא נמצאו הזמנות מתאימות." : "אין הזמנות שמורות שאינן למחר."));
+    dom.ordersList.replaceChildren(emptyState(query ? "לא נמצאו הזמנות פתוחות מתאימות." : "אין הזמנות פתוחות כרגע."));
     return;
   }
 
   dom.ordersList.replaceChildren(
-    ...visibleOrders.slice(0, query ? 60 : 12).map((order) => renderOrderCard(order, { tone: "orders-history-card" })),
+    ...visibleOrders.slice(0, query ? 60 : 80).map((order) => renderOrderCard(order, { tone: "orders-history-card" })),
+  );
+}
+
+function renderCompletedOrders() {
+  const query = normalizeSearch(dom.completedOrderSearch.value);
+  const completedOrders = orders.filter(isOrderCompleted);
+  const visibleOrders = filterOrdersByQuery(completedOrders, query).sort(compareOrdersByCreatedAt);
+
+  if (!visibleOrders.length) {
+    dom.completedOrdersList.replaceChildren(emptyState(query ? "לא נמצאו הזמנות שהושלמו מתאימות." : "אין עדיין הזמנות שהושלמו."));
+    return;
+  }
+
+  dom.completedOrdersList.replaceChildren(
+    ...visibleOrders.slice(0, query ? 80 : 120).map((order) => renderOrderCard(order, { tone: "completed-order-card" })),
   );
 }
 
@@ -7899,8 +8126,15 @@ function renderOrderCard(order, options = {}) {
   const customer = getOrderCustomer(order);
   const customerName = customer?.name || order.customerName;
   const isTomorrowOrder = options.tone === "tomorrow-order-card";
+  const isCompletedOrderCard = options.tone === "completed-order-card";
   const iconName = isReservationPurchaseOrder(order) ? "package" : isTomorrowOrder ? "calendar" : "receipt";
-  const typeLabel = isReservationPurchaseOrder(order) ? "הזמנה לשריון" : isTomorrowOrder ? "אספקה למחר" : "הזמנה שמורה";
+  const typeLabel = isReservationPurchaseOrder(order)
+    ? "הזמנה לשריון"
+    : isTomorrowOrder
+      ? "אספקה למחר"
+      : isCompletedOrderCard
+        ? "הושלמה"
+        : "הזמנה פתוחה";
 
   const date = new Date(order.createdAt).toLocaleString("he-IL", {
     dateStyle: "short",
@@ -8305,6 +8539,7 @@ function deleteOrder(orderId) {
   queueCloudSave();
   renderCart();
   renderOrders();
+  renderCompletedOrders();
   renderTomorrowOrders();
   renderCustomersPanel();
   renderReservationsPanel();
@@ -8957,7 +9192,7 @@ function hasCloudState(state) {
 
 function buildSharedState() {
   return {
-    version: 5,
+    version: 6,
     products: products.map(({ sku, description, price, stockQuantity }) => ({
       sku,
       description,
@@ -8969,6 +9204,7 @@ function buildSharedState() {
     customers,
     annotations,
     orders,
+    orderCompletionMigrationVersion,
     drafts,
     lastPrices,
     reservations,
@@ -8997,6 +9233,13 @@ function applySharedState(state) {
   customers = cloudCustomers.length ? cloudCustomers : customers.length ? customers : getDefaultCustomers();
   annotations = normalizeAnnotations(state.annotations);
   orders = normalizeOrders(state.orders);
+  orderCompletionMigrationVersion = Math.max(0, Math.floor(Number(state.orderCompletionMigrationVersion) || 0));
+  const migratedCompletedOrders = completeDueOrders({
+    completeExistingOrders: orderCompletionMigrationVersion < ORDER_COMPLETION_MIGRATION_VERSION,
+  });
+  if (orderCompletionMigrationVersion < ORDER_COMPLETION_MIGRATION_VERSION) {
+    orderCompletionMigrationVersion = ORDER_COMPLETION_MIGRATION_VERSION;
+  }
   drafts = normalizeDrafts(state.drafts);
   lastPrices = normalizeLastPrices(state.lastPrices);
   if (!Object.keys(lastPrices).length) {
@@ -9025,7 +9268,7 @@ function applySharedState(state) {
   dom.whatsappNumber.value = settings.whatsappNumber || "";
   const removedDraftReminders = purgeDraftAutoReminders({ sync: false });
 
-  return { seededReservations: shouldSeedReservations, removedDraftReminders, migratedCollectionReminders };
+  return { seededReservations: shouldSeedReservations, removedDraftReminders, migratedCollectionReminders, migratedCompletedOrders };
 }
 
 function readCustomers() {
@@ -9076,6 +9319,7 @@ function normalizeOrders(value) {
       id: cleanString(order.id) || `order-${Date.now()}`,
       createdAt: order.createdAt || new Date().toISOString(),
       updatedAt: order.updatedAt || "",
+      completedAt: cleanString(order.completedAt),
       reportDate: normalizeDateInput(order.reportDate) || getLocalDateKey(getSafeDate(order.createdAt)),
       customerId: cleanString(order.customerId),
       customerName: cleanString(order.customerName),
