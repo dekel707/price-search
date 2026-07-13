@@ -25,6 +25,7 @@ const COLLECTIONS_KEY = "price-search-collections-v1";
 const ACTIVE_TAB_KEY = "price-search-active-tab-v1";
 const ORDER_TYPE_KEY = "price-search-order-type-v1";
 const ORDER_REPORT_TOMORROW_KEY = "price-search-order-report-tomorrow-v1";
+const ORDER_REPORT_TODAY_KEY = "price-search-order-report-today-v1";
 const MAX_RESULTS = 80;
 const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
@@ -168,6 +169,7 @@ const dom = {
   cartTitle: document.querySelector("#cartTitle"),
   orderTypeInputs: [...document.querySelectorAll('[name="orderType"]')],
   reportTomorrow: document.querySelector("#reportTomorrow"),
+  reportToday: document.querySelector("#reportToday"),
   cartCustomerDialog: document.querySelector("#cartCustomerDialog"),
   cartCustomerForm: document.querySelector("#cartCustomerForm"),
   cartCustomerInput: document.querySelector("#cartCustomerInput"),
@@ -361,6 +363,7 @@ let editingOrderId = "";
 let editingDraftId = "";
 let duplicatedOrderNeedsCustomer = false;
 let orderReportTomorrow = false;
+let orderReportToday = false;
 let categoryProductViewMode = "all";
 let cloudHydrated = CLOUD_SYNC_DISABLED;
 let cloudSaveTimer = null;
@@ -427,6 +430,8 @@ async function startApp() {
   }
   orderType = normalizeOrderType(readJson(ORDER_TYPE_KEY));
   orderReportTomorrow = Boolean(readJson(ORDER_REPORT_TOMORROW_KEY));
+  orderReportToday = Boolean(readJson(ORDER_REPORT_TODAY_KEY));
+  if (orderReportToday) orderReportTomorrow = false;
   if (orderType === "reservation" && cart.some((line) => line.fromReservation)) {
     setOrderType(orderType, { render: false });
   }
@@ -1051,10 +1056,26 @@ function bindEvents() {
   dom.saveAsDraft.addEventListener("change", renderCart);
   dom.reportTomorrow.addEventListener("change", () => {
     orderReportTomorrow = dom.reportTomorrow.checked;
+    if (orderReportTomorrow) {
+      orderReportToday = false;
+      dom.reportToday.checked = false;
+    }
     saveOrderReportTomorrow();
     renderCartSummary();
     dom.status.textContent = orderReportTomorrow
       ? "ההזמנה תיספר בדוחות לפי תאריך הדיווח הבא."
+      : "תאריך הדיווח יחושב אוטומטית לפי שעת ההקמה.";
+  });
+  dom.reportToday.addEventListener("change", () => {
+    orderReportToday = dom.reportToday.checked;
+    if (orderReportToday) {
+      orderReportTomorrow = false;
+      dom.reportTomorrow.checked = false;
+    }
+    saveOrderReportTomorrow();
+    renderCartSummary();
+    dom.status.textContent = orderReportToday
+      ? "ההזמנה תירשם להזמנות ולדוחות של היום."
       : "תאריך הדיווח יחושב אוטומטית לפי שעת ההקמה.";
   });
   dom.floatingCart.addEventListener("click", () => setActiveTab("cart"));
@@ -4625,6 +4646,7 @@ function loadAiProposalIntoCart(options = { openCart: true }) {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = false;
+  orderReportToday = false;
   dom.saveAsDraft.checked = false;
   setOrderType("delivery", { render: false });
   applyCustomerToDraft(customer);
@@ -6869,8 +6891,9 @@ function getOrderCreatedDateKey(order) {
   return getLocalDateKey(getSafeDate(order?.createdAt));
 }
 
-function getOrderReportDateForDraft(createdAt, reportTomorrow) {
+function getOrderReportDateForDraft(createdAt, reportTomorrow, reportToday = false) {
   const createdDate = getSafeDate(createdAt);
+  if (reportToday) return getLocalDateKey(createdDate);
   const automaticDate = getAutomaticOrderReportDateKey(createdDate);
   if (!reportTomorrow) return automaticDate;
   const manualDate = getNextLocalDateKey(createdDate);
@@ -6906,6 +6929,14 @@ function isSundayInIsrael(date = new Date()) {
 
 function isOrderReportedTomorrow(order) {
   return getOrderReportDateKey(order) > getOrderCreatedDateKey(order);
+}
+
+function isOrderReportedToday(order) {
+  const createdDate = getSafeDate(order?.createdAt);
+  return (
+    getOrderReportDateKey(order) === getLocalDateKey(createdDate) &&
+    getAutomaticOrderReportDateKey(createdDate) !== getLocalDateKey(createdDate)
+  );
 }
 
 function isOrderForTomorrow(order, reference = new Date()) {
@@ -7400,6 +7431,7 @@ function removeCartLine(lineKey) {
     editingDraftId = "";
     duplicatedOrderNeedsCustomer = false;
     orderReportTomorrow = false;
+    orderReportToday = false;
     dom.saveAsDraft.checked = false;
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
@@ -7422,6 +7454,7 @@ function clearCart() {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = false;
+  orderReportToday = false;
   dom.saveAsDraft.checked = false;
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
@@ -7505,7 +7538,7 @@ function saveDraftOrder(options = {}) {
     id: originalDraft?.id || `draft-${now.getTime()}`,
     createdAt,
     updatedAt: originalDraft ? now.toISOString() : "",
-    reportDate: getOrderReportDateForDraft(createdAt, orderReportTomorrow),
+    reportDate: getOrderReportDateForDraft(createdAt, orderReportTomorrow, orderReportToday),
     customerId: customer?.id || "",
     customerName,
     customerCode: customer?.code || "",
@@ -7527,6 +7560,7 @@ function saveDraftOrder(options = {}) {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = false;
+  orderReportToday = false;
   dom.saveAsDraft.checked = false;
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
@@ -7580,7 +7614,7 @@ function saveOrder(options = {}) {
     createdAt,
     updatedAt: originalOrder ? now.toISOString() : "",
     completedAt: cleanString(originalOrder?.completedAt),
-    reportDate: getOrderReportDateForDraft(createdAt, orderReportTomorrow),
+    reportDate: getOrderReportDateForDraft(createdAt, orderReportTomorrow, orderReportToday),
     customerId: customer?.id || "",
     customerName,
     customerCode: customer?.code || "",
@@ -7609,6 +7643,7 @@ function saveOrder(options = {}) {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = false;
+  orderReportToday = false;
   dom.saveAsDraft.checked = false;
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
@@ -7842,6 +7877,7 @@ function renderCart() {
     input.checked = input.value === orderType;
   });
   dom.reportTomorrow.checked = orderReportTomorrow;
+  dom.reportToday.checked = orderReportToday;
   renderCartSummary();
 
   if (!cart.length) {
@@ -8571,6 +8607,7 @@ function deleteOrder(orderId) {
   if (editingOrderId === orderId) {
     editingOrderId = "";
     orderReportTomorrow = false;
+    orderReportToday = false;
     cart = [];
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
@@ -8638,6 +8675,7 @@ function moveOrderToDraft(orderId) {
   if (editingOrderId === orderId) {
     editingOrderId = "";
     orderReportTomorrow = false;
+    orderReportToday = false;
     cart = [];
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
@@ -8703,6 +8741,7 @@ function handleOrderActionClick(event) {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = false;
+  orderReportToday = false;
   cart = mergeCartLines(
     order.items.map((item) => ({
       ...item,
@@ -8884,7 +8923,7 @@ function commitDraftToOrders(draftId, options = {}) {
     id: `order-${Date.now()}`,
     createdAt,
     updatedAt: now.toISOString(),
-    reportDate: getOrderReportDateForDraft(createdAt, isOrderReportedTomorrow(draft)),
+    reportDate: getOrderReportDateForDraft(createdAt, isOrderReportedTomorrow(draft), isOrderReportedToday(draft)),
     items: draft.items.map((line) => ({
       ...line,
       lineTotal: roundMoney(line.quantity * line.unitPrice),
@@ -8923,6 +8962,7 @@ function loadDraftToCart(draftId) {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = isOrderReportedTomorrow(draft);
+  orderReportToday = isOrderReportedToday(draft);
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
@@ -8953,6 +8993,7 @@ function startEditingDraft(draftId) {
   editingDraftId = draft.id;
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = isOrderReportedTomorrow(draft);
+  orderReportToday = isOrderReportedToday(draft);
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
@@ -8980,6 +9021,7 @@ function deleteDraft(draftId) {
     editingDraftId = "";
     duplicatedOrderNeedsCustomer = false;
     orderReportTomorrow = false;
+    orderReportToday = false;
     dom.saveAsDraft.checked = false;
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
@@ -9002,6 +9044,7 @@ function startEditingOrder(orderId) {
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = isOrderReportedTomorrow(order);
+  orderReportToday = isOrderReportedToday(order);
   cart = mergeCartLines(order.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || order.customerId || "";
   settings.customerName = customer?.name || order.customerName || "";
@@ -9025,6 +9068,7 @@ function duplicateOrderToCart(orderId) {
   editingOrderId = "";
   editingDraftId = "";
   orderReportTomorrow = false;
+  orderReportToday = false;
   dom.saveAsDraft.checked = false;
   cart = mergeCartLines(
     order.items.map((item) => {
@@ -9100,6 +9144,7 @@ function saveSettings(options = { sync: false }) {
 
 function saveOrderReportTomorrow() {
   localStorage.setItem(ORDER_REPORT_TOMORROW_KEY, JSON.stringify(orderReportTomorrow));
+  localStorage.setItem(ORDER_REPORT_TODAY_KEY, JSON.stringify(orderReportToday));
 }
 
 function saveProductData() {
