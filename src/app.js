@@ -4355,6 +4355,7 @@ function renderCalendarPanel() {
   }, new Map());
   const monthEvents = events.filter((event) => event.dateKey.startsWith(monthKey));
   const monthHolidayCount = monthEvents.filter((event) => event.type === "holiday").length;
+  const monthSalesCount = monthEvents.filter((event) => event.type === "sales").length;
 
   dom.calendarGregorianLabel.textContent = monthStart.toLocaleDateString("he-IL", {
     month: "long",
@@ -4365,7 +4366,11 @@ function renderCalendarPanel() {
     year: "numeric",
     timeZone: "Asia/Jerusalem",
   });
-  dom.calendarSummary.textContent = `${monthEvents.length.toLocaleString("he-IL")} אירועים${monthHolidayCount ? ` · ${monthHolidayCount.toLocaleString("he-IL")} חגים` : ""}`;
+  dom.calendarSummary.textContent = [
+    `${monthEvents.length.toLocaleString("he-IL")} אירועים`,
+    monthHolidayCount ? `${monthHolidayCount.toLocaleString("he-IL")} חגים` : "",
+    monthSalesCount ? `${monthSalesCount.toLocaleString("he-IL")} ימי מכירות` : "",
+  ].filter(Boolean).join(" · ");
 
   const gridStart = new Date(monthStart);
   gridStart.setDate(1 - monthStart.getDay());
@@ -4508,9 +4513,10 @@ function getCalendarEvents() {
     .filter(Boolean);
 
   const holidayEvents = getIsraelHolidayEvents();
-  const eventTypeOrder = { reminder: 0, arrival: 1, holiday: 2 };
+  const salesEvents = getIsraelRetailSalesEvents();
+  const eventTypeOrder = { reminder: 0, arrival: 1, sales: 2, holiday: 3 };
 
-  return [...reminderEvents, ...arrivalEvents, ...holidayEvents].sort(
+  return [...reminderEvents, ...arrivalEvents, ...salesEvents, ...holidayEvents].sort(
     (a, b) =>
       a.dateKey.localeCompare(b.dateKey) ||
       (eventTypeOrder[a.type] ?? 9) - (eventTypeOrder[b.type] ?? 9) ||
@@ -4613,6 +4619,96 @@ function getIsraelHolidayEvents(reference = new Date()) {
   return holidays;
 }
 
+function getIsraelRetailSalesEvents(reference = new Date()) {
+  const rangeStart = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate(), 12);
+  const rangeEnd = new Date(rangeStart.getFullYear() + 2, rangeStart.getMonth(), rangeStart.getDate(), 12);
+  const startKey = getLocalDateKey(rangeStart);
+  const endKey = getLocalDateKey(rangeEnd);
+  const seen = new Set();
+  const sales = [];
+  const addSale = (date, title, detail) => {
+    const dateKey = getLocalDateKey(date);
+    const eventKey = `${dateKey}-${title}`;
+    if (dateKey < startKey || dateKey > endKey || seen.has(eventKey)) return;
+    seen.add(eventKey);
+    sales.push({
+      id: `sales-${eventKey}`,
+      dateKey,
+      type: "sales",
+      title,
+      detail,
+      completed: false,
+    });
+  };
+
+  for (let year = rangeStart.getFullYear(); year <= rangeEnd.getFullYear(); year += 1) {
+    addSale(new Date(year, 1, 14, 12), "יום האהבה · קמפיין זוגיות ומתנות", "מועד מכירות עונתי");
+    addSale(new Date(year, 2, 8, 12), "יום האישה הבינלאומי · קמפיין מתנות", "מועד מכירות עונתי");
+    addSale(new Date(year, 7, 1, 12), "פתיחת עונת חזרה ללימודים", "חלון הכנה למבצעי אוגוסט–ספטמבר");
+
+    const shoppingIlStart = getNthWeekdayOfGregorianMonth(year, 10, 3, 1);
+    if (year === 2026) {
+      addSale(new Date(year, 10, 4, 12), "ShoppingIL · יום 1", "אירוע מכירות ישראלי רשמי · 4–5 בנובמבר");
+      addSale(new Date(year, 10, 5, 12), "ShoppingIL · יום 2", "אירוע מכירות ישראלי רשמי · 4–5 בנובמבר");
+    } else {
+      addSale(shoppingIlStart, "ShoppingIL · חלון מכירות צפוי", "המועד הסופי מתפרסם מדי שנה על־ידי Google");
+      const shoppingIlDayTwo = new Date(shoppingIlStart);
+      shoppingIlDayTwo.setDate(shoppingIlDayTwo.getDate() + 1);
+      addSale(shoppingIlDayTwo, "ShoppingIL · המשך חלון צפוי", "המועד הסופי מתפרסם מדי שנה על־ידי Google");
+    }
+
+    addSale(new Date(year, 10, 11, 12), "יום הרווקים הסיני · 11.11", "יום מכירות אונליין חזק בישראל ובעולם");
+    addSale(new Date(year, 10, 19, 12), "יום הגבר הבינלאומי", "מועד קמפיינים למתנות ומוצרי גברים");
+
+    const blackFriday = getBlackFridayDate(year);
+    addSale(blackFriday, "Black Friday · שיא מבצעי נובמבר", "יום מכירות חזק במיוחד גם בישראל");
+    const cyberMonday = new Date(blackFriday);
+    cyberMonday.setDate(cyberMonday.getDate() + 3);
+    addSale(cyberMonday, "Cyber Monday · מבצעי אונליין", "יום המשך למבצעי Black Friday");
+
+    addSale(new Date(year, 11, 12, 12), "מבצעי 12.12", "יום מבצעי אונליין נוסף");
+    addSale(new Date(year, 11, 31, 12), "סוף שנה · מבצעי סיכום", "חלון מבצעים לסיום השנה האזרחית");
+  }
+
+  const scanStart = new Date(rangeStart);
+  scanStart.setDate(scanStart.getDate() - 31);
+  for (const date = new Date(scanStart); date <= rangeEnd; date.setDate(date.getDate() + 1)) {
+    const { day, month } = getHebrewCalendarDateParts(date);
+    if (month === "תשרי" && day === 1) {
+      const campaignDate = new Date(date);
+      campaignDate.setDate(campaignDate.getDate() - 14);
+      addSale(campaignDate, "עונת חגי תשרי", "תחילת חלון מכירות לקראת ראש השנה והחגים");
+    }
+    if (month === "ניסן" && day === 15) {
+      const campaignDate = new Date(date);
+      campaignDate.setDate(campaignDate.getDate() - 14);
+      addSale(campaignDate, "עונת מבצעי פסח", "תחילת חלון מכירות לקראת פסח");
+    }
+    if (month === "אב" && day === 15) {
+      addSale(date, "ט״ו באב · קמפיין זוגיות ומתנות", "מועד מכירות ישראלי עונתי");
+    }
+    if (month === "כסלו" && day === 25) {
+      addSale(date, "חנוכה · עונת מתנות", "חלון מכירות ישראלי לחנוכה");
+    }
+  }
+
+  return sales;
+}
+
+function getNthWeekdayOfGregorianMonth(year, monthIndex, weekday, occurrence) {
+  const date = new Date(year, monthIndex, 1, 12);
+  const offset = (weekday - date.getDay() + 7) % 7;
+  date.setDate(1 + offset + (occurrence - 1) * 7);
+  return date;
+}
+
+function getBlackFridayDate(year) {
+  const thanksgiving = getNthWeekdayOfGregorianMonth(year, 10, 4, 4);
+  const blackFriday = new Date(thanksgiving);
+  blackFriday.setDate(blackFriday.getDate() + 1);
+  return blackFriday;
+}
+
 function getHebrewCalendarDateParts(date) {
   const parts = hebrewCalendarPartsFormatter.formatToParts(date);
   return {
@@ -4655,19 +4751,21 @@ function renderCalendarSelectedDayEvents(events, dateKey) {
   }
 
   const date = getDateFromLocalKey(dateKey);
-  const openEvents = events.filter((event) => event.type !== "holiday" && !event.completed);
+  const openEvents = events.filter((event) => event.type !== "holiday" && event.type !== "sales" && !event.completed);
   const holidays = events.filter((event) => event.type === "holiday");
-  const visibleEvents = [...holidays, ...openEvents];
+  const salesEvents = events.filter((event) => event.type === "sales");
+  const visibleEvents = [...holidays, ...salesEvents, ...openEvents];
   dom.calendarEventsTitle.textContent = `${formatReminderDate(dateKey)} · ${formatCalendarHebrewDate(date)}`;
   dom.calendarEventsCount.textContent = [
     holidays.length ? `${holidays.length.toLocaleString("he-IL")} חגים` : "",
+    salesEvents.length ? `${salesEvents.length.toLocaleString("he-IL")} ימי מכירות` : "",
     openEvents.length ? `${openEvents.length.toLocaleString("he-IL")} פתוחים` : "",
   ].filter(Boolean).join(" · ") || "אין פריטים";
 
   if (!visibleEvents.length) {
     const empty = document.createElement("p");
     empty.className = "calendar-empty";
-    empty.textContent = "אין תזכורות, פריטים פתוחים או חגים בתאריך זה.";
+    empty.textContent = "אין תזכורות, פריטים פתוחים, חגים או ימי מכירות בתאריך זה.";
     dom.calendarEventsList.replaceChildren(empty);
     return;
   }
@@ -4683,6 +4781,7 @@ function renderCalendarDay(date, events, options) {
   day.classList.toggle("today", options.today);
   day.classList.toggle("has-events", events.length > 0);
   day.classList.toggle("holiday", events.some((event) => event.type === "holiday"));
+  day.classList.toggle("sales", events.some((event) => event.type === "sales"));
   day.classList.toggle("selected", options.selected);
   const dateKey = getLocalDateKey(date);
   day.dataset.calendarDate = dateKey;
@@ -4701,7 +4800,13 @@ function renderCalendarDay(date, events, options) {
   events.slice(0, 2).forEach((event) => {
     const chip = document.createElement("div");
     chip.className = `calendar-event-chip ${event.type}${event.completed ? " completed" : ""}`;
-    chip.textContent = event.type === "arrival" ? `מלאי · ${event.title.replace("חוזר למלאי · ", "")}` : event.type === "holiday" ? `חג · ${event.title}` : event.title;
+    chip.textContent = event.type === "arrival"
+      ? `מלאי · ${event.title.replace("חוזר למלאי · ", "")}`
+      : event.type === "holiday"
+        ? `חג · ${event.title}`
+        : event.type === "sales"
+          ? `מכירות · ${event.title}`
+          : event.title;
     chip.title = `${event.title}${event.detail ? ` · ${event.detail}` : ""}`;
     dayEvents.append(chip);
   });
@@ -4726,7 +4831,7 @@ function renderCalendarEventRow(event) {
       <span>${escapeHtml(formatCalendarHebrewDate(date))}</span>
     </div>
     <div class="calendar-event-copy">
-      <span class="calendar-event-type">${event.type === "holiday" ? (event.detail || "חג ומועד") : event.type === "arrival" ? "חזרה למלאי" : event.completed ? "תזכורת שבוצעה" : "תזכורת"}</span>
+      <span class="calendar-event-type">${event.type === "holiday" ? (event.detail || "חג ומועד") : event.type === "sales" ? "מועד מכירות" : event.type === "arrival" ? "חזרה למלאי" : event.completed ? "תזכורת שבוצעה" : "תזכורת"}</span>
       <strong>${escapeHtml(event.title)}</strong>
       ${event.detail ? `<small>${escapeHtml(event.detail)}</small>` : ""}
     </div>

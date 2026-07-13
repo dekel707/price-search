@@ -7267,6 +7267,11 @@ body {
   box-shadow: 0 0 12px rgba(242, 189, 92, 0.58);
 }
 
+.calendar-legend-item.sales i {
+  background: #e77ab9;
+  box-shadow: 0 0 12px rgba(231, 122, 185, 0.58);
+}
+
 .calendar-summary {
   margin-inline-start: auto;
   color: #7ea4b7;
@@ -7332,6 +7337,11 @@ button.calendar-day {
   border-color: rgba(238, 185, 84, 0.56);
 }
 
+.calendar-day.sales {
+  border-color: rgba(231, 122, 185, 0.6);
+  background: linear-gradient(145deg, rgba(62, 29, 70, 0.74), rgba(12, 35, 56, 0.9));
+}
+
 .calendar-day.selected {
   border-color: rgba(148, 235, 255, 0.98);
   background: linear-gradient(145deg, rgba(19, 72, 94, 0.94), rgba(9, 40, 61, 0.98));
@@ -7395,6 +7405,12 @@ button.calendar-day {
   border-color: rgba(242, 189, 92, 0.54);
   background: rgba(129, 87, 23, 0.46);
   color: #fff1c8;
+}
+
+.calendar-event-chip.sales {
+  border-color: rgba(231, 122, 185, 0.56);
+  background: rgba(119, 42, 91, 0.48);
+  color: #ffe0f3;
 }
 
 .calendar-event-chip.completed {
@@ -7477,6 +7493,16 @@ button.calendar-day {
   box-shadow: 0 0 11px rgba(242, 189, 92, 0.62);
 }
 
+.calendar-event-row.sales {
+  border-color: rgba(231, 122, 185, 0.52);
+  background: linear-gradient(135deg, rgba(99, 37, 84, 0.44), rgba(14, 40, 60, 0.84));
+}
+
+.calendar-event-row.sales::before {
+  background: #e77ab9;
+  box-shadow: 0 0 11px rgba(231, 122, 185, 0.62);
+}
+
 .calendar-event-row.completed {
   opacity: 0.57;
 }
@@ -7527,6 +7553,10 @@ button.calendar-day {
 
 .calendar-event-row.holiday .calendar-event-type {
   color: #f7cc7a;
+}
+
+.calendar-event-row.sales .calendar-event-type {
+  color: #f2a5d3;
 }
 
 .calendar-event-copy small {
