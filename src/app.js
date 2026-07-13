@@ -8192,7 +8192,13 @@ function getOrderItemShortDescription(item) {
     [/קולט/, "קולט אדים"],
   ];
   const match = conciseLabels.find(([pattern]) => pattern.test(description));
-  if (match) return typeof match[1] === "function" ? description.replace(match[0], match[1]) : match[1];
+  if (match) {
+    if (typeof match[1] === "function") {
+      const groups = description.match(match[0]);
+      return groups ? match[1](...groups) : "";
+    }
+    return match[1];
+  }
 
   return cleanString(
     description
