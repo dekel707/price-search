@@ -7348,6 +7348,14 @@ button.calendar-day {
   box-shadow: inset 0 0 0 1px rgba(148, 235, 255, 0.26), 0 0 16px rgba(56, 194, 229, 0.16);
 }
 
+.calendar-day.today {
+  border-color: #78ecff;
+  background:
+    radial-gradient(circle at 100% 0, rgba(90, 223, 255, 0.3), transparent 52%),
+    linear-gradient(145deg, rgba(16, 76, 99, 0.96), rgba(8, 41, 62, 0.98));
+  box-shadow: inset 0 0 0 2px rgba(137, 239, 255, 0.32), 0 0 22px rgba(48, 206, 237, 0.3);
+}
+
 .calendar-day:focus-visible {
   outline: 2px solid rgba(148, 235, 255, 0.95);
   outline-offset: 3px;
@@ -7355,7 +7363,7 @@ button.calendar-day {
 
 .calendar-day-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 6px;
 }
@@ -7366,9 +7374,35 @@ button.calendar-day {
 }
 
 .calendar-day-heading span {
+  margin-inline-start: auto;
   color: #78b4c4;
   font-size: 0.67rem;
   font-weight: 800;
+}
+
+.calendar-day.today .calendar-day-heading strong {
+  display: inline-grid;
+  min-width: 25px;
+  min-height: 25px;
+  place-items: center;
+  border: 1px solid rgba(211, 252, 255, 0.72);
+  border-radius: 999px;
+  background: #2ec8df;
+  box-shadow: 0 0 13px rgba(72, 222, 244, 0.54);
+  color: #062638;
+  font-weight: 1000;
+}
+
+.calendar-today-badge {
+  flex: none;
+  padding: 2px 5px;
+  border: 1px solid rgba(205, 250, 255, 0.58);
+  border-radius: 999px;
+  background: rgba(3, 33, 49, 0.72);
+  color: #bff8ff;
+  font-size: 0.54rem;
+  font-weight: 1000;
+  line-height: 1.1;
 }
 
 .calendar-day-events {
@@ -7595,6 +7629,16 @@ button.calendar-day {
     font-size: 0.79rem;
   }
 
+  .calendar-day.today .calendar-day-heading strong {
+    min-width: 21px;
+    min-height: 21px;
+  }
+
+  .calendar-today-badge {
+    padding: 2px 4px;
+    font-size: 0.49rem;
+  }
+
   .calendar-day-heading span,
   .calendar-event-chip,
   .calendar-more-events {
@@ -7777,6 +7821,16 @@ button.calendar-day {
 
   .calendar-day-heading strong {
     font-size: 0.72rem;
+  }
+
+  .calendar-day.today .calendar-day-heading strong {
+    min-width: 19px;
+    min-height: 19px;
+  }
+
+  .calendar-today-badge {
+    padding: 1px 3px;
+    font-size: 0.45rem;
   }
 
   .calendar-day-events {

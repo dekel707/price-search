@@ -4553,6 +4553,39 @@ function getIsraelHolidayEvents(reference = new Date()) {
   for (const date = new Date(scanStart); date <= rangeEnd; date.setDate(date.getDate() + 1)) {
     const { day, month } = getHebrewCalendarDateParts(date);
     const isPurimMonth = month === "אדר" || month.startsWith("אדר ב");
+    const yesterday = new Date(date);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(date);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfterTomorrow = new Date(date);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const yesterdayParts = getHebrewCalendarDateParts(yesterday);
+    const tomorrowParts = getHebrewCalendarDateParts(tomorrow);
+    const dayAfterTomorrowParts = getHebrewCalendarDateParts(dayAfterTomorrow);
+
+    // In a 30-day Hebrew month, Rosh Chodesh begins on day 30 and continues
+    // on day 1. Erev Rosh Chodesh is always shown on the preceding day 29.
+    const startsOneDayRoshChodeshTomorrow = tomorrowParts.day === 1 && tomorrowParts.month !== month;
+    const startsTwoDayRoshChodeshTomorrow =
+      tomorrowParts.day === 30 &&
+      dayAfterTomorrowParts.day === 1 &&
+      dayAfterTomorrowParts.month !== tomorrowParts.month;
+    const upcomingMonth = startsOneDayRoshChodeshTomorrow
+      ? tomorrowParts.month
+      : startsTwoDayRoshChodeshTomorrow
+        ? dayAfterTomorrowParts.month
+        : "";
+
+    if (day === 29 && upcomingMonth && upcomingMonth !== "תשרי") {
+      addHoliday(date, `ערב ראש חודש ${upcomingMonth}`, "מועד עברי");
+    }
+    if (day === 30 && startsOneDayRoshChodeshTomorrow && tomorrowParts.month !== "תשרי") {
+      addHoliday(date, `ראש חודש ${tomorrowParts.month} · יום א׳`, "ראש חודש");
+    }
+    if (day === 1 && month !== "תשרי") {
+      const isSecondDay = yesterdayParts.day === 30 && yesterdayParts.month !== month;
+      addHoliday(date, `ראש חודש ${month}${isSecondDay ? " · יום ב׳" : ""}`, "ראש חודש");
+    }
 
     if (month === "אלול" && day === 29) addHoliday(date, "ערב ראש השנה", "ערב חג");
     if (month === "תשרי") {
@@ -4793,6 +4826,7 @@ function renderCalendarDay(date, events, options) {
   heading.innerHTML = `
     <strong>${date.getDate().toLocaleString("he-IL")}</strong>
     <span>${escapeHtml(formatCalendarHebrewDay(date))}</span>
+    ${options.today ? '<b class="calendar-today-badge">היום</b>' : ""}
   `;
 
   const dayEvents = document.createElement("div");
