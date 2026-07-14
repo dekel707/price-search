@@ -6620,6 +6620,7 @@ function getDashboardSmartSignals(analysis, reference) {
   const pipelineValue = openPipelineOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const reservationMix = getDashboardReservationMix(currentOrders);
   const weeklyMomentum = getDashboardWeeklyMomentum(reference);
+  const weekdayPattern = getDashboardWeekdayPattern(reference);
 
   return [
     {
@@ -6659,6 +6660,12 @@ function getDashboardSmartSignals(analysis, reference) {
       value: weeklyMomentum.label,
       detail: weeklyMomentum.detail,
       tone: weeklyMomentum.tone,
+    },
+    {
+      label: "יום המכר המוביל",
+      value: weekdayPattern.label,
+      detail: weekdayPattern.detail,
+      tone: weekdayPattern.tone,
     },
     {
       label: "שילוב מכר משריון",
@@ -6722,6 +6729,86 @@ function getDashboardWeeklyMomentum(reference) {
     label: `${direction} ${Math.abs(change).toLocaleString("he-IL", { maximumFractionDigits: 0 })}%`,
     detail: `${formatPrice(current.revenue)} לעומת ${formatPrice(previous.revenue)} בשבעת הימים הקודמים`,
     tone: change > 0 ? "green" : change < 0 ? "orange" : "blue",
+  };
+}
+
+function getDashboardWeekdayPattern(reference, days = 180) {
+  const endKey = getLocalDateKey(reference);
+  const startKey = shiftLocalDateKeyByDays(endKey, -(days - 1));
+  const weekdayLabels = {
+    Sun: { label: "יום א׳", short: "א׳" },
+    Mon: { label: "יום ב׳", short: "ב׳" },
+    Tue: { label: "יום ג׳", short: "ג׳" },
+    Wed: { label: "יום ד׳", short: "ד׳" },
+    Thu: { label: "יום ה׳", short: "ה׳" },
+    Fri: { label: "יום ו׳", short: "ו׳" },
+    Sat: { label: "שבת", short: "שבת" },
+  };
+  const weekdayStats = new Map(
+    Object.keys(weekdayLabels).map((weekday) => [weekday, {
+      weekday,
+      ...weekdayLabels[weekday],
+      calendarDays: 0,
+      orderCount: 0,
+      revenue: 0,
+    }]),
+  );
+
+  for (const date = getDateFromLocalKey(startKey); getLocalDateKey(date) <= endKey; date.setDate(date.getDate() + 1)) {
+    const weekday = israelWeekdayFormatter.format(date);
+    const stats = weekdayStats.get(weekday);
+    if (stats) stats.calendarDays += 1;
+  }
+
+  orders.forEach((order) => {
+    const dateKey = getOrderReportDateKey(order);
+    if (!dateKey || dateKey < startKey || dateKey > endKey) return;
+    const revenue = getPaidSalesTotal(order.items);
+    if (!Number.isFinite(revenue) || revenue <= 0) return;
+    const weekday = israelWeekdayFormatter.format(getDateFromLocalKey(dateKey));
+    const stats = weekdayStats.get(weekday);
+    if (!stats) return;
+    stats.orderCount += 1;
+    stats.revenue = roundMoney(stats.revenue + revenue);
+  });
+
+  const rows = [...weekdayStats.values()]
+    .map((row) => ({
+      ...row,
+      averageRevenue: row.calendarDays ? row.revenue / row.calendarDays : 0,
+    }))
+    .sort((a, b) => b.averageRevenue - a.averageRevenue || b.orderCount - a.orderCount);
+  const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+  const totalOrderCount = rows.reduce((sum, row) => sum + row.orderCount, 0);
+  const leader = rows[0];
+  const runnerUp = rows[1];
+  const averageDailyRevenue = totalRevenue / days;
+  const hasEnoughData = totalOrderCount >= 12 && leader && leader.orderCount >= Math.max(3, Math.ceil(totalOrderCount * 0.08));
+
+  if (!hasEnoughData) {
+    return {
+      label: "ממתין לנתונים",
+      detail: `נדרשות לפחות 12 הזמנות כספיות ב־${days.toLocaleString("he-IL")} הימים האחרונים כדי לזהות יום חזק`,
+      tone: "orange",
+    };
+  }
+
+  const hasDistinctLead =
+    leader.averageRevenue >= averageDailyRevenue * 1.1 &&
+    (!runnerUp || leader.averageRevenue >= runnerUp.averageRevenue * 1.05);
+  if (!hasDistinctLead) {
+    return {
+      label: "מכר מפוזר",
+      detail: `אין יום שמוביל באופן מובהק ב־${days.toLocaleString("he-IL")} הימים האחרונים · בסיס ${totalOrderCount.toLocaleString("he-IL")} הזמנות`,
+      tone: "blue",
+    };
+  }
+
+  const strength = Math.round((leader.averageRevenue / averageDailyRevenue) * 100);
+  return {
+    label: leader.label,
+    detail: `ממוצע ${formatPrice(leader.averageRevenue)} בכל ${leader.label} · ${strength.toLocaleString("he-IL")}% מהממוצע היומי · ${leader.orderCount.toLocaleString("he-IL")} הזמנות ב־${leader.calendarDays.toLocaleString("he-IL")} ימי ${leader.short}`,
+    tone: totalOrderCount >= 30 && leader.orderCount >= 5 ? "green" : "blue",
   };
 }
 
