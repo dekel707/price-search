@@ -10293,6 +10293,12 @@ async function saveSharedStateNow() {
     const savedState = await response.json().catch(() => null);
     cloudStateVersion = response.headers.get("x-state-version") || savedState?.stateVersion || cloudStateVersion;
     cloudSyncState = "synced";
+    if (savedState?.recoveredConflict?.orderCount) {
+      const count = Number(savedState.recoveredConflict.orderCount).toLocaleString("he-IL");
+      dom.status.textContent = `${count} הזמנה/ות חדשות נשמרו אוטומטית למרות שמסך ישן היה פתוח. הנתונים נטענים מחדש מהענן.`;
+      cloudSaveAgain = false;
+      await hydrateCloudState();
+    }
   } catch (error) {
     console.warn("Cloud save failed", error);
     if (cloudSyncState !== "conflict") cloudSyncState = "offline";

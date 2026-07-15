@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import postgres from "postgres";
+import { mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
 
 let sqlClient = null;
 let schemaPromise = null;
@@ -59,7 +60,32 @@ export async function saveDatabaseState(payload, expectedVersion) {
     const current = databaseRecord(currentRow);
     const capturedAt = new Date();
     if (expectedVersion !== current.version) {
-      const backup = await insertBackup(transaction, payload, "conflict-save", capturedAt);
+      const conflictBackup = await insertBackup(transaction, payload, "conflict-save", capturedAt);
+      const recovery = mergeRecentMissingOrders(current.state, payload, capturedAt);
+      if (recovery.recovered) {
+        const previousBackup = await insertBackup(transaction, current.state, "before-conflict-order-recovery", capturedAt);
+        const backup = await insertBackup(transaction, recovery.state, "conflict-order-recovery", capturedAt);
+        const version = crypto.randomUUID();
+        const serializedState = JSON.stringify(recovery.state);
+        const [saved] = await transaction`
+          UPDATE price_search_state
+          SET state = ${serializedState}::jsonb,
+              version = ${version},
+              updated_at = ${capturedAt}
+          WHERE id = 1
+          RETURNING state, version, updated_at
+        `;
+        return {
+          recovered: true,
+          current: databaseRecord(saved),
+          backup,
+          previousBackup,
+          conflictBackup,
+          addedOrders: recovery.addedOrders,
+          reservationAdjustments: recovery.reservationAdjustments,
+        };
+      }
+      const backup = conflictBackup;
       return { conflict: true, current, backup };
     }
 

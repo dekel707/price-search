@@ -1,5 +1,6 @@
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
+import { mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
 import {
   hasDatabaseStorageCredentials,
   initializeDatabaseState,
@@ -102,6 +103,20 @@ export default async function handler(request, response) {
           throw new Error("database_state_initialization_failed");
         }
 
+        if (saved.recovered) {
+          response.setHeader("X-State-Version", saved.current.version);
+          sendJson(response, 200, {
+            ok: true,
+            updatedAt: saved.current.updatedAt,
+            stateVersion: saved.current.version,
+            backup: saved.backup,
+            previousBackup: saved.previousBackup,
+            dailyBackup,
+            recoveredConflict: summarizeRecoveredConflict(saved.addedOrders, saved.reservationAdjustments),
+          });
+          return;
+        }
+
         if (saved.conflict) {
           response.setHeader("X-State-Version", saved.current.version);
           sendJson(response, 409, {
@@ -133,15 +148,67 @@ export default async function handler(request, response) {
       const currentState = currentStored && currentStored.statusCode === 200 ? currentStored : null;
       const currentStateVersion = getStoredStateVersion(currentState);
       const currentStateMatchVersion = toIfMatchVersion(currentStateVersion);
+      let currentPayload = null;
+      if (currentState) {
+        if (!currentStored.stream) {
+          throw new Error("live_state_backup_unavailable");
+        }
+        currentPayload = normalizeState(JSON.parse(await streamToText(currentStored.stream)));
+      }
 
       // If another device saved after this tab was loaded, preserve this tab's
       // attempted state as an immutable recovery copy instead of silently
-      // replacing newer live data.
+      // replacing newer live data. New, recent orders are additionally merged
+      // as append-only records, so an older open tab cannot make an order
+      // disappear merely because another device saved first.
       if (currentState && expectedVersion !== currentStateVersion) {
         const backup = await createStateBackup(payload, {
           reason: "conflict-save",
           blobAuthOptions,
         });
+        const recovery = mergeRecentMissingOrders(currentPayload, payload);
+        if (recovery.recovered) {
+          const previousBackup = await createStateBackup(currentPayload, {
+            reason: "before-conflict-order-recovery",
+            blobAuthOptions,
+          });
+          const recoveryBackup = await createStateBackup(recovery.state, {
+            reason: "conflict-order-recovery",
+            blobAuthOptions,
+          });
+          try {
+            const saved = await put(STATE_PATH, JSON.stringify(recovery.state), {
+              access: "private",
+              allowOverwrite: true,
+              contentType: "application/json; charset=utf-8",
+              cacheControlMaxAge: 60,
+              ...(currentStateMatchVersion ? { ifMatch: currentStateMatchVersion } : {}),
+              ...blobAuthOptions,
+            });
+            response.setHeader("X-State-Version", saved.etag || "");
+            sendJson(response, 200, {
+              ok: true,
+              updatedAt: recovery.state.updatedAt,
+              stateVersion: saved.etag || "",
+              backup: recoveryBackup,
+              previousBackup,
+              conflictBackup: backup,
+              recoveredConflict: summarizeRecoveredConflict(recovery.addedOrders, recovery.reservationAdjustments),
+            });
+            return;
+          } catch (error) {
+            if (error instanceof BlobPreconditionFailedError) {
+              response.setHeader("X-State-Version", "");
+              sendJson(response, 409, {
+                error: "state_conflict",
+                message: "The live data changed while recovery was running. Your attempted changes were saved as a recovery backup.",
+                backup,
+              });
+              return;
+            }
+            throw error;
+          }
+        }
         response.setHeader("X-State-Version", currentStateVersion);
         sendJson(response, 409, {
           error: "state_conflict",
@@ -158,10 +225,6 @@ export default async function handler(request, response) {
       let previousBackup = null;
       let dailyBackup = null;
       if (currentState) {
-        if (!currentStored.stream) {
-          throw new Error("live_state_backup_unavailable");
-        }
-        const currentPayload = JSON.parse(await streamToText(currentStored.stream));
         dailyBackup = await ensureDailyStateBackup(currentPayload, { blobAuthOptions });
         previousBackup = await createStateBackup(currentPayload, {
           reason: "before-save",
@@ -230,6 +293,14 @@ function toIfMatchVersion(version) {
   // the corresponding strong validator, while the original value remains the
   // version shared with the browser for conflict detection.
   return version.startsWith("W/") ? version.slice(2) : version;
+}
+
+function summarizeRecoveredConflict(orders, reservationAdjustments) {
+  return {
+    orderCount: Array.isArray(orders) ? orders.length : 0,
+    orderIds: Array.isArray(orders) ? orders.map((order) => String(order?.id || "")).filter(Boolean) : [],
+    reservationAdjustmentCount: Array.isArray(reservationAdjustments) ? reservationAdjustments.length : 0,
+  };
 }
 
 async function readOrMigrateDatabaseState() {
