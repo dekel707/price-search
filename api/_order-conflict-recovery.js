@@ -33,6 +33,26 @@ export function mergeRecentMissingOrders(currentState, attemptedState, now = new
   return { recovered: true, state, addedOrders, addedCustomers, reservationAdjustments };
 }
 
+export function findUnexpectedOrderRemovals(currentState, attemptedState, action, now = new Date()) {
+  const currentIds = new Set(
+    (Array.isArray(currentState?.orders) ? currentState.orders : [])
+      .map((order) => String(order?.id || "").trim())
+      .filter(Boolean),
+  );
+  const attemptedIds = new Set(
+    (Array.isArray(attemptedState?.orders) ? attemptedState.orders : [])
+      .map((order) => String(order?.id || "").trim())
+      .filter(Boolean),
+  );
+  const permittedActions = new Set(["order-delete", "order-to-draft"]);
+  const tombstonedIds = new Set(getActiveTombstones(attemptedState?.orderTombstones, now).map((entry) => entry.id));
+
+  return [...currentIds].filter((id) => {
+    if (attemptedIds.has(id)) return false;
+    return !permittedActions.has(action) || !tombstonedIds.has(id);
+  });
+}
+
 function mergeReferencedCustomers(state, attemptedState, addedOrders) {
   const liveCustomers = Array.isArray(state.customers) ? state.customers : [];
   const attemptedCustomers = Array.isArray(attemptedState?.customers) ? attemptedState.customers : [];

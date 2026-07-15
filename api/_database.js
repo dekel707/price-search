@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import postgres from "postgres";
-import { mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
+import { findUnexpectedOrderRemovals, mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
 
 let sqlClient = null;
 let schemaPromise = null;
@@ -59,6 +59,11 @@ export async function saveDatabaseState(payload, expectedVersion, { action = "st
 
     const current = databaseRecord(currentRow);
     const capturedAt = new Date();
+    const blockedOrderRemovals = findUnexpectedOrderRemovals(current.state, payload, action, capturedAt);
+    if (blockedOrderRemovals.length) {
+      const backup = await insertBackup(transaction, payload, `blocked-order-removal-${action}`, capturedAt);
+      return { blockedOrderRemovals, current, backup };
+    }
     if (expectedVersion !== current.version) {
       if (statesMatchIgnoringSaveMetadata(current.state, payload)) {
         return { alreadyCurrent: true, current };

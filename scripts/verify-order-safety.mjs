@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mergeRecentMissingOrders } from "../api/_order-conflict-recovery.js";
+import { findUnexpectedOrderRemovals, mergeRecentMissingOrders } from "../api/_order-conflict-recovery.js";
 
 const now = new Date("2026-07-15T15:00:00.000Z");
 const recentOrder = {
@@ -47,6 +47,27 @@ assert.equal(
   mergeRecentMissingOrders(currentState, oldAttempt, now).recovered,
   false,
   "an old historical order must not be silently restored",
+);
+
+assert.deepEqual(
+  findUnexpectedOrderRemovals(
+    { orders: [recentOrder] },
+    { orders: [], orderTombstones: [] },
+    "state-change",
+    now,
+  ),
+  ["order-new"],
+  "a save without an explicit deletion confirmation must not remove an order",
+);
+assert.deepEqual(
+  findUnexpectedOrderRemovals(
+    { orders: [recentOrder] },
+    { orders: [], orderTombstones: [{ id: "order-new", deletedAt: "2026-07-15T14:59:00.000Z" }] },
+    "order-delete",
+    now,
+  ),
+  [],
+  "a deliberate deletion with a tombstone must remain possible",
 );
 
 console.log("Order safety checks passed.");

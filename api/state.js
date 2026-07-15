@@ -1,6 +1,6 @@
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import { mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
+import { findUnexpectedOrderRemovals, mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
 import {
   hasDatabaseStorageCredentials,
   initializeDatabaseState,
@@ -105,6 +105,17 @@ export default async function handler(request, response) {
           throw new Error("database_state_initialization_failed");
         }
 
+        if (saved.blockedOrderRemovals?.length) {
+          response.setHeader("X-State-Version", saved.current.version);
+          sendJson(response, 409, {
+            error: "order_removal_blocked",
+            message: "Order removal was blocked because it was not confirmed as a delete or move-to-draft action.",
+            backup: saved.backup,
+            orderIds: saved.blockedOrderRemovals,
+          });
+          return;
+        }
+
         if (saved.alreadyCurrent) {
           response.setHeader("X-State-Version", saved.current.version);
           sendJson(response, 200, {
@@ -168,6 +179,24 @@ export default async function handler(request, response) {
           throw new Error("live_state_backup_unavailable");
         }
         currentPayload = normalizeState(JSON.parse(await streamToText(currentStored.stream)));
+      }
+
+      const blockedOrderRemovals = currentState
+        ? findUnexpectedOrderRemovals(currentPayload, payload, action)
+        : [];
+      if (blockedOrderRemovals.length) {
+        const backup = await createStateBackup(payload, {
+          reason: `blocked-order-removal-${action}`,
+          blobAuthOptions,
+        });
+        response.setHeader("X-State-Version", currentStateVersion);
+        sendJson(response, 409, {
+          error: "order_removal_blocked",
+          message: "Order removal was blocked because it was not confirmed as a delete or move-to-draft action.",
+          backup,
+          orderIds: blockedOrderRemovals,
+        });
+        return;
       }
 
       // If another device saved after this tab was loaded, preserve this tab's
