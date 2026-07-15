@@ -5,6 +5,14 @@ import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mj
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 import { createWorker } from "tesseract.js";
 import { DEFAULT_RESERVATION_GROUPS, RESERVATION_SEED_VERSION } from "./reservations-data.js";
+import {
+  getAutomaticOrderReportDateKey as calculateAutomaticOrderReportDateKey,
+  getIsraelDateKey,
+  getNextSundayIsraelDateKey,
+  getOrderReportDateForDraft as calculateOrderReportDateForDraft,
+  getUpcomingSundayIsraelDateKey,
+  isOrderReportDateCompleted,
+} from "./order-schedule.js";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -33,7 +41,6 @@ const MAX_RESULTS = 80;
 const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
-const ORDER_REPORT_CUTOFF_HOUR = 15;
 const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_ORDER_IMPORT_OCR_PAGES = 8;
 const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
@@ -2274,7 +2281,7 @@ function setActiveTab(tab) {
 
 function handleDashboardAction(action) {
   if (action === "today-orders") {
-    const todayKey = getLocalDateKey(new Date());
+    const todayKey = getIsraelDateKey(new Date());
     const todayOpenOrders = orders.filter(
       (order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === todayKey,
     );
@@ -2301,7 +2308,7 @@ function handleDashboardAction(action) {
   }
 
   if (action === "sunday-orders") {
-    const sundayKey = getUpcomingSundayLocalDateKey(new Date());
+    const sundayKey = getUpcomingSundayIsraelDateKey(new Date());
     const sundayOrders = orders.filter((order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === sundayKey);
     if (!sundayOrders.length) {
       dom.status.textContent = "אין כרגע הזמנות פתוחות ליום ראשון.";
@@ -6107,7 +6114,7 @@ function getCollectionPaymentAlert(item, reference = new Date()) {
 
 function getCollectionMonthPaymentAlerts(item, reference = new Date()) {
   if (getCollectionOpenAmount(item) <= 0) return [];
-  const todayKey = getLocalDateKey(reference);
+  const todayKey = getIsraelDateKey(reference);
   return getCollectionOpenMonths(item)
     .map((month) => {
       const dueDate = getCollectionMonthPrimaryDueDate(item, month);
@@ -6198,12 +6205,13 @@ function compareCollections(a, b) {
 
 function renderDashboard() {
   const now = new Date();
-  const todayOrders = orders.filter((order) => isSameDay(getOrderReportDate(order), now));
+  const todayKey = getIsraelDateKey(now);
+  const todayOrders = orders.filter((order) => getOrderReportDateKey(order) === todayKey);
   const todayOpenOrders = todayOrders.filter((order) => !isOrderCompleted(order));
   const todayRevenue = todayOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
-  const monthOrders = orders.filter((order) => isSameMonth(getOrderReportDate(order), now));
+  const monthOrders = orders.filter((order) => getOrderReportDateKey(order).startsWith(todayKey.slice(0, 7)));
   const monthRevenue = monthOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
-  const yearOrders = orders.filter((order) => isSameYear(getOrderReportDate(order), now));
+  const yearOrders = orders.filter((order) => getOrderReportDateKey(order).startsWith(todayKey.slice(0, 4)));
   const yearRevenue = yearOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const monthUnits = monthOrders.reduce(
     (sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
@@ -6212,13 +6220,12 @@ function renderDashboard() {
   const activeReservationUnits = reservations.reduce((sum, reservation) => sum + reservation.quantity, 0);
   const activeReservationValue = getCurrentReservationValue();
   const openReminders = reminders.filter((reminder) => !reminder.completed).sort(compareReminders);
-  const todayKey = getLocalDateKey(now);
   const todayOpenReminders = openReminders.filter((reminder) => reminder.dueDate === todayKey);
   const dueDraftsToday = getDueDraftsForToday(now);
   const activeArrivalProducts = getActiveArrivalProducts(now);
   const tomorrowOrders = orders.filter((order) => !isOrderCompleted(order) && isOrderForTomorrow(order, now));
   const tomorrowRevenue = tomorrowOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
-  const upcomingSundayKey = getUpcomingSundayLocalDateKey(now);
+  const upcomingSundayKey = getUpcomingSundayIsraelDateKey(now);
   const sundayOrders = orders.filter(
     (order) => !isOrderCompleted(order) && getOrderReportDateKey(order) === upcomingSundayKey,
   );
@@ -6355,7 +6362,7 @@ function getDashboardTrendAnalysis(reference = new Date()) {
 }
 
 function getDashboardTrendPeriods(reference, days = 30) {
-  const currentEnd = getLocalDateKey(reference);
+  const currentEnd = getIsraelDateKey(reference);
   const currentStart = shiftLocalDateKeyByDays(currentEnd, -(days - 1));
   const previousEnd = shiftLocalDateKeyByDays(currentStart, -1);
   const previousStart = shiftLocalDateKeyByDays(previousEnd, -(days - 1));
@@ -6627,7 +6634,7 @@ function getDashboardSmartSignals(analysis, reference) {
   );
   const topProductsShare = getDashboardShare(topProductsValue, current.revenue || current.units);
 
-  const todayKey = getLocalDateKey(reference);
+  const todayKey = getIsraelDateKey(reference);
   const openPipelineOrders = orders.filter(
     (order) => !isOrderCompleted(order) && getOrderReportDateKey(order) > todayKey,
   );
@@ -6718,7 +6725,7 @@ function getDashboardReservationMix(orderList) {
 }
 
 function getDashboardWeeklyMomentum(reference) {
-  const end = getLocalDateKey(reference);
+  const end = getIsraelDateKey(reference);
   const start = shiftLocalDateKeyByDays(end, -6);
   const previousEnd = shiftLocalDateKeyByDays(start, -1);
   const previousStart = shiftLocalDateKeyByDays(previousEnd, -6);
@@ -6747,7 +6754,7 @@ function getDashboardWeeklyMomentum(reference) {
 }
 
 function getDashboardWeekdayPattern(reference, days = 180) {
-  const endKey = getLocalDateKey(reference);
+  const endKey = getIsraelDateKey(reference);
   const startKey = shiftLocalDateKeyByDays(endKey, -(days - 1));
   const weekdayLabels = {
     Sun: { label: "יום א׳", short: "א׳" },
@@ -7925,7 +7932,7 @@ function formatShortDate(value) {
 function getOrderReportDateKey(order) {
   const storedDate = normalizeDateInput(order?.reportDate);
   if (storedDate) return storedDate;
-  return getLocalDateKey(getSafeDate(order?.createdAt));
+  return getIsraelDateKey(getSafeDate(order?.createdAt));
 }
 
 function getOrderReportDate(order) {
@@ -7933,39 +7940,23 @@ function getOrderReportDate(order) {
 }
 
 function getOrderCreatedDateKey(order) {
-  return getLocalDateKey(getSafeDate(order?.createdAt));
+  return getIsraelDateKey(getSafeDate(order?.createdAt));
 }
 
 function getOrderReportDateForDraft(createdAt, reportTomorrow, reportToday = false) {
-  const createdDate = getSafeDate(createdAt);
-  if (reportToday) return getLocalDateKey(createdDate);
-  const automaticDate = getAutomaticOrderReportDateKey(createdDate);
-  if (!reportTomorrow) return automaticDate;
-  const manualDate = getNextLocalDateKey(createdDate);
-  return manualDate > automaticDate ? manualDate : automaticDate;
+  return calculateOrderReportDateForDraft(createdAt, reportTomorrow, reportToday);
 }
 
 function getAutomaticOrderReportDateKey(createdAt) {
-  const createdDate = getSafeDate(createdAt);
-  const day = createdDate.getDay();
-  if (day === 5 || day === 6) return getNextSundayLocalDateKey(createdDate);
-  if (createdDate.getHours() < ORDER_REPORT_CUTOFF_HOUR) return getLocalDateKey(createdDate);
-  if (day === 4) return getNextSundayLocalDateKey(createdDate);
-  return getNextLocalDateKey(createdDate);
+  return calculateAutomaticOrderReportDateKey(createdAt);
 }
 
 function getNextSundayLocalDateKey(date) {
-  const nextDate = new Date(date);
-  const daysUntilSunday = (7 - nextDate.getDay()) % 7 || 7;
-  nextDate.setDate(nextDate.getDate() + daysUntilSunday);
-  return getLocalDateKey(nextDate);
+  return getNextSundayIsraelDateKey(date);
 }
 
 function getUpcomingSundayLocalDateKey(date) {
-  const sundayDate = new Date(date);
-  const daysUntilSunday = (7 - sundayDate.getDay()) % 7;
-  sundayDate.setDate(sundayDate.getDate() + daysUntilSunday);
-  return getLocalDateKey(sundayDate);
+  return getUpcomingSundayIsraelDateKey(date);
 }
 
 function isSundayInIsrael(date = new Date()) {
@@ -7978,14 +7969,15 @@ function isOrderReportedTomorrow(order) {
 
 function isOrderReportedToday(order) {
   const createdDate = getSafeDate(order?.createdAt);
+  const createdDateKey = getIsraelDateKey(createdDate);
   return (
-    getOrderReportDateKey(order) === getLocalDateKey(createdDate) &&
-    getAutomaticOrderReportDateKey(createdDate) !== getLocalDateKey(createdDate)
+    getOrderReportDateKey(order) === createdDateKey &&
+    getAutomaticOrderReportDateKey(createdDate) !== createdDateKey
   );
 }
 
 function isOrderForTomorrow(order, reference = new Date()) {
-  return getOrderReportDateKey(order) > getLocalDateKey(reference);
+  return getOrderReportDateKey(order) > getIsraelDateKey(reference);
 }
 
 function isOrderCompleted(order) {
@@ -7993,7 +7985,7 @@ function isOrderCompleted(order) {
 }
 
 function restoreCurrentDayOpenOrders() {
-  const todayKey = getLocalDateKey(new Date());
+  const todayKey = getIsraelDateKey(new Date());
   let restored = 0;
 
   orders = orders.map((order) => {
@@ -8008,14 +8000,13 @@ function restoreCurrentDayOpenOrders() {
 }
 
 function completeDueOrders(options = {}) {
-  const todayKey = getLocalDateKey(new Date());
   const completeExistingOrders = Boolean(options.completeExistingOrders);
   let moved = 0;
 
   orders = orders.map((order) => {
     if (isOrderCompleted(order)) return order;
     const shouldComplete =
-      getOrderReportDateKey(order) < todayKey ||
+      isOrderReportDateCompleted(getOrderReportDateKey(order)) ||
       (completeExistingOrders && !isOrderForTomorrow(order));
     if (!shouldComplete) return order;
     moved += 1;
@@ -8032,7 +8023,7 @@ function compareOrdersByCreatedAt(a, b) {
 function getOrderReportLabel(order) {
   const reportDateKey = getOrderReportDateKey(order);
   if (reportDateKey === getOrderCreatedDateKey(order)) return "";
-  if (reportDateKey < getLocalDateKey(new Date())) return "";
+  if (reportDateKey < getIsraelDateKey(new Date())) return "";
   return `דיווח: ${formatShortDate(`${reportDateKey}T12:00:00`)}`;
 }
 
