@@ -24,6 +24,7 @@ const EMPTY_STATE = {
   customers: [],
   annotations: {},
   orders: [],
+  orderTombstones: [],
   drafts: [],
   lastPrices: {},
   reservations: [],
@@ -37,7 +38,7 @@ const EMPTY_STATE = {
 export default async function handler(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-State-Version");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-State-Version, X-State-Action");
   response.setHeader("Cache-Control", "no-store");
 
   if (request.method === "OPTIONS") {
@@ -83,6 +84,7 @@ export default async function handler(request, response) {
       const payload = normalizeState(await readJsonBody(request));
       payload.updatedAt = new Date().toISOString();
       const expectedVersion = getRequestHeader(request, "x-state-version");
+      const action = getSafeActionName(getRequestHeader(request, "x-state-action"));
 
       if (databaseConfigured) {
         const currentDatabaseState = await readOrMigrateDatabaseState();
@@ -98,9 +100,21 @@ export default async function handler(request, response) {
             console.error("daily_blob_backup_failed", error);
           }
         }
-        const saved = await saveDatabaseState(payload, expectedVersion);
+        const saved = await saveDatabaseState(payload, expectedVersion, { action });
         if (saved.missing) {
           throw new Error("database_state_initialization_failed");
+        }
+
+        if (saved.alreadyCurrent) {
+          response.setHeader("X-State-Version", saved.current.version);
+          sendJson(response, 200, {
+            ok: true,
+            alreadyCurrent: true,
+            updatedAt: saved.current.updatedAt,
+            stateVersion: saved.current.version,
+            dailyBackup,
+          });
+          return;
         }
 
         if (saved.recovered) {
@@ -112,7 +126,7 @@ export default async function handler(request, response) {
             backup: saved.backup,
             previousBackup: saved.previousBackup,
             dailyBackup,
-            recoveredConflict: summarizeRecoveredConflict(saved.addedOrders, saved.reservationAdjustments),
+            recoveredConflict: summarizeRecoveredConflict(saved.addedOrders, saved.reservationAdjustments, saved.addedCustomers),
           });
           return;
         }
@@ -162,18 +176,28 @@ export default async function handler(request, response) {
       // as append-only records, so an older open tab cannot make an order
       // disappear merely because another device saved first.
       if (currentState && expectedVersion !== currentStateVersion) {
+        if (statesMatchIgnoringSaveMetadata(currentPayload, payload)) {
+          response.setHeader("X-State-Version", currentStateVersion);
+          sendJson(response, 200, {
+            ok: true,
+            alreadyCurrent: true,
+            updatedAt: currentPayload.updatedAt,
+            stateVersion: currentStateVersion,
+          });
+          return;
+        }
         const backup = await createStateBackup(payload, {
-          reason: "conflict-save",
+          reason: `conflict-${action}`,
           blobAuthOptions,
         });
         const recovery = mergeRecentMissingOrders(currentPayload, payload);
         if (recovery.recovered) {
           const previousBackup = await createStateBackup(currentPayload, {
-            reason: "before-conflict-order-recovery",
+            reason: `before-conflict-${action}`,
             blobAuthOptions,
           });
           const recoveryBackup = await createStateBackup(recovery.state, {
-            reason: "conflict-order-recovery",
+            reason: `recovered-${action}`,
             blobAuthOptions,
           });
           try {
@@ -193,7 +217,7 @@ export default async function handler(request, response) {
               backup: recoveryBackup,
               previousBackup,
               conflictBackup: backup,
-              recoveredConflict: summarizeRecoveredConflict(recovery.addedOrders, recovery.reservationAdjustments),
+              recoveredConflict: summarizeRecoveredConflict(recovery.addedOrders, recovery.reservationAdjustments, recovery.addedCustomers),
             });
             return;
           } catch (error) {
@@ -227,13 +251,13 @@ export default async function handler(request, response) {
       if (currentState) {
         dailyBackup = await ensureDailyStateBackup(currentPayload, { blobAuthOptions });
         previousBackup = await createStateBackup(currentPayload, {
-          reason: "before-save",
+          reason: `before-${action}`,
           blobAuthOptions,
         });
       }
 
       const backup = await createStateBackup(payload, {
-        reason: "state-save",
+        reason: `after-${action}`,
         blobAuthOptions,
       });
 
@@ -284,6 +308,14 @@ function getRequestHeader(request, name) {
   return Array.isArray(value) ? String(value[0] || "") : String(value || "");
 }
 
+function getSafeActionName(value) {
+  return String(value || "state-change")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "state-change";
+}
+
 function getStoredStateVersion(stored) {
   return stored?.statusCode === 200 ? stored.blob?.etag || "" : "";
 }
@@ -295,11 +327,12 @@ function toIfMatchVersion(version) {
   return version.startsWith("W/") ? version.slice(2) : version;
 }
 
-function summarizeRecoveredConflict(orders, reservationAdjustments) {
+function summarizeRecoveredConflict(orders, reservationAdjustments, customers = []) {
   return {
     orderCount: Array.isArray(orders) ? orders.length : 0,
     orderIds: Array.isArray(orders) ? orders.map((order) => String(order?.id || "")).filter(Boolean) : [],
     reservationAdjustmentCount: Array.isArray(reservationAdjustments) ? reservationAdjustments.length : 0,
+    customerCount: Array.isArray(customers) ? customers.length : 0,
   };
 }
 
@@ -335,6 +368,7 @@ function normalizeState(value) {
     customers: Array.isArray(state.customers) ? state.customers : [],
     annotations: state.annotations && typeof state.annotations === "object" ? state.annotations : {},
     orders: Array.isArray(state.orders) ? state.orders : [],
+    orderTombstones: normalizeOrderTombstones(state.orderTombstones),
     drafts: Array.isArray(state.drafts) ? state.drafts : [],
     lastPrices: state.lastPrices && typeof state.lastPrices === "object" ? state.lastPrices : {},
     reservations: Array.isArray(state.reservations) ? state.reservations : [],
@@ -349,6 +383,30 @@ function normalizeState(value) {
     },
     updatedAt: typeof state.updatedAt === "string" ? state.updatedAt : null,
   };
+}
+
+function normalizeOrderTombstones(value) {
+  const cutoff = Date.now() - 120 * 24 * 60 * 60 * 1000;
+  const seen = new Set();
+  return (Array.isArray(value) ? value : [])
+    .map((entry) => ({ id: String(entry?.id || "").trim(), deletedAt: String(entry?.deletedAt || "") }))
+    .filter((entry) => {
+      const timestamp = new Date(entry.deletedAt).getTime();
+      if (!entry.id || !Number.isFinite(timestamp) || timestamp < cutoff || seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    });
+}
+
+function statesMatchIgnoringSaveMetadata(left, right) {
+  return JSON.stringify(withoutSaveMetadata(left)) === JSON.stringify(withoutSaveMetadata(right));
+}
+
+function withoutSaveMetadata(state) {
+  const copy = structuredClone(state && typeof state === "object" ? state : {});
+  delete copy.updatedAt;
+  delete copy.version;
+  return copy;
 }
 
 async function readJsonBody(request) {

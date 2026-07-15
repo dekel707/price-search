@@ -26,6 +26,9 @@ const ACTIVE_TAB_KEY = "price-search-active-tab-v1";
 const ORDER_TYPE_KEY = "price-search-order-type-v1";
 const ORDER_REPORT_TOMORROW_KEY = "price-search-order-report-tomorrow-v1";
 const ORDER_REPORT_TODAY_KEY = "price-search-order-report-today-v1";
+const ORDER_TOMBSTONES_KEY = "price-search-order-tombstones-v1";
+const PENDING_CLOUD_SAVE_KEY = "price-search-pending-cloud-save-v1";
+const ORDER_TOMBSTONE_RETENTION_MS = 120 * 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 80;
 const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
@@ -342,6 +345,7 @@ let categories = [];
 let annotations = {};
 let cart = [];
 let orders = [];
+let orderTombstones = [];
 let drafts = [];
 let customers = [];
 let specManifest = { items: {}, lookup: {} };
@@ -387,6 +391,7 @@ let cloudSaveInFlight = false;
 let cloudSaveAgain = false;
 let cloudSyncState = CLOUD_SYNC_DISABLED ? "local" : "syncing";
 let cloudStateVersion = "";
+let pendingCloudSave = null;
 let appStarted = false;
 let israelClockTimer = null;
 
@@ -409,6 +414,7 @@ async function startApp() {
   annotations = readJson(ANNOTATIONS_KEY) || {};
   cart = readCart();
   orders = readOrders();
+  orderTombstones = readOrderTombstones();
   drafts = readDrafts();
   customers = readCustomers();
   settings = { ...settings, ...(readJson(SETTINGS_KEY) || {}) };
@@ -477,7 +483,7 @@ function updateIsraelClock() {
   dom.ownerStatus.textContent = `דקל אזמי · ${israelDateTimeFormatter.format(new Date())}`;
   if (appStarted && completeDueOrders()) {
     saveOrders();
-    queueCloudSave();
+    queueCloudSave({ action: "order-auto-complete" });
     render();
   }
 }
@@ -562,6 +568,9 @@ function lockApp(message = "") {
 }
 
 function bindEvents() {
+  window.addEventListener("pagehide", () => {
+    if (pendingCloudSave) persistPendingCloudSave(pendingCloudSave);
+  });
   dom.tabButtons.forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.tab === "tomorrow-orders") {
@@ -1182,6 +1191,7 @@ async function hydrateCloudState() {
       cloudSyncState = "synced";
       cloudHydrated = true;
       render();
+      if (resumePendingCloudSave()) return;
       if (
         !Array.isArray(state.customers) ||
         !state.customers.length ||
@@ -1205,6 +1215,7 @@ async function hydrateCloudState() {
     cloudHydrated = true;
     cloudSyncState = "synced";
     renderMetadata();
+    if (resumePendingCloudSave()) return;
     queueCloudSave(0);
   } catch (error) {
     console.warn("Cloud sync is unavailable", error);
@@ -8598,10 +8609,11 @@ function saveDraftOrder(options = {}) {
   dom.saveAsDraft.checked = false;
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
-  saveDrafts();
+  saveDrafts({ sync: false });
   saveCart();
   saveSettings();
   saveOrderReportTomorrow();
+  queueCloudSave({ action: originalDraft ? "draft-edit" : "draft-create" });
   render();
   if (options.activateTab !== false) setActiveTab("drafts");
   dom.status.textContent =
@@ -8688,7 +8700,7 @@ function saveOrder(options = {}) {
   saveSettings();
   saveOrderReportTomorrow();
   render();
-  queueCloudSave();
+  queueCloudSave({ action: originalOrder ? "order-edit" : "order-create" });
   if (options.activateTab !== false) setActiveTab("orders");
   dom.status.textContent =
     options.status ||
@@ -9638,6 +9650,7 @@ function deleteOrder(orderId) {
 
   removeOrderReservationEffects(order);
   orders = orders.filter((item) => item.id !== orderId);
+  markOrderTombstone(orderId);
   if (editingOrderId === orderId) {
     editingOrderId = "";
     orderReportTomorrow = false;
@@ -9653,7 +9666,7 @@ function deleteOrder(orderId) {
   saveOrders();
   saveLastPrices();
   saveReservations({ sync: false });
-  queueCloudSave();
+  queueCloudSave({ action: "order-delete" });
   renderCart();
   renderOrders();
   renderCompletedOrders();
@@ -9705,6 +9718,7 @@ function moveOrderToDraft(orderId) {
   draft.total = getOrderTotal(draft.items);
 
   orders = orders.filter((item) => item.id !== orderId);
+  markOrderTombstone(orderId);
   drafts = [draft, ...drafts].sort(compareOrdersByCreatedAt);
   if (editingOrderId === orderId) {
     editingOrderId = "";
@@ -9723,7 +9737,7 @@ function moveOrderToDraft(orderId) {
   saveDrafts({ sync: false });
   saveLastPrices();
   saveReservations({ sync: false });
-  queueCloudSave();
+  queueCloudSave({ action: "order-to-draft" });
   render();
   setActiveTab("drafts");
   dom.status.textContent = "ההזמנה הועברה לטיוטות והוסרה מהדוחות ומהסיכומים.";
@@ -9872,7 +9886,7 @@ function updateDraftReminderDate(draftId, value) {
   saveDrafts({ sync: false });
 
   const removedAutoReminder = removeDraftAutoReminder(draftId);
-  queueCloudSave();
+  queueCloudSave({ action: "draft-reminder" });
   renderDrafts();
   if (removedAutoReminder) renderRemindersPanel();
   renderDashboard();
@@ -9979,7 +9993,7 @@ function commitDraftToOrders(draftId, options = {}) {
   saveDrafts({ sync: false });
   saveReservations({ sync: false });
   saveLastPrices();
-  queueCloudSave();
+  queueCloudSave({ action: "draft-to-order" });
   render();
   if (options.activateTab !== false) setActiveTab("orders");
   dom.status.textContent = options.status || "הטיוטה הוכנסה להזמנות לפי זמן שמירת הטיוטה.";
@@ -10235,6 +10249,7 @@ function persistSharedStateLocally() {
   localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
   localStorage.setItem(ANNOTATIONS_KEY, JSON.stringify(annotations));
   localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+  localStorage.setItem(ORDER_TOMBSTONES_KEY, JSON.stringify(orderTombstones));
   localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
   localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
   localStorage.setItem(LAST_PRICES_KEY, JSON.stringify(lastPrices));
@@ -10245,16 +10260,86 @@ function persistSharedStateLocally() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-function queueCloudSave(delay = 450) {
+function queueCloudSave(request = {}) {
   if (CLOUD_SYNC_DISABLED) return;
+
+  const { delay, action } = normalizeCloudSaveRequest(request);
+  pendingCloudSave = createPendingCloudSaveEnvelope(action);
+  persistPendingCloudSave(pendingCloudSave);
 
   if (!cloudHydrated) {
     cloudSaveAgain = true;
     return;
   }
 
+  if (cloudSaveInFlight) {
+    cloudSaveAgain = true;
+    return;
+  }
+
+  schedulePendingCloudSave(delay);
+}
+
+function normalizeCloudSaveRequest(request) {
+  if (typeof request === "number") {
+    return { delay: Math.max(0, request), action: "state-change" };
+  }
+  const value = request && typeof request === "object" ? request : {};
+  const action = cleanString(value.action).replace(/[^a-z0-9-]/gi, "-").toLowerCase() || "state-change";
+  return {
+    // Saving is queued for the end of the current browser event, so a single
+    // business action is saved as one complete state, never as half an order.
+    delay: Number.isFinite(Number(value.delay)) ? Math.max(0, Number(value.delay)) : 0,
+    action,
+  };
+}
+
+function createPendingCloudSaveEnvelope(action) {
+  const createdAt = new Date().toISOString();
+  return {
+    id: `cloud-save-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    action,
+    stateVersion: cloudStateVersion,
+    createdAt,
+    state: buildSharedState(),
+  };
+}
+
+function persistPendingCloudSave(envelope) {
+  try {
+    localStorage.setItem(PENDING_CLOUD_SAVE_KEY, JSON.stringify(envelope));
+  } catch (error) {
+    console.warn("Unable to persist local recovery copy", error);
+  }
+}
+
+function readPendingCloudSave() {
+  const envelope = readJson(PENDING_CLOUD_SAVE_KEY);
+  if (!envelope || typeof envelope !== "object" || !envelope.id || !envelope.state || typeof envelope.state !== "object") {
+    return null;
+  }
+  return envelope;
+}
+
+function clearPendingCloudSave(id) {
+  if (pendingCloudSave?.id === id) pendingCloudSave = null;
+  const persisted = readPendingCloudSave();
+  if (persisted?.id === id) localStorage.removeItem(PENDING_CLOUD_SAVE_KEY);
+}
+
+function schedulePendingCloudSave(delay = 0) {
   window.clearTimeout(cloudSaveTimer);
-  cloudSaveTimer = window.setTimeout(saveSharedStateNow, delay);
+  cloudSaveTimer = window.setTimeout(saveSharedStateNow, Math.max(0, Number(delay) || 0));
+}
+
+function resumePendingCloudSave() {
+  if (cloudSaveInFlight || pendingCloudSave) return false;
+  const envelope = readPendingCloudSave();
+  if (!envelope) return false;
+  pendingCloudSave = { ...envelope, resume: true };
+  persistPendingCloudSave(pendingCloudSave);
+  schedulePendingCloudSave(0);
+  return true;
 }
 
 async function saveSharedStateNow() {
@@ -10265,18 +10350,23 @@ async function saveSharedStateNow() {
     return;
   }
 
+  const envelope = pendingCloudSave || readPendingCloudSave();
+  if (!envelope) return;
+  pendingCloudSave = envelope;
+
   cloudSaveInFlight = true;
   cloudSyncState = "saving";
   renderMetadata();
 
   try {
     const headers = { "Content-Type": "application/json" };
-    if (cloudStateVersion) headers["X-State-Version"] = cloudStateVersion;
+    if (envelope.stateVersion) headers["X-State-Version"] = envelope.stateVersion;
+    headers["X-State-Action"] = envelope.action || "state-change";
     const response = await fetch(CLOUD_STATE_ENDPOINT, {
       method: "POST",
       headers,
       credentials: "same-origin",
-      body: JSON.stringify(buildSharedState()),
+      body: JSON.stringify(envelope.state),
     });
 
     if (response.status === 401) {
@@ -10286,7 +10376,7 @@ async function saveSharedStateNow() {
     if (response.status === 409) {
       cloudSyncState = "conflict";
       cloudSaveAgain = false;
-      dom.status.textContent = "השמירה נעצרה כדי לא לדרוס נתונים ממכשיר אחר. נוצר עותק שחזור פרטי — יש לרענן את האתר לפני המשך עבודה.";
+      dom.status.textContent = "השמירה נעצרה כדי לא לדרוס נתונים ממכשיר אחר. נשמר עותק שחזור מלא של הפעולה — יש לרענן את האתר לפני המשך עבודה.";
       return;
     }
     if (!response.ok) throw new Error(`Cloud save failed: ${response.status}`);
@@ -10296,8 +10386,14 @@ async function saveSharedStateNow() {
     if (savedState?.recoveredConflict?.orderCount) {
       const count = Number(savedState.recoveredConflict.orderCount).toLocaleString("he-IL");
       dom.status.textContent = `${count} הזמנה/ות חדשות נשמרו אוטומטית למרות שמסך ישן היה פתוח. הנתונים נטענים מחדש מהענן.`;
-      cloudSaveAgain = false;
+      clearPendingCloudSave(envelope.id);
       await hydrateCloudState();
+      return;
+    }
+    clearPendingCloudSave(envelope.id);
+    if (envelope.resume) {
+      await hydrateCloudState();
+      return;
     }
   } catch (error) {
     console.warn("Cloud save failed", error);
@@ -10306,9 +10402,9 @@ async function saveSharedStateNow() {
     cloudSaveInFlight = false;
     renderMetadata();
 
-    if (cloudSaveAgain) {
+    if (cloudSaveAgain && cloudSyncState !== "conflict") {
       cloudSaveAgain = false;
-      queueCloudSave(0);
+      schedulePendingCloudSave(0);
     }
   }
 }
@@ -10345,6 +10441,7 @@ function buildSharedState() {
     customers,
     annotations,
     orders,
+    orderTombstones,
     orderCompletionMigrationVersion,
     orderOpenRestoreMigrationVersion,
     drafts,
@@ -10375,6 +10472,7 @@ function applySharedState(state) {
   customers = cloudCustomers.length ? cloudCustomers : customers.length ? customers : getDefaultCustomers();
   annotations = normalizeAnnotations(state.annotations);
   orders = normalizeOrders(state.orders);
+  orderTombstones = normalizeOrderTombstones(state.orderTombstones);
   orderCompletionMigrationVersion = Math.max(0, Math.floor(Number(state.orderCompletionMigrationVersion) || 0));
   orderOpenRestoreMigrationVersion = Math.max(0, Math.floor(Number(state.orderOpenRestoreMigrationVersion) || 0));
   const migratedCompletedOrders = completeDueOrders({
@@ -10461,6 +10559,10 @@ function readOrders() {
   return normalizeOrders(readJson(ORDERS_KEY));
 }
 
+function readOrderTombstones() {
+  return normalizeOrderTombstones(readJson(ORDER_TOMBSTONES_KEY));
+}
+
 function readDrafts() {
   return normalizeDrafts(readJson(DRAFTS_KEY));
 }
@@ -10499,6 +10601,32 @@ function normalizeOrders(value) {
       total: parsePrice(order.total) ?? 0,
     }))
     .filter((order) => order.items.length);
+}
+
+function normalizeOrderTombstones(value, reference = new Date()) {
+  const cutoff = reference.getTime() - ORDER_TOMBSTONE_RETENTION_MS;
+  const seen = new Set();
+  return (Array.isArray(value) ? value : [])
+    .map((entry) => ({
+      id: cleanString(entry?.id),
+      deletedAt: cleanString(entry?.deletedAt),
+    }))
+    .filter((entry) => {
+      const timestamp = new Date(entry.deletedAt).getTime();
+      if (!entry.id || !Number.isFinite(timestamp) || timestamp < cutoff || seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    });
+}
+
+function markOrderTombstone(orderId, deletedAt = new Date().toISOString()) {
+  const id = cleanString(orderId);
+  if (!id) return;
+  orderTombstones = normalizeOrderTombstones([
+    { id, deletedAt },
+    ...orderTombstones.filter((entry) => entry.id !== id),
+  ]);
+  localStorage.setItem(ORDER_TOMBSTONES_KEY, JSON.stringify(orderTombstones));
 }
 
 function normalizeDrafts(value) {

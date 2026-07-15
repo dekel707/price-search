@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "generate:specs": "node scripts/generate-spec-manifest.mjs",
+    "test:order-safety": "node scripts/verify-order-safety.mjs",
     "predev": "npm run generate:specs",
     "dev": "vite --host 0.0.0.0",
     "prebuild": "npm run generate:specs",

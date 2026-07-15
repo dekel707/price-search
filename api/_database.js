@@ -44,7 +44,7 @@ export async function initializeDatabaseState(initialState) {
   });
 }
 
-export async function saveDatabaseState(payload, expectedVersion) {
+export async function saveDatabaseState(payload, expectedVersion, { action = "state-change" } = {}) {
   const sql = await getSql();
 
   return sql.begin(async (transaction) => {
@@ -60,11 +60,14 @@ export async function saveDatabaseState(payload, expectedVersion) {
     const current = databaseRecord(currentRow);
     const capturedAt = new Date();
     if (expectedVersion !== current.version) {
-      const conflictBackup = await insertBackup(transaction, payload, "conflict-save", capturedAt);
+      if (statesMatchIgnoringSaveMetadata(current.state, payload)) {
+        return { alreadyCurrent: true, current };
+      }
+      const conflictBackup = await insertBackup(transaction, payload, `conflict-${action}`, capturedAt);
       const recovery = mergeRecentMissingOrders(current.state, payload, capturedAt);
       if (recovery.recovered) {
-        const previousBackup = await insertBackup(transaction, current.state, "before-conflict-order-recovery", capturedAt);
-        const backup = await insertBackup(transaction, recovery.state, "conflict-order-recovery", capturedAt);
+        const previousBackup = await insertBackup(transaction, current.state, `before-conflict-${action}`, capturedAt);
+        const backup = await insertBackup(transaction, recovery.state, `recovered-${action}`, capturedAt);
         const version = crypto.randomUUID();
         const serializedState = JSON.stringify(recovery.state);
         const [saved] = await transaction`
@@ -82,6 +85,7 @@ export async function saveDatabaseState(payload, expectedVersion) {
           previousBackup,
           conflictBackup,
           addedOrders: recovery.addedOrders,
+          addedCustomers: recovery.addedCustomers,
           reservationAdjustments: recovery.reservationAdjustments,
         };
       }
@@ -89,8 +93,8 @@ export async function saveDatabaseState(payload, expectedVersion) {
       return { conflict: true, current, backup };
     }
 
-    const previousBackup = await insertBackup(transaction, current.state, "before-save", capturedAt);
-    const backup = await insertBackup(transaction, payload, "state-save", capturedAt);
+    const previousBackup = await insertBackup(transaction, current.state, `before-${action}`, capturedAt);
+    const backup = await insertBackup(transaction, payload, `after-${action}`, capturedAt);
     const version = crypto.randomUUID();
     const serializedState = JSON.stringify(payload);
     const [saved] = await transaction`
@@ -216,6 +220,17 @@ function safeReason(value) {
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "") || "manual";
+}
+
+function statesMatchIgnoringSaveMetadata(left, right) {
+  return JSON.stringify(withoutSaveMetadata(left)) === JSON.stringify(withoutSaveMetadata(right));
+}
+
+function withoutSaveMetadata(state) {
+  const copy = structuredClone(state && typeof state === "object" ? state : {});
+  delete copy.updatedAt;
+  delete copy.version;
+  return copy;
 }
 
 function getEnvValue(name) {
