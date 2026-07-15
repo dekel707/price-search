@@ -19,6 +19,7 @@
   "dependencies": {
     "@vercel/blob": "^2.4.0",
     "pdfjs-dist": "^6.1.200",
+    "postgres": "^3.4.7",
     "read-excel-file": "^9.2.0",
     "tesseract.js": "^5.1.1"
   }
