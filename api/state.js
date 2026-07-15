@@ -58,7 +58,7 @@ export default async function handler(request, response) {
       }
 
       const text = await streamToText(stored.stream);
-      response.setHeader("X-State-Version", stored.etag || "");
+      response.setHeader("X-State-Version", getStoredStateVersion(stored));
       sendJson(response, 200, normalizeState(JSON.parse(text)));
       return;
     }
@@ -74,16 +74,17 @@ export default async function handler(request, response) {
         ...blobAuthOptions,
       });
       const currentState = currentStored && currentStored.statusCode === 200 ? currentStored : null;
+      const currentStateVersion = getStoredStateVersion(currentState);
 
       // If another device saved after this tab was loaded, preserve this tab's
       // attempted state as an immutable recovery copy instead of silently
       // replacing newer live data.
-      if (currentState && expectedVersion !== currentState.etag) {
+      if (currentState && expectedVersion !== currentStateVersion) {
         const backup = await createStateBackup(payload, {
           reason: "conflict-save",
           blobAuthOptions,
         });
-        response.setHeader("X-State-Version", currentState?.etag || "");
+        response.setHeader("X-State-Version", currentStateVersion);
         sendJson(response, 409, {
           error: "state_conflict",
           message: "The live data changed on another device. Your attempted changes were saved as a recovery backup.",
@@ -119,7 +120,7 @@ export default async function handler(request, response) {
           allowOverwrite: true,
           contentType: "application/json; charset=utf-8",
           cacheControlMaxAge: 60,
-          ...(currentState?.etag ? { ifMatch: currentState.etag } : {}),
+          ...(currentStateVersion ? { ifMatch: currentStateVersion } : {}),
           ...blobAuthOptions,
         });
       } catch (error) {
@@ -156,6 +157,10 @@ export default async function handler(request, response) {
 function getRequestHeader(request, name) {
   const value = request.headers?.[name] || request.headers?.[name.toLowerCase()];
   return Array.isArray(value) ? String(value[0] || "") : String(value || "");
+}
+
+function getStoredStateVersion(stored) {
+  return stored?.statusCode === 200 ? stored.blob?.etag || "" : "";
 }
 
 function normalizeState(value) {
