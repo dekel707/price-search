@@ -1,4 +1,4 @@
-import { get, put } from "@vercel/blob";
+import { BlobNotFoundError, BlobPreconditionFailedError, get, head, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
 import {
   STATE_PATH,
@@ -29,7 +29,7 @@ const EMPTY_STATE = {
 export default async function handler(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-State-Version");
   response.setHeader("Cache-Control", "no-store");
 
   if (request.method === "OPTIONS") {
@@ -52,11 +52,13 @@ export default async function handler(request, response) {
     if (request.method === "GET") {
       const stored = await get(STATE_PATH, { access: "private", useCache: false, ...getBlobAuthOptions() });
       if (!stored || stored.statusCode !== 200 || !stored.stream) {
+        response.setHeader("X-State-Version", "");
         sendJson(response, 200, EMPTY_STATE);
         return;
       }
 
       const text = await streamToText(stored.stream);
+      response.setHeader("X-State-Version", stored.etag || "");
       sendJson(response, 200, normalizeState(JSON.parse(text)));
       return;
     }
@@ -65,23 +67,82 @@ export default async function handler(request, response) {
       const payload = normalizeState(await readJsonBody(request));
       payload.updatedAt = new Date().toISOString();
       const blobAuthOptions = getBlobAuthOptions();
+      const expectedVersion = getRequestHeader(request, "x-state-version");
+      const currentState = await getStateMetadata(blobAuthOptions);
 
-      // A save is never allowed to replace the live state before its own private,
-      // immutable snapshot exists. This keeps every successful change recoverable.
+      // If another device saved after this tab was loaded, preserve this tab's
+      // attempted state as an immutable recovery copy instead of silently
+      // replacing newer live data.
+      if (currentState && expectedVersion !== currentState.etag) {
+        const backup = await createStateBackup(payload, {
+          reason: "conflict-save",
+          blobAuthOptions,
+        });
+        response.setHeader("X-State-Version", currentState?.etag || "");
+        sendJson(response, 409, {
+          error: "state_conflict",
+          message: "The live data changed on another device. Your attempted changes were saved as a recovery backup.",
+          backup,
+        });
+        return;
+      }
+
+      // Preserve both sides of every change. The current live version is saved
+      // first, then the incoming version is saved before it replaces live data.
+      // A malformed or incomplete payload can therefore never erase the last
+      // known-good data without leaving a complete recovery point.
+      let previousBackup = null;
+      if (currentState) {
+        const currentStored = await get(STATE_PATH, {
+          access: "private",
+          useCache: false,
+          ...blobAuthOptions,
+        });
+        if (!currentStored || currentStored.statusCode !== 200 || !currentStored.stream) {
+          throw new Error("live_state_backup_unavailable");
+        }
+        previousBackup = await createStateBackup(JSON.parse(await streamToText(currentStored.stream)), {
+          reason: "before-save",
+          blobAuthOptions,
+        });
+      }
+
       const backup = await createStateBackup(payload, {
         reason: "state-save",
         blobAuthOptions,
       });
 
-      await put(STATE_PATH, JSON.stringify(payload), {
-        access: "private",
-        allowOverwrite: true,
-        contentType: "application/json; charset=utf-8",
-        cacheControlMaxAge: 60,
-        ...blobAuthOptions,
-      });
+      let saved;
+      try {
+        saved = await put(STATE_PATH, JSON.stringify(payload), {
+          access: "private",
+          allowOverwrite: true,
+          contentType: "application/json; charset=utf-8",
+          cacheControlMaxAge: 60,
+          ...(currentState?.etag ? { ifMatch: currentState.etag } : {}),
+          ...blobAuthOptions,
+        });
+      } catch (error) {
+        if (error instanceof BlobPreconditionFailedError) {
+          response.setHeader("X-State-Version", "");
+          sendJson(response, 409, {
+            error: "state_conflict",
+            message: "The live data changed while this save was running. Your attempted changes were saved as a recovery backup.",
+            backup,
+          });
+          return;
+        }
+        throw error;
+      }
 
-      sendJson(response, 200, { ok: true, updatedAt: payload.updatedAt, backup });
+      response.setHeader("X-State-Version", saved.etag || "");
+      sendJson(response, 200, {
+        ok: true,
+        updatedAt: payload.updatedAt,
+        stateVersion: saved.etag || "",
+        backup,
+        previousBackup,
+      });
       return;
     }
 
@@ -90,6 +151,20 @@ export default async function handler(request, response) {
     console.error(error);
     sendJson(response, 500, { error: "state_sync_failed" });
   }
+}
+
+async function getStateMetadata(blobAuthOptions) {
+  try {
+    return await head(STATE_PATH, blobAuthOptions);
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return null;
+    throw error;
+  }
+}
+
+function getRequestHeader(request, name) {
+  const value = request.headers?.[name] || request.headers?.[name.toLowerCase()];
+  return Array.isArray(value) ? String(value[0] || "") : String(value || "");
 }
 
 function normalizeState(value) {

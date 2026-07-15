@@ -386,6 +386,7 @@ let cloudSaveTimer = null;
 let cloudSaveInFlight = false;
 let cloudSaveAgain = false;
 let cloudSyncState = CLOUD_SYNC_DISABLED ? "local" : "syncing";
+let cloudStateVersion = "";
 let appStarted = false;
 let israelClockTimer = null;
 
@@ -1173,6 +1174,7 @@ async function hydrateCloudState() {
     }
     if (!response.ok) throw new Error(`Cloud state failed: ${response.status}`);
 
+    cloudStateVersion = response.headers.get("x-state-version") || "";
     const state = await response.json();
     if (hasCloudState(state)) {
       const sharedStateResult = applySharedState(state);
@@ -2234,6 +2236,7 @@ function getSyncLabel() {
   if (cloudSyncState === "syncing") return "מסנכרן";
   if (cloudSyncState === "saving") return "שומר בענן";
   if (cloudSyncState === "synced") return "נשמר בענן";
+  if (cloudSyncState === "conflict") return "שמירה נעצרה להגנה";
   if (cloudSyncState === "offline") return "שמירה מקומית";
   return "";
 }
@@ -10267,9 +10270,11 @@ async function saveSharedStateNow() {
   renderMetadata();
 
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (cloudStateVersion) headers["X-State-Version"] = cloudStateVersion;
     const response = await fetch(CLOUD_STATE_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       credentials: "same-origin",
       body: JSON.stringify(buildSharedState()),
     });
@@ -10278,11 +10283,19 @@ async function saveSharedStateNow() {
       lockApp("יש להתחבר מחדש כדי לשמור נתונים.");
       return;
     }
+    if (response.status === 409) {
+      cloudSyncState = "conflict";
+      cloudSaveAgain = false;
+      dom.status.textContent = "השמירה נעצרה כדי לא לדרוס נתונים ממכשיר אחר. נוצר עותק שחזור פרטי — יש לרענן את האתר לפני המשך עבודה.";
+      return;
+    }
     if (!response.ok) throw new Error(`Cloud save failed: ${response.status}`);
+    const savedState = await response.json().catch(() => null);
+    cloudStateVersion = response.headers.get("x-state-version") || savedState?.stateVersion || cloudStateVersion;
     cloudSyncState = "synced";
   } catch (error) {
     console.warn("Cloud save failed", error);
-    cloudSyncState = "offline";
+    if (cloudSyncState !== "conflict") cloudSyncState = "offline";
   } finally {
     cloudSaveInFlight = false;
     renderMetadata();
