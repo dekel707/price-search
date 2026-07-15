@@ -75,6 +75,7 @@ export default async function handler(request, response) {
       });
       const currentState = currentStored && currentStored.statusCode === 200 ? currentStored : null;
       const currentStateVersion = getStoredStateVersion(currentState);
+      const currentStateMatchVersion = toIfMatchVersion(currentStateVersion);
 
       // If another device saved after this tab was loaded, preserve this tab's
       // attempted state as an immutable recovery copy instead of silently
@@ -120,7 +121,7 @@ export default async function handler(request, response) {
           allowOverwrite: true,
           contentType: "application/json; charset=utf-8",
           cacheControlMaxAge: 60,
-          ...(currentStateVersion ? { ifMatch: currentStateVersion } : {}),
+          ...(currentStateMatchVersion ? { ifMatch: currentStateMatchVersion } : {}),
           ...blobAuthOptions,
         });
       } catch (error) {
@@ -161,6 +162,13 @@ function getRequestHeader(request, name) {
 
 function getStoredStateVersion(stored) {
   return stored?.statusCode === 200 ? stored.blob?.etag || "" : "";
+}
+
+function toIfMatchVersion(version) {
+  // Blob reads can return a weak ETag (W/\"…\"). Conditional writes require
+  // the corresponding strong validator, while the original value remains the
+  // version shared with the browser for conflict detection.
+  return version.startsWith("W/") ? version.slice(2) : version;
 }
 
 function normalizeState(value) {
