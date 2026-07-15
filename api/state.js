@@ -1,7 +1,12 @@
 import { get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-
-const STATE_PATH = "price-search/state.json";
+import {
+  STATE_PATH,
+  createStateBackup,
+  getBlobAuthOptions,
+  hasBlobStorageCredentials,
+  streamToText,
+} from "./_state-backups.js";
 
 const EMPTY_STATE = {
   version: 5,
@@ -38,7 +43,7 @@ export default async function handler(request, response) {
     return;
   }
 
-  if (!getEnvValue("BLOB_READ_WRITE_TOKEN") && !getEnvValue("VERCEL_OIDC_TOKEN")) {
+  if (!hasBlobStorageCredentials()) {
     sendJson(response, 503, { error: "cloud_storage_not_configured" });
     return;
   }
@@ -59,16 +64,24 @@ export default async function handler(request, response) {
     if (request.method === "POST") {
       const payload = normalizeState(await readJsonBody(request));
       payload.updatedAt = new Date().toISOString();
+      const blobAuthOptions = getBlobAuthOptions();
+
+      // A save is never allowed to replace the live state before its own private,
+      // immutable snapshot exists. This keeps every successful change recoverable.
+      const backup = await createStateBackup(payload, {
+        reason: "state-save",
+        blobAuthOptions,
+      });
 
       await put(STATE_PATH, JSON.stringify(payload), {
         access: "private",
         allowOverwrite: true,
         contentType: "application/json; charset=utf-8",
         cacheControlMaxAge: 60,
-        ...getBlobAuthOptions(),
+        ...blobAuthOptions,
       });
 
-      sendJson(response, 200, { ok: true, updatedAt: payload.updatedAt });
+      sendJson(response, 200, { ok: true, updatedAt: payload.updatedAt, backup });
       return;
     }
 
@@ -77,18 +90,6 @@ export default async function handler(request, response) {
     console.error(error);
     sendJson(response, 500, { error: "state_sync_failed" });
   }
-}
-
-function getBlobAuthOptions() {
-  const token = getEnvValue("BLOB_READ_WRITE_TOKEN");
-  if (token) return { token };
-
-  const oidcToken = getEnvValue("VERCEL_OIDC_TOKEN");
-  return oidcToken ? { oidcToken } : {};
-}
-
-function getEnvValue(name) {
-  return String(process.env[name] || "").replace(/^["']|["']$/g, "");
 }
 
 function normalizeState(value) {
@@ -135,20 +136,6 @@ async function readJsonBody(request) {
   });
 
   return JSON.parse(body || "{}");
-}
-
-async function streamToText(stream) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let text = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    text += decoder.decode(value, { stream: true });
-  }
-
-  return text + decoder.decode();
 }
 
 function sendJson(response, statusCode, data) {
