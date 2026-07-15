@@ -1,4 +1,4 @@
-import { BlobNotFoundError, BlobPreconditionFailedError, get, head, put } from "@vercel/blob";
+import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
 import {
   STATE_PATH,
@@ -68,7 +68,12 @@ export default async function handler(request, response) {
       payload.updatedAt = new Date().toISOString();
       const blobAuthOptions = getBlobAuthOptions();
       const expectedVersion = getRequestHeader(request, "x-state-version");
-      const currentState = await getStateMetadata(blobAuthOptions);
+      const currentStored = await get(STATE_PATH, {
+        access: "private",
+        useCache: false,
+        ...blobAuthOptions,
+      });
+      const currentState = currentStored && currentStored.statusCode === 200 ? currentStored : null;
 
       // If another device saved after this tab was loaded, preserve this tab's
       // attempted state as an immutable recovery copy instead of silently
@@ -93,12 +98,7 @@ export default async function handler(request, response) {
       // known-good data without leaving a complete recovery point.
       let previousBackup = null;
       if (currentState) {
-        const currentStored = await get(STATE_PATH, {
-          access: "private",
-          useCache: false,
-          ...blobAuthOptions,
-        });
-        if (!currentStored || currentStored.statusCode !== 200 || !currentStored.stream) {
+        if (!currentStored.stream) {
           throw new Error("live_state_backup_unavailable");
         }
         previousBackup = await createStateBackup(JSON.parse(await streamToText(currentStored.stream)), {
@@ -150,15 +150,6 @@ export default async function handler(request, response) {
   } catch (error) {
     console.error(error);
     sendJson(response, 500, { error: "state_sync_failed" });
-  }
-}
-
-async function getStateMetadata(blobAuthOptions) {
-  try {
-    return await head(STATE_PATH, blobAuthOptions);
-  } catch (error) {
-    if (error instanceof BlobNotFoundError) return null;
-    throw error;
   }
 }
 
