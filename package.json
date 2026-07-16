@@ -9,6 +9,7 @@
     "test:order-schedule": "node scripts/verify-order-schedule.mjs",
     "test:future-stock": "node scripts/verify-future-stock-flow.mjs",
     "test:delete-feedback": "node scripts/verify-delete-feedback.mjs",
+    "test:dealer-catalog": "node scripts/verify-dealer-catalog-api.mjs",
     "predev": "npm run generate:specs",
     "dev": "vite --host 0.0.0.0",
     "prebuild": "npm run generate:specs",

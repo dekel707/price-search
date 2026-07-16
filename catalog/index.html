@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b121b" />
+    <meta name="description" content="קטלוג דגמים, מפרטים ודפי מוצר לסוחרים" />
+    <title>קטלוג דגמים ומפרטים</title>
+  </head>
+  <body>
+    <main class="catalog-shell">
+      <header class="catalog-header">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="https://price-search-teal.vercel.app/fujicom_logo.svg" alt="FUJICOM" />
+          <div>
+            <p class="eyebrow">לסוחרים מורשים</p>
+            <h1>קטלוג דגמים ומפרטים</h1>
+            <p class="header-copy">חיפוש חופשי לפי שם מוצר, דגם או צבע — עם גישה מהירה למפרטים ולהוראות התקנה.</p>
+          </div>
+        </div>
+        <div class="catalog-scope" aria-label="מה מופיע בקטלוג">
+          <span>דגמים</span>
+          <span>מפרטים</span>
+          <span>הוראות התקנה</span>
+        </div>
+      </header>
+
+      <section class="search-panel" aria-label="חיפוש בקטלוג">
+        <label class="search-field" for="catalogSearch">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="catalogSearch" type="search" autocomplete="off" placeholder="לדוגמה: מקרר 4 דלתות, FJ-NF או שחור" />
+          <button id="clearSearch" class="clear-search" type="button" aria-label="נקה חיפוש" hidden>×</button>
+        </label>
+        <div class="catalog-meta">
+          <span id="catalogSummary">טוען דגמים…</span>
+          <span id="catalogUpdated"></span>
+        </div>
+      </section>
+
+      <section class="color-filter-panel" aria-label="סינון לפי צבע">
+        <div class="filter-heading">
+          <span>סינון מהיר לפי צבע</span>
+          <button id="clearColor" type="button" hidden>נקה סינון</button>
+        </div>
+        <div id="colorFilters" class="color-filters"></div>
+      </section>
+
+      <p id="catalogStatus" class="catalog-status" role="status" aria-live="polite"></p>
+      <section id="catalogResults" class="catalog-results" aria-live="polite"></section>
+
+      <footer class="catalog-footer">
+        הקטלוג מציג דגמים ומסמכים טכניים בלבד. אין בו מידע על מלאי, כמויות, מחירים, הזמנות או לקוחות.
+      </footer>
+    </main>
+
+    <script src="/catalog-config.js"></script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

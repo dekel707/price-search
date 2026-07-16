@@ -1,0 +1,1585 @@
+{
+  "version": 1,
+  "source": "build-fallback",
+  "updatedAt": null,
+  "products": [
+    {
+      "model": "FJ-32UIL900",
+      "name": "FUJICOM 32\" SMART TV FJ-32UIL900",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-43UIL900",
+      "name": "FUJICOM FRAMELESS 43\" FJ-43UIL900 SMART WEBOS TV",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-50UILQ950",
+      "name": "FUJICOM 50\" QLED FJ-50UILQ950 SMART TV",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-55UILQ950",
+      "name": "55\" QLED FUJICOM SMART TV FJ-55UILQ950",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-65Q10X",
+      "name": "FUJICOM FRAMELESS 65\" QLED FJ-65Q10X SMART WEBOS TV",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-75UILQ950",
+      "name": "FUJICOM 75\" QLED FJ-75UILQ950 SMART TV",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-B957E",
+      "name": "מקרר אנטגרלי 294 ליטר",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-B957E.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/FJ-B957E%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BFNF927E",
+      "name": "מקפיא אינטגרלי 197 ליטר NF",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BFNF927E.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BFNF927E%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BINF410",
+      "name": "מקרר אינטגרלי מקפיא תחתון 70 ס\"מ 403 ליטר NF",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BINF410.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BINF410%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BIOV980",
+      "name": "תנור בנוי מכני 73 ליטר שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BIOV980.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BIOV990W",
+      "name": "תנור בנוי מכני 73 ליטר לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BIOV990W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BIOVRT90W",
+      "name": "תנור בנוי כפרי רטרו 73 ליטר צבע שמנת",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BIOVRT90W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BIRT8B",
+      "name": "תנור בנוי כפרי 80 ליטר שמנת",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-BIRT9CK",
+      "name": "תנור בנוי כפרי 80 ליטר שחור מט",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-BO770T",
+      "name": "תנור בנוי 72 ליטר מסך מגע שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BO770T.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BO797BL",
+      "name": "תנור בנוי דיגטלי 70 ליטר שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BO797BL.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-BOMW245BL",
+      "name": "תנור בנוי 44 ליטר משולב מיקרו 45 ס\"מ שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-BOMW245BL.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHRT60B",
+      "name": "קולט אדים 60 ס\"מ שמנת כפרי",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHRT60B.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHRT70CK",
+      "name": "קולט אדים 60 ס\"מ שחור מט כפרי",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHRT70CK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHRT91B",
+      "name": "קולט אדים 90 ס\"מ שמנת כפרי",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHRT91B.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHRT92CK",
+      "name": "קולט אדים 90 ס\"מ ע שחור מט כפרי",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHRT92CK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHT11BL",
+      "name": "קולט אדים מרובע 60 ס\"מ זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHT11BL.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHT13W",
+      "name": "קולט אדים מרובע 60 ס\"מ זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHT13W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHT50W",
+      "name": "קולט אדים זכוכית כפולה 60 ס\"מ זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHT50W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHT60BL",
+      "name": "קולט אדים זכוכית כפולה 60 ס\"מ זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHT60BL.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHT74W",
+      "name": "קולט אדים זכוכית כפולה 90 ס\"מ זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHT74W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-CHT90BL",
+      "name": "קולט אדים זכוכית כפולה 90 ס\"מ זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-CHT90BL.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF117WE",
+      "name": "מקרר משרדי 86 ל' לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DF117WE.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF177S",
+      "name": "מקרר משרדי DE-FROST כסוף 86 ליטר",
+      "colors": [
+        "כסוף"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DF177S.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF28WE",
+      "name": "מקרר מקפיא עליון 206 ליטר DF לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DF28WE.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF300W",
+      "name": "מקפיא/מקרר שוכב תעשייתי 293 ליטר לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DF300W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF35XE",
+      "name": "מקרר מקפיא עליון 206 ליטר DF כסוף",
+      "colors": [
+        "כסוף"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DF35XE.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF400W",
+      "name": "מקפיא תעשייתי שוכב DE-FROST 392 ליטר לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DF400W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DF46L",
+      "name": "מקרר קוביה 46 ליטר לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-DHP909",
+      "name": "מייבש כביסה 9 ק\"ג Heat Pump",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DHP909.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DW20W",
+      "name": "מדיח כלים 8 תוכניות לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DW20W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DW22X",
+      "name": "מדיח כלים 8 תוכניות נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DW22X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DW24BK",
+      "name": "מדיח כלים 8 תוכניות שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DW24BK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DW6T",
+      "name": "מדיח כלים על השיש 7 תוכניות לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DW6T.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DWB8817",
+      "name": "מדיח כלים אינטגרלי מלא",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DWB8817.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-DWIGBK",
+      "name": "מדיח כלים 14 מערכות דלת זכוכית שחור FJ-DWIGBK",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-DWIGBK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FDF155W",
+      "name": "מקפיא 4 מגירות 91 ליטר DE FROST לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FDF155W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FNF212BI",
+      "name": "מקפיא אינטגרלי 212 ליטר NO-FROST",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FNF212BI.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FNF212BI_%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FNF226W",
+      "name": "מקפיא 6 מגירות 213 ליטר NO-FROST לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FNF226W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FNF377WE",
+      "name": "מקפיא 7 מגירות 280 ליטר NF לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FNF377WE.pdf"
+        },
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FNF488W",
+      "name": "מקפיא 8 תאים 273 ליטר NO FROST לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FNF488W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FNF588X",
+      "name": "מקפיא 8 תאים 273 ליטר NO FROST נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FNF588X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FS6365W",
+      "name": "תנור עומד משולב 60 ליטר כולל כיריים גז לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FS6365W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FS8065X",
+      "name": "תנור עומד משולב 60 ליטר כולל כיריים גז נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FS8065X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FSC75BK",
+      "name": "תנור עומד משולב 60 ליטר כולל כיריים גז שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FSC75BK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FSC9060B",
+      "name": "תנור משולב 90 ס\"מ כפרי מכסה עליון נירוסטה 5 מבערים שמנת",
+      "colors": [
+        "נירוסטה",
+        "שמנת"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FSC9060B.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FSC9095BK",
+      "name": "תנור משולב 90 ס\"מ כפרי מכסה עליון נירוסטה 5 מבערים שחור מט",
+      "colors": [
+        "שחור",
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FSC9095BK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FSRT60BG",
+      "name": "תנור עומד רטרו 60 ס\"מ בצבע שמנת כולל כיריים",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FW%20FJ-FSRT60BG.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-FSRT66MB",
+      "name": "תנור עומד רטרו 60 ס\"מ צבע שחור מט כולל כיריים",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-FSRT66MB.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-GH755W",
+      "name": "כיריים גז 4 מבערים זכוכית לבנה",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-GH840BK",
+      "name": "כיריים גז 4 מבערים - זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-GH840BK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-GH950W",
+      "name": "כיריים גז 4 מבערים - זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-GH950W.pdf"
+        },
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-GH950W%20(1).pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-GHRT13BG",
+      "name": "כיריים גז 4 מבערים כפרי רטרו צבע שמנת",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-GHRT13BG.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-GHRT4B",
+      "name": "כיריים גז 4 מבערים כפרי שמנת",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-GHRT7CK",
+      "name": "כיריים גז 4 מבערים כפרי שחור מט",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-HP1010",
+      "name": "מייבש כביסה 10 ק\"ג heat pump",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-HP88",
+      "name": "מייבש כביסה 8 ק\"ג heat pump",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-HP88.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-HP99",
+      "name": "מייבש כביסה 9 ק\"ג heat pump",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-HP99.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-IDZ150",
+      "name": "כיריים אינדוקציה מולטי זון תלת פאזי שחור",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-KS90BG",
+      "name": "מקרר משרדי 86 ליטר- דלת זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-KS90BG.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-KS93WG",
+      "name": "מקרר משרדי 86 ליטר- דלת זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-KS93WG.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-MW20LW",
+      "name": "מיקרוגל מכני 20 ליטר לבן FJ-MW20LW",
+      "colors": [
+        "לבן"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-MW25LB",
+      "name": "מיקרוגל דיגיטלי 25 ליטר שחור FJ-MW25LB",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF241BI",
+      "name": "מקרר אינטגרלי מקפיא תחתון NO FROST 248 ליטר",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF241BI.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94%20%20FJ-NF241BI.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF295W",
+      "name": "מקרר מקפיא עליון 276 ליטר NF לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF295W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF304BI",
+      "name": "מקרר אינטגרלי 304 ליטר NO-FROST",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF304BI.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF304BI%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF323WG",
+      "name": "מקרר מקפיא תחתון 320 ליטר NF - זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF323WG.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF325BG",
+      "name": "מקרר מקפיא תחתון 320 ליטר NF - זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF325BG.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF338W",
+      "name": "מקרר מקפיא עליון 329 ליטר לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF338W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF340X",
+      "name": "מקרר מקפיא עליון 329 ליטר NF נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF340X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF365X",
+      "name": "מקרר מקפיא תחתון 320 ליטר NF - נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF365X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF3672",
+      "name": "מקרר מקפיא תחתון אינטגרלי 233 ליטר NF",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF3672.pdf"
+        },
+        {
+          "label": "הוראות התקנה",
+          "type": "installation",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF3672%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF374DX",
+      "name": "מקרר מקפיא תחתון 320 ליטר NF - נירוסטה מושחרת",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF374DX.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF394LBM",
+      "name": "מקרר NF מקפיא תחתון 60ס\"מ שחור מט פתיחה לשמאל",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF423W",
+      "name": "מקרר מקפיא עליון 423 ליטר NO-FROST - לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF423W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF433X",
+      "name": "מקרר מקפיא עליון 423 ליטר NO-FROST נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF433X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF493GBE",
+      "name": "מקרר מקפיא תחתחון 331 ליטר זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF500BK",
+      "name": "מקרר 4 דלתות מקפיא תחתון 475 ליטר NO-FROST זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF513XBF",
+      "name": "מקרר מקפיא תחתון 499 ליטר NF נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF513XBFIC.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF513XBFIC",
+      "name": "מקרר מקפיא תחתון 499 ליטר NF נירוסטה + מייצר קרח אוטומטי",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF513XBFIC.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF514DXBF",
+      "name": "מקרר מקפיא תחתון 499 ליטר NF נירוסטה מושחרת",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF514DXBFIC.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF514DXBFIC",
+      "name": "מקרר מקפיא תחתון 499 ליטר NF נירוסטה מושחרת+מייצר קרח אוט'",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF514DXBFIC.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF515W",
+      "name": "מקרר 4 דלתות מקפיא תחתון 475 ליטר NO-FROST זכוכית לבנה",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF516WBF",
+      "name": "מקרר מקפיא תחתון 499 ליטר NF לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF516WBFIC.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF516WBFIC",
+      "name": "מקרר מקפיא תחתון 499 ליטר NF לבן + מייצר קרח אוטומטי",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF516WBFIC.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF530GDBL",
+      "name": "מקרר 4 דלתות 505 ליטר NF זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF530GDBL.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF549W",
+      "name": "מקרר מקפיא עליון 401 ליטר NF לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF549W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF560DX",
+      "name": "מקרר 4 דלתות 505 ליטר NF נירוסטה מושחרת",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF560DX.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF590GDW",
+      "name": "מקרר 4 דלתות 505 ליטר NF זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF590GDW.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF600BK",
+      "name": "מקרר 4 דלתות מקפיא תחתון 539 ליטר NO-FROST זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF615W",
+      "name": "מקרר 4 דלתות מקפיא תחתון 539 ליטר NO-FROST זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF615W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF645W",
+      "name": "מקרר מקפיא עליון 497 ליטר NF - לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF645W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF655BGE",
+      "name": "מקרר מקפיא תחתון 588 ליטר NO-FROST שמנת",
+      "colors": [
+        "שמנת"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF676LBM",
+      "name": "מקרר מקפיא תחתון 331 ליטר NF שחור מט (פתיחה הפוכה)",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF681W",
+      "name": "מקרר מקפיא תחתון NO-FROST 680 ליטר לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF681W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF682X",
+      "name": "מקרר מקפיא תחתון NO-FROST 680 ליטר נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF682X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF683DX",
+      "name": "מקרר מקפיא תחתון NO-FROST 680 ליטר נירוסטה מושחרת",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF683DX.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF696RBM",
+      "name": "מקרר מקפיא תחתון 331 ליטר NF שחור מט (פתיחה רגילה )",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF70X",
+      "name": "מקרר מקפיא תחתון 435 ליטר NO FROST נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF70X.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF745DX",
+      "name": "מקרר מקפיא עליון 497 ליטר NF - נירוסטה מושחרת",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF745DX.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF766WE",
+      "name": "מקרר מקפיא תחתון 588 ליטר NO-FROST לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF777XE",
+      "name": "מקרר מקפיא תחתון 588 ליטר NO-FROST נירוסטה",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF800BK",
+      "name": "מקרר 4 דלתות מקפיא תחתון 600 ליטר NO-FROST זכוכית שחורה",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF800BK.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF815W",
+      "name": "מקרר 4 דלתות מקפיא תחתון 600 ליטר NO-FROST זכוכית לבנה",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF815W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF820DX",
+      "name": "מקרר NO FROST 4 דלתות 600 ליטר נירוסטה מושחרת FJ-NF820DX",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF820DX.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF836DXE",
+      "name": "מקרר מקפיא תחתון 588 ליטר NO-FROST נירוסטה מושחרת",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF838RDXE",
+      "name": "מקרר מקפיא תחתון 331 ליטר NF נירוסטה מושחרת ( פתיחה רגילה)",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NF888BME",
+      "name": "מקרר מקפיא תחתון 588 ליטר NO-FROST שחור מט",
+      "colors": [
+        "שחור"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF888BME.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-NF949RXE",
+      "name": "מקרר מקפיא תחתון 331 ליטר NF נירוסטה (פתיחה רגילה )",
+      "colors": [
+        "נירוסטה"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-NFRT325BK",
+      "name": "מקרר NF רטרו שחור FJ-NFRT325BK 310L",
+      "colors": [
+        "שחור"
+      ],
+      "documents": []
+    },
+    {
+      "model": "FJ-V107TE",
+      "name": "מקרר משרדי DF ויטרינה מסחרי 93 ליטר",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-V107TE.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-V375",
+      "name": "מקרר ויטרינה מסחרי 350 ליטר",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-V375.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-V65TE",
+      "name": "מקרר קוביה DF ויטרינה מסחרי 46 ליטר",
+      "colors": [],
+      "documents": []
+    },
+    {
+      "model": "FJ-WC118",
+      "name": "מקרר יין 116 ל' 49 בקבוקים מדפי עץ",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WC118.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-WM1014W",
+      "name": "מכונת כביסה 10 ק\"ג 1400 סל\"ד אינוורטר",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WM1014W.pdf"
+        },
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-WM1215W",
+      "name": "מכונת כביסה 12 ק\"ג 1400 סל\"ד",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WM1215W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-WM69",
+      "name": "מכונת כביסה 6 ק\"ג 1000 סל\"ד",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WM69.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-WM72",
+      "name": "מכונת כביסה 7 ק\"ג 1200 סל\"ד INVERTER",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WM72.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-WM86",
+      "name": "מכונת כביסה 8 ק\"ג 1400 סל\"ד INVERTER",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WM86.pdf"
+        }
+      ]
+    },
+    {
+      "model": "FJ-WM912W",
+      "name": "מכונת כביסה 9 ק\"ג 1200 סל\"ד INVERTER",
+      "colors": [],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-WM912W.pdf"
+        }
+      ]
+    },
+    {
+      "model": "IT-170L",
+      "name": "מקרר מקפיא תחתון 170 ליטר DE-FROST לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/IT-170L%20%C2%A0.pdf"
+        }
+      ]
+    },
+    {
+      "model": "IT-CF244",
+      "name": "מקפיא מסחרי שוכב 244 ליטר DE-FROST לבן",
+      "colors": [
+        "לבן"
+      ],
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/IT-CF244.pdf"
+        }
+      ]
+    }
+  ]
+}

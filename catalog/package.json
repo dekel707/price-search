@@ -1,0 +1,16 @@
+{
+  "name": "fujicom-dealer-catalog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:fallback": "node scripts/generate-fallback.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "prebuild": "npm run generate:fallback",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.4.3"
+  }
+}
