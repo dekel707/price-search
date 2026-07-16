@@ -31,6 +31,12 @@ assert(app.includes("createAdvancedSpecificationMessage"), "חסרה יצירת 
 assert(app.includes("sendAdvancedProductPageToWhatsApp"), "חסרה שליחת דף מוצר ב‑WhatsApp");
 assert(app.includes("createAdvancedProductPageMessage"), "חסרה יצירת הודעה עם קישור לדף מוצר");
 assert(app.includes("data-send-advanced-product-page"), "חסר כפתור שליחת דף מוצר בכרטיס עם דף מוצר");
+assert(app.includes("navigator.share"), "דף מוצר אינו נפתח לשיתוף כקובץ במובייל");
+assert(app.includes("navigator.canShare"), "אין בדיקת תמיכה בשיתוף קובץ");
+assert(app.includes("downloadAdvancedProductPageFile"), "דף המוצר אינו יורד לפני השיתוף");
+assert(app.includes("fetch(productPage.url"), "דף המוצר אינו נשלף מהקישור המקורי שלו");
+assert(app.includes("files: [productPageFile]"), "קובץ דף המוצר אינו מצורף לחלון השיתוף");
+assert(app.includes("new File([source]"), "דף המוצר אינו נבנה כקובץ לצירוף");
 assert(app.includes("details.open = Boolean(activeValue);"), "מסנני החיפוש המתקדם אינם סגורים כברירת מחדל");
 assert(app.includes("advancedSearchQuickFilters[quickGroup] = advancedSearchQuickFilters[quickGroup] === value ? \"\" : value"), "בחירה חוזרת במסנן מהיר אינה מבטלת אותו");
 
