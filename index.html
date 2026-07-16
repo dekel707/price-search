@@ -72,6 +72,7 @@
         <button class="tab-button" type="button" data-tab="calendar">לוח שנה</button>
         <button class="tab-button" type="button" data-tab="categories">קטגוריות</button>
         <button class="tab-button" type="button" data-tab="drafts">טיוטות</button>
+        <button class="tab-button" type="button" data-tab="future-stock-orders">הזמנות מלאי עתידי</button>
         <button class="tab-button" type="button" data-tab="orders">הזמנות פתוחות</button>
         <button class="tab-button" type="button" data-tab="tomorrow-orders">הזמנות למחר</button>
         <button class="tab-button" type="button" data-tab="completed-orders">הזמנות שהושלמו</button>
@@ -242,6 +243,20 @@
               <strong>שמור כטיוטה</strong>
               <small>הטיוטה לא תיכנס למכירות ולא תשנה שריונים עד שתכניס אותה מהלשונית טיוטות.</small>
             </span>
+          </label>
+
+          <label class="report-date-toggle future-stock-save-toggle" id="futureStockOrderToggle" hidden>
+            <input id="saveAsFutureStock" type="checkbox" />
+            <span>
+              <strong>הזמנת מלאי עתידי</strong>
+              <small id="futureStockOrderHint">נשמרת בנפרד ואינה נכנסת לדוחות עד שתשמור אותה כהזמנה.</small>
+            </span>
+          </label>
+
+          <label class="field-wrap future-stock-date-control" id="futureStockDateControl" hidden>
+            <span>תאריך חזרה/תזכורת</span>
+            <input id="futureStockDate" type="date" />
+            <small>ביום זה תופיע תזכורת; ההזמנה תישאר כאן עד שתלחץ „שמור הזמנה”.</small>
           </label>
 
           <label class="field-wrap">
@@ -706,6 +721,27 @@
           </label>
 
           <div class="drafts-list" id="draftsList"></div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="future-stock-orders">
+        <section class="drafts-panel future-stock-orders-panel" aria-label="הזמנות מלאי עתידי">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">ממתינות לחזרה למלאי</p>
+              <h2>הזמנות מלאי עתידי</h2>
+            </div>
+            <div class="cart-summary" id="futureStockOrdersSummary">0 הזמנות</div>
+          </div>
+
+          <p class="future-stock-orders-intro">הזמנות כאן אינן נכנסות למכירות, לשריונים או לדוחות. ביום התאריך תתקבל תזכורת, ורק „שמור הזמנה” יכניס אותן להזמנות הפעילות.</p>
+
+          <label class="field-wrap">
+            <span>חיפוש הזמנה עתידית</span>
+            <input id="futureStockOrdersSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
+          </label>
+
+          <div class="drafts-list future-stock-orders-list" id="futureStockOrdersList"></div>
         </section>
       </section>
 
