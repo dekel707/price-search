@@ -10,13 +10,17 @@ const app = fs.readFileSync(path.join(root, "catalog/src/main.js"), "utf8");
 
 assert(Array.isArray(fallback.products) && fallback.products.length >= 120, "The public fallback must contain the full product catalog.");
 assert(page.includes('id="categoryFilters"'), "The catalog must expose category filters.");
-assert(page.includes('id="attributeField"'), "The catalog must expose the numeric specification filter.");
-assert(app.includes("METRIC_DEFINITIONS"), "The catalog must define its available numeric filters.");
+assert(page.includes('id="simpleFilters"'), "The catalog must expose the simple dealer-facing filter panel.");
+assert(!page.includes('id="attributeField"'), "The technical numeric filter must not remain in the dealer catalog.");
+assert(!page.includes('id="attributeMin"'), "The dealer catalog must not expose a minimum field.");
+assert(!page.includes('id="attributeMax"'), "The dealer catalog must not expose a maximum field.");
 assert(app.includes("renderCategoryFilters"), "The catalog must render product categories.");
-assert(app.includes("matchesNumericFilter"), "The catalog must filter numeric specification ranges.");
+assert(app.includes("getSimpleFilterGroups"), "The catalog must render simple filter groups.");
+assert(app.includes("VOLUME_RANGES"), "The catalog must provide simple volume ranges.");
+assert(app.includes("FEATURE_FILTERS"), "The catalog must provide prominent feature filters.");
 assert(app.includes("getProductHighlights"), "The catalog must display the strongest technical highlights on each product.");
 assert(app.includes('activeCategory = activeCategory === selectedCategory ? "" : selectedCategory'), "A selected category must toggle off when pressed again.");
-assert(app.includes('activeColor = activeColor === selectedColor ? "" : selectedColor'), "A selected quick color filter must toggle off when pressed again.");
+assert(app.includes('activeFacets[group] = activeFacets[group] === value ? "" : value'), "A selected simple filter must toggle off when pressed again.");
 
 const refrigerator = fallback.products.find((product) => product.model === "FJ-NF820DX");
 assert(refrigerator, "Expected reference refrigerator in dealer catalog.");

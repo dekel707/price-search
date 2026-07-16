@@ -45,45 +45,23 @@
         <div id="categoryFilters" class="category-filters"></div>
       </section>
 
-      <section class="color-filter-panel" aria-label="סינון לפי צבע">
-        <div class="filter-heading">
-          <span>סינון מהיר לפי צבע</span>
-          <button id="clearColor" type="button" hidden>נקה סינון</button>
-        </div>
-        <div id="colorFilters" class="color-filters"></div>
-      </section>
+      <div class="catalog-layout">
+        <aside class="simple-filter-panel" aria-label="סינון פשוט">
+          <div class="simple-filter-heading">
+            <div>
+              <span class="simple-filter-kicker">סינון פשוט</span>
+              <strong>מצא את הדגם המתאים</strong>
+            </div>
+            <button id="clearFilters" type="button" hidden>נקה הכל</button>
+          </div>
+          <div id="simpleFilters" class="simple-filters"></div>
+        </aside>
 
-      <section class="attribute-filter-panel" aria-label="סינון מתקדם לפי מפרט">
-        <div class="filter-heading">
-          <span>סינון מתקדם לפי מאפיינים</span>
-          <button id="clearAttributes" type="button" hidden>נקה סינון מתקדם</button>
+        <div class="catalog-results-area">
+          <p id="catalogStatus" class="catalog-status" role="status" aria-live="polite"></p>
+          <section id="catalogResults" class="catalog-results" aria-live="polite"></section>
         </div>
-        <div class="attribute-filter-grid">
-          <label>
-            <span>מאפיין מספרי</span>
-            <select id="attributeField">
-              <option value="">כל מאפיין</option>
-            </select>
-          </label>
-          <label>
-            <span>מינימום</span>
-            <input id="attributeMin" type="number" inputmode="decimal" placeholder="ללא" />
-          </label>
-          <label>
-            <span>מקסימום</span>
-            <input id="attributeMax" type="number" inputmode="decimal" placeholder="ללא" />
-          </label>
-          <label>
-            <span>דירוג אנרגטי</span>
-            <select id="energyRating">
-              <option value="">כל הדירוגים</option>
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <p id="catalogStatus" class="catalog-status" role="status" aria-live="polite"></p>
-      <section id="catalogResults" class="catalog-results" aria-live="polite"></section>
+      </div>
 
       <footer class="catalog-footer">
         הקטלוג מציג דגמים ומסמכים טכניים בלבד. אין בו מידע על מלאי, כמויות, מחירים, הזמנות או לקוחות.

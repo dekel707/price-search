@@ -4,28 +4,38 @@ const SOURCE_ORIGIN = String(window.CATALOG_SOURCE_ORIGIN || "https://price-sear
 const CATALOG_ENDPOINT = `${SOURCE_ORIGIN}/api/dealer-catalog`;
 const CACHE_KEY = "fujicom-dealer-catalog-v2";
 
-const METRIC_DEFINITIONS = [
-  ["widthCm", "רוחב (ס״מ)"],
-  ["heightCm", "גובה (ס״מ)"],
-  ["depthCm", "עומק (ס״מ)"],
-  ["displayWidthCm", "רוחב מסך ללא מעמד (ס״מ)"],
-  ["displayHeightCm", "גובה מסך ללא מעמד (ס״מ)"],
-  ["displayDepthCm", "עומק מסך ללא מעמד (ס״מ)"],
-  ["weightKg", "משקל (ק״ג)"],
-  ["totalLiters", "נפח כללי (ליטר)"],
-  ["fridgeLiters", "נפח תא מזון (ליטר)"],
-  ["freezerLiters", "נפח תא הקפאה (ליטר)"],
-  ["ovenLiters", "נפח תא אפייה (ליטר)"],
-  ["washKg", "קיבולת כביסה / ייבוש (ק״ג)"],
-  ["powerW", "הספק (W)"],
-  ["programCount", "מספר תוכניות"],
-  ["spinRpm", "סל״ד"],
-  ["noiseDb", "רמת רעש (dB)"],
-  ["waterConsumptionLiters", "צריכת מים (ליטר)"],
-  ["placeSettings", "מערכות כלים"],
-  ["bottleCount", "מספר בקבוקים"],
-  ["screenSizeInches", "גודל מסך (אינץ׳)"],
-  ["airflowM3h", "עוצמת יניקה (מ״ק/שעה)"],
+const VOLUME_RANGES = [
+  ["up-to-100", "עד 100 ליטר", 0, 100],
+  ["101-to-300", "101–300 ליטר", 101, 300],
+  ["301-to-450", "301–450 ליטר", 301, 450],
+  ["451-to-600", "451–600 ליטר", 451, 600],
+  ["over-600", "מעל 600 ליטר", 601, Infinity],
+];
+
+const HEIGHT_RANGES = [
+  ["up-to-100", "עד 100 ס״מ", 0, 100],
+  ["101-to-170", "101–170 ס״מ", 101, 170],
+  ["171-to-185", "171–185 ס״מ", 171, 185],
+  ["186-to-200", "186–200 ס״מ", 186, 200],
+  ["over-200", "מעל 200 ס״מ", 201, Infinity],
+];
+
+const WIDTH_RANGES = [
+  ["up-to-50", "עד 50 ס״מ", 0, 50],
+  ["51-to-60", "51–60 ס״מ", 51, 60],
+  ["61-to-70", "61–70 ס״מ", 61, 70],
+  ["71-to-90", "71–90 ס״מ", 71, 90],
+  ["over-90", "מעל 90 ס״מ", 91, Infinity],
+];
+
+const FEATURE_FILTERS = [
+  ["no-frost", "❄ No Frost", (facts) => /no\s*frost|frost\s*no/.test(facts)],
+  ["inverter", "ϟ מנוע אינוורטר", (facts) => /inverter|אינוורטר/.test(facts)],
+  ["4k", "✦ 4K", (facts) => /\b4k\b|\buhd\b/.test(facts)],
+  ["smart", "◉ Smart TV", (facts) => /smart/.test(facts)],
+  ["wifi", "⌁ Wi‑Fi", (facts) => /wi\s*-?\s*fi|wifi/.test(facts)],
+  ["heat-pump", "♨ Heat Pump", (facts) => /heat\s*pump|משאבת חום/.test(facts)],
+  ["induction", "◎ אינדוקציה", (facts) => /אינדוקציה/.test(facts)],
 ];
 
 const dom = {
@@ -33,13 +43,8 @@ const dom = {
   clearSearch: document.querySelector("#clearSearch"),
   categoryFilters: document.querySelector("#categoryFilters"),
   clearCategory: document.querySelector("#clearCategory"),
-  colorFilters: document.querySelector("#colorFilters"),
-  clearColor: document.querySelector("#clearColor"),
-  attributeField: document.querySelector("#attributeField"),
-  attributeMin: document.querySelector("#attributeMin"),
-  attributeMax: document.querySelector("#attributeMax"),
-  energyRating: document.querySelector("#energyRating"),
-  clearAttributes: document.querySelector("#clearAttributes"),
+  simpleFilters: document.querySelector("#simpleFilters"),
+  clearFilters: document.querySelector("#clearFilters"),
   summary: document.querySelector("#catalogSummary"),
   updated: document.querySelector("#catalogUpdated"),
   status: document.querySelector("#catalogStatus"),
@@ -47,8 +52,8 @@ const dom = {
 };
 
 let products = [];
-let activeColor = "";
 let activeCategory = "";
+const activeFacets = { color: "", energy: "", volume: "", height: "", width: "", feature: "" };
 
 boot();
 
@@ -57,8 +62,7 @@ async function boot() {
   const catalog = await loadCatalog();
   products = normalizeProducts(catalog.products);
   renderCategoryFilters();
-  renderColorFilters();
-  renderAttributeFilters();
+  renderSimpleFilters();
   render();
   dom.updated.textContent = catalog.updatedAt ? `עודכן ${formatDate(catalog.updatedAt)}` : "קטלוג דגמים";
 }
@@ -83,25 +87,21 @@ function bindEvents() {
     renderCategoryFilters();
     render();
   });
-  dom.colorFilters.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-color]");
+  dom.simpleFilters.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-filter-group]");
     if (!button) return;
-    const selectedColor = button.dataset.color || "";
-    activeColor = activeColor === selectedColor ? "" : selectedColor;
-    renderColorFilters();
+    const group = button.dataset.filterGroup || "";
+    const value = button.dataset.filterValue || "";
+    if (!(group in activeFacets) || !value) return;
+    activeFacets[group] = activeFacets[group] === value ? "" : value;
+    renderSimpleFilters();
     render();
   });
-  dom.clearColor.addEventListener("click", () => {
-    activeColor = "";
-    renderColorFilters();
-    render();
-  });
-  [dom.attributeField, dom.attributeMin, dom.attributeMax, dom.energyRating].forEach((control) => control.addEventListener("input", render));
-  dom.clearAttributes.addEventListener("click", () => {
-    dom.attributeField.value = "";
-    dom.attributeMin.value = "";
-    dom.attributeMax.value = "";
-    dom.energyRating.value = "";
+  dom.clearFilters.addEventListener("click", () => {
+    activeCategory = "";
+    Object.keys(activeFacets).forEach((key) => { activeFacets[key] = ""; });
+    renderCategoryFilters();
+    renderSimpleFilters();
     render();
   });
 }
@@ -206,45 +206,21 @@ function renderCategoryFilters() {
   dom.clearCategory.hidden = !activeCategory;
 }
 
-function renderColorFilters() {
-  const counts = countBy(products.flatMap((product) => product.colors), (color) => color);
-  dom.colorFilters.replaceChildren(...[...counts.entries()]
-    .sort(([left], [right]) => left.localeCompare(right, "he"))
-    .map(([color, count]) => createFilterButton("color", color, `${color} · ${count}`, activeColor === color)));
-  dom.clearColor.hidden = !activeColor;
-}
-
-function renderAttributeFilters() {
-  const currentField = dom.attributeField.value;
-  const currentEnergy = dom.energyRating.value;
-  const visibleDefinitions = METRIC_DEFINITIONS.filter(([key]) => products.some((product) => getMetricValue(product, key) !== null));
-  dom.attributeField.replaceChildren(
-    createOption("", "כל מאפיין"),
-    ...visibleDefinitions.map(([key, label]) => createOption(key, label)),
-  );
-  dom.attributeField.value = visibleDefinitions.some(([key]) => key === currentField) ? currentField : "";
-  const ratings = [...new Set(products.map((product) => product.technical.performance.energyRating).filter(Boolean))].sort();
-  dom.energyRating.replaceChildren(createOption("", "כל הדירוגים"), ...ratings.map((rating) => createOption(rating, rating)));
-  dom.energyRating.value = ratings.includes(currentEnergy) ? currentEnergy : "";
+function renderSimpleFilters() {
+  const groups = getSimpleFilterGroups();
+  dom.simpleFilters.replaceChildren(...groups.map(createSimpleFilterGroup));
+  dom.clearFilters.hidden = !hasActiveSimpleFilters() && !activeCategory;
 }
 
 function render() {
   const query = normalizeSearch(dom.search.value);
-  const activeMetric = dom.attributeField.value;
-  const minimum = parseNumber(dom.attributeMin.value);
-  const maximum = parseNumber(dom.attributeMax.value);
-  const energyRating = dom.energyRating.value;
   const visible = products.filter((product) => (
     matchesProduct(product, query)
     && (!activeCategory || product.category === activeCategory)
-    && (!activeColor || product.colors.includes(activeColor))
-    && matchesNumericFilter(product, activeMetric, minimum, maximum)
-    && (!energyRating || product.technical.performance.energyRating === energyRating)
+    && matchesSimpleFilters(product)
   ));
-  const advancedActive = Boolean(activeMetric || minimum !== null || maximum !== null || energyRating);
   dom.clearSearch.hidden = !dom.search.value;
-  dom.clearAttributes.hidden = !advancedActive;
-  const hasFilters = Boolean(query || activeCategory || activeColor || advancedActive);
+  const hasFilters = Boolean(query || activeCategory || hasActiveSimpleFilters());
   dom.summary.textContent = hasFilters
     ? `${visible.length.toLocaleString("he-IL")} התאמות`
     : `${products.length.toLocaleString("he-IL")} דגמים זמינים בקטלוג`;
@@ -270,11 +246,87 @@ function matchesProduct(product, query) {
   return query.split(" ").every((term) => haystack.includes(term));
 }
 
-function matchesNumericFilter(product, field, minimum, maximum) {
-  if (!field) return true;
-  const value = getMetricValue(product, field);
-  if (value === null) return false;
-  return (minimum === null || value >= minimum) && (maximum === null || value <= maximum);
+function getProductFacts(product) {
+  return normalizeSearch([product.name, ...product.technical.facts].join(" "));
+}
+
+function matchesSimpleFilters(product) {
+  return (!activeFacets.color || product.colors.includes(activeFacets.color))
+    && (!activeFacets.energy || product.technical.performance.energyRating === activeFacets.energy)
+    && (!activeFacets.volume || matchesRange(product.technical.capacities.totalLiters, getRange(VOLUME_RANGES, activeFacets.volume)))
+    && (!activeFacets.height || matchesRange(product.technical.dimensionsCm.heightCm, getRange(HEIGHT_RANGES, activeFacets.height)))
+    && (!activeFacets.width || matchesRange(product.technical.dimensionsCm.widthCm, getRange(WIDTH_RANGES, activeFacets.width)))
+    && (!activeFacets.feature || matchesFeature(product, activeFacets.feature));
+}
+
+function getSimpleFilterGroups() {
+  const colorOptions = [...countBy(products.flatMap((product) => product.colors), (color) => color).entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "he"))
+    .map(([value, count]) => ({ value, label: value, count }));
+  const energyOptions = [...countBy(products, (product) => product.technical.performance.energyRating).entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "en"))
+    .map(([value, count]) => ({ value, label: `דירוג ${value}`, count }));
+  const featureOptions = FEATURE_FILTERS.map(([value, label]) => ({
+    value,
+    label,
+    count: products.filter((product) => matchesFeature(product, value)).length,
+  })).filter((option) => option.count);
+  return [
+    { key: "color", label: "צבע", options: colorOptions },
+    { key: "energy", label: "דירוג אנרגטי", options: energyOptions },
+    { key: "feature", label: "תכונות בולטות", options: featureOptions },
+    { key: "volume", label: "נפח", options: createRangeOptions(VOLUME_RANGES, (product) => product.technical.capacities.totalLiters) },
+    { key: "height", label: "גובה", options: createRangeOptions(HEIGHT_RANGES, (product) => product.technical.dimensionsCm.heightCm) },
+    { key: "width", label: "רוחב", options: createRangeOptions(WIDTH_RANGES, (product) => product.technical.dimensionsCm.widthCm) },
+  ].filter((group) => group.options.length);
+}
+
+function createSimpleFilterGroup(group) {
+  const details = document.createElement("details");
+  details.className = "simple-filter-group";
+  details.open = Boolean(activeFacets[group.key]) || group.key === "color" || group.key === "energy";
+  const summary = document.createElement("summary");
+  summary.textContent = group.label;
+  const options = document.createElement("div");
+  options.className = "simple-filter-options";
+  group.options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "simple-filter-option";
+    button.dataset.filterGroup = group.key;
+    button.dataset.filterValue = option.value;
+    button.setAttribute("aria-pressed", String(activeFacets[group.key] === option.value));
+    button.textContent = `${option.label} (${option.count})`;
+    options.append(button);
+  });
+  details.append(summary, options);
+  return details;
+}
+
+function createRangeOptions(ranges, getValue) {
+  return ranges.map(([value, label, minimum, maximum]) => ({
+    value,
+    label,
+    count: products.filter((product) => matchesRange(getValue(product), { minimum, maximum })).length,
+  })).filter((option) => option.count);
+}
+
+function getRange(ranges, value) {
+  const found = ranges.find(([rangeValue]) => rangeValue === value);
+  return found ? { minimum: found[2], maximum: found[3] } : null;
+}
+
+function matchesRange(value, range) {
+  return Boolean(range) && isFiniteNumber(value) && Number(value) >= range.minimum && Number(value) <= range.maximum;
+}
+
+function matchesFeature(product, value) {
+  const feature = FEATURE_FILTERS.find(([featureValue]) => featureValue === value);
+  return Boolean(feature?.[2](getProductFacts(product)));
+}
+
+function hasActiveSimpleFilters() {
+  return Object.values(activeFacets).some(Boolean);
 }
 
 function renderProductCard(product) {
@@ -311,7 +363,7 @@ function renderProductCard(product) {
 
 function getProductHighlights(product) {
   const technical = product.technical;
-  const facts = normalizeSearch([product.name, ...technical.facts].join(" "));
+  const facts = getProductFacts(product);
   const highlights = [];
   const add = (icon, label) => {
     if (!highlights.some((highlight) => highlight.label === label)) highlights.push({ icon, label });
