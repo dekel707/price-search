@@ -226,7 +226,7 @@ function render() {
     : `${products.length.toLocaleString("he-IL")} דגמים זמינים בקטלוג`;
 
   if (!visible.length) {
-    dom.results.innerHTML = `<div class="empty-state"><strong>לא נמצאו דגמים מתאימים</strong><span>נסה קטגוריה אחרת, מאפיין מספרי אחר או טווח רחב יותר.</span></div>`;
+    dom.results.innerHTML = `<div class="empty-state"><strong>לא נמצאו דגמים מתאימים</strong><span>נסה קטגוריה אחרת או נקה אחת מהבחירות.</span></div>`;
     return;
   }
   dom.results.innerHTML = visible.map(renderProductCard).join("");
