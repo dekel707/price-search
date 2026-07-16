@@ -189,6 +189,7 @@ const dom = {
   reportToday: document.querySelector("#reportToday"),
   cartCustomerDialog: document.querySelector("#cartCustomerDialog"),
   cartCustomerForm: document.querySelector("#cartCustomerForm"),
+  cartCustomerTitle: document.querySelector("#cartCustomerTitle"),
   cartCustomerInput: document.querySelector("#cartCustomerInput"),
   cartCustomerOptions: document.querySelector("#cartCustomerOptions"),
   cartCustomerFeedback: document.querySelector("#cartCustomerFeedback"),
@@ -204,6 +205,7 @@ const dom = {
   dialogReservationLabel: document.querySelector("#dialogReservationLabel"),
   cancelCartCustomer: document.querySelector("#cancelCartCustomer"),
   cancelCartCustomerTop: document.querySelector("#cancelCartCustomerTop"),
+  confirmCartCustomer: document.querySelector("#confirmCartCustomer"),
   noteDialog: document.querySelector("#noteDialog"),
   noteForm: document.querySelector("#noteForm"),
   noteProductSummary: document.querySelector("#noteProductSummary"),
@@ -8570,6 +8572,8 @@ function openCartCustomerDialog(product, options = {}) {
   pendingCartProduct = product;
   pendingCartFutureStock = Boolean(options.futureStock);
   pendingReservationChoiceTouched = false;
+  dom.cartCustomerTitle.textContent = pendingCartFutureStock ? "פרטי הזמנת מלאי עתידי" : "פרטי המוצר";
+  dom.confirmCartCustomer.textContent = pendingCartFutureStock ? "צור הזמנת מלאי עתידי" : "הוסף לסל";
   const last = lastPrices[product.skuKey];
   pendingCartPriceSource = "list";
   dom.pendingProductSummary.textContent = `${product.sku || "ללא מק״ט"} · ${product.description || "ללא תיאור"}`;
@@ -8628,6 +8632,8 @@ function renderDialogQuickPrices(product, last) {
 function closeCartCustomerDialog() {
   pendingCartProduct = null;
   pendingCartFutureStock = false;
+  dom.cartCustomerTitle.textContent = "פרטי המוצר";
+  dom.confirmCartCustomer.textContent = "הוסף לסל";
   dom.cartCustomerDialog.hidden = true;
   dom.cartCustomerInput.value = "";
   dom.cartProductQuantity.value = "1";

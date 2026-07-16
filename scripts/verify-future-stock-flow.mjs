@@ -20,6 +20,8 @@ assert(app.includes("isDiscontinuedCategory(getAnnotation(product).category)"));
 assert(app.includes("function requestFutureStockOrder(product, options = {})"));
 assert(app.includes("openArrivalDialog(product, { futureStockOrder: true })"));
 assert(app.includes("if (arrivalDate) return createFutureStockOrder(request, arrivalDate);"));
+assert(app.includes('dom.cartCustomerTitle.textContent = pendingCartFutureStock ? "פרטי הזמנת מלאי עתידי" : "פרטי המוצר";'));
+assert(app.includes('dom.confirmCartCustomer.textContent = pendingCartFutureStock ? "צור הזמנת מלאי עתידי" : "הוסף לסל";'));
 assert(app.includes("function createFutureStockOrder(request, futureStockDate)"));
 assert(app.includes("futureStockOrder: true"));
 assert(app.includes('queueCloudSave({ action: "future-stock-create" })'));

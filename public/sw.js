@@ -1,4 +1,4 @@
-const CACHE_NAME = "price-search-v65";
+const CACHE_NAME = "price-search-v66";
 const APP_SHELL = ["/", "/products.json", "/specs.json", "/manifest.webmanifest", "/favicon.svg", "/fujicom_logo.svg"];
 
 self.addEventListener("install", (event) => {
