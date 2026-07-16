@@ -12,7 +12,11 @@ assert(endpoint.includes('response.setHeader("Access-Control-Allow-Methods", "GE
 assert(endpoint.includes("const products = sanitizeProducts"));
 assert(endpoint.includes("model,"));
 assert(endpoint.includes("name,"));
-assert(endpoint.includes("colors: inferColors(name)"));
+assert(endpoint.includes("readCatalogAttributes"));
+assert(endpoint.includes("sanitizeTechnicalAttributes"));
+assert(endpoint.includes("category: technical.category"));
+assert(endpoint.includes("colors: [...new Set([...inferColors(name), ...technical.colors])"));
+assert(endpoint.includes("facts,"));
 assert(endpoint.includes("documents: getDocuments"));
 assert(!endpoint.includes("price: product.price"), "The public catalog must never expose prices.");
 assert(!endpoint.includes("stockQuantity:"), "The public catalog must never expose stock quantities.");

@@ -30,7 +30,9 @@ button { cursor: pointer; }
 
 .catalog-header,
 .search-panel,
+.category-filter-panel,
 .color-filter-panel,
+.attribute-filter-panel,
 .product-card,
 .catalog-footer {
   border: 1px solid rgba(157, 180, 201, 0.25);
@@ -100,12 +102,24 @@ h1 { margin-bottom: 7px; color: #f4f9fd; font-size: clamp(1.45rem, 4vw, 2.15rem)
 .catalog-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: #b6c6d2; font-size: 0.79rem; font-weight: 750; }
 .catalog-meta span:last-child { color: #7f9ab0; }
 
-.color-filter-panel { display: grid; gap: 10px; margin-top: 14px; padding: 14px 16px; border-radius: 16px; }
+.category-filter-panel,
+.color-filter-panel,
+.attribute-filter-panel { display: grid; gap: 10px; margin-top: 14px; padding: 14px 16px; border-radius: 16px; }
 .filter-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #c8d5df; font-size: 0.8rem; font-weight: 850; }
 .filter-heading button { border: 0; background: transparent; color: #82dfd0; font-size: 0.76rem; font-weight: 850; }
+.category-filters,
 .color-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.category-filter,
 .color-filter { min-height: 34px; padding: 0 12px; border: 1px solid rgba(161, 180, 198, 0.26); border-radius: 999px; background: rgba(57, 70, 84, 0.31); color: #c8d5df; font-size: 0.78rem; font-weight: 850; }
+.category-filter { border-color: rgba(102, 194, 218, 0.32); background: rgba(26, 92, 122, 0.19); color: #c4eaff; }
+.category-filter[aria-pressed="true"],
 .color-filter[aria-pressed="true"] { border-color: rgba(94, 228, 205, 0.7); background: rgba(26, 164, 145, 0.25); color: #d7fff6; }
+.attribute-filter-grid { display: grid; grid-template-columns: minmax(190px, 1.45fr) repeat(2, minmax(100px, 0.7fr)) minmax(130px, 0.8fr); gap: 10px; }
+.attribute-filter-grid label { display: grid; gap: 6px; min-width: 0; color: #9fb4c5; font-size: 0.72rem; font-weight: 850; }
+.attribute-filter-grid select,
+.attribute-filter-grid input { width: 100%; min-height: 40px; border: 1px solid rgba(126, 168, 194, 0.35); border-radius: 10px; outline: 0; background: rgba(5, 14, 23, 0.68); color: #e5f0f6; padding: 0 10px; font: inherit; }
+.attribute-filter-grid select:focus,
+.attribute-filter-grid input:focus { border-color: #5de6d0; box-shadow: 0 0 0 3px rgba(61, 210, 190, 0.11); }
 
 .catalog-status { min-height: 20px; margin: 12px 2px 0; color: #91aaBA; font-size: 0.76rem; }
 .catalog-results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 4px; }
@@ -113,11 +127,23 @@ h1 { margin-bottom: 7px; color: #f4f9fd; font-size: clamp(1.45rem, 4vw, 2.15rem)
 .product-card::before { position: absolute; inset: 0 0 0 auto; width: 4px; background: #aab8c8; box-shadow: 0 0 15px rgba(170, 184, 200, 0.4); content: ""; }
 .product-card:hover { border-color: rgba(116, 223, 207, 0.5); transform: translateY(-2px); transition: transform 160ms ease, border-color 160ms ease; }
 .product-card-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #92a9bb; font-size: 0.72rem; font-weight: 850; }
-.model-label { color: #6ed6c7; }
+.category-label { color: #6ed6c7; }
 code { overflow: hidden; color: #dbe9f2; direction: ltr; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
 .product-card h2 { min-height: 3.05em; margin: 0; color: #f0f5f9; font-size: 0.98rem; line-height: 1.52; }
 .color-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .color-tags span { min-height: 25px; padding-inline: 8px; border-color: rgba(162, 180, 199, 0.27); background: rgba(133, 151, 169, 0.11); color: #cedae4; font-size: 0.68rem; }
+.metric-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.metric-tags span { display: inline-flex; align-items: center; gap: 5px; min-height: 27px; padding: 0 8px; border: 1px solid rgba(107, 180, 207, 0.28); border-radius: 8px; background: rgba(38, 77, 99, 0.22); color: #cce9f5; font-size: 0.68rem; font-weight: 750; }
+.metric-tags b { color: #71dfd0; font-weight: 900; }
+.technical-details { border-top: 1px solid rgba(149, 169, 186, 0.16); padding-top: 10px; color: #bfced9; }
+.technical-details summary { cursor: pointer; color: #8ee8da; font-size: 0.76rem; font-weight: 900; }
+.technical-details[open] summary { margin-bottom: 12px; }
+.specification-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 0; }
+.specification-grid div { min-width: 0; padding: 8px; border: 1px solid rgba(137, 162, 182, 0.17); border-radius: 8px; background: rgba(20, 36, 50, 0.4); }
+.specification-grid dt { color: #78d9cb; font-size: 0.64rem; font-weight: 900; }
+.specification-grid dd { margin: 4px 0 0; color: #e3edf3; font-size: 0.7rem; line-height: 1.45; }
+.technical-facts { display: grid; gap: 6px; margin: 10px 0 0; padding: 0 18px 0 0; color: #aebfcb; font-size: 0.7rem; line-height: 1.55; }
+.technical-facts li::marker { color: #6adccd; }
 .document-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 3px; }
 .document-link { display: inline-flex; min-height: 37px; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid rgba(130, 185, 219, 0.48); border-radius: 10px; background: rgba(24, 85, 120, 0.2); color: #afebff; font-size: 0.74rem; font-weight: 900; text-decoration: none; }
 .document-link.installation { border-color: rgba(117, 214, 180, 0.48); background: rgba(20, 115, 80, 0.19); color: #b8f7d8; }
@@ -138,6 +164,10 @@ code { overflow: hidden; color: #dbe9f2; direction: ltr; font-family: ui-monospa
   .catalog-results { grid-template-columns: 1fr; gap: 10px; }
   .product-card { min-height: 0; padding: 15px; }
   .product-card h2 { min-height: 0; }
-  .search-panel, .color-filter-panel { padding: 12px; border-radius: 14px; }
+  .search-panel, .category-filter-panel, .color-filter-panel, .attribute-filter-panel { padding: 12px; border-radius: 14px; }
   .search-field { min-height: 52px; }
+  .attribute-filter-grid { grid-template-columns: 1fr 1fr; }
+  .attribute-filter-grid label:first-child,
+  .attribute-filter-grid label:last-child { grid-column: 1 / -1; }
+  .specification-grid { grid-template-columns: 1fr; }
 }

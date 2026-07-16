@@ -15,7 +15,7 @@
           <div>
             <p class="eyebrow">לסוחרים מורשים</p>
             <h1>קטלוג דגמים ומפרטים</h1>
-            <p class="header-copy">חיפוש חופשי לפי שם מוצר, דגם או צבע — עם גישה מהירה למפרטים ולהוראות התקנה.</p>
+            <p class="header-copy">חיפוש חופשי לפי שם, דגם ומפרט טכני — כולל מידות, נפח, הספק, צבע, מסמכים והוראות התקנה.</p>
           </div>
         </div>
         <div class="catalog-scope" aria-label="מה מופיע בקטלוג">
@@ -28,7 +28,7 @@
       <section class="search-panel" aria-label="חיפוש בקטלוג">
         <label class="search-field" for="catalogSearch">
           <span class="search-icon" aria-hidden="true">⌕</span>
-          <input id="catalogSearch" type="search" autocomplete="off" placeholder="לדוגמה: מקרר 4 דלתות, FJ-NF או שחור" />
+          <input id="catalogSearch" type="search" autocomplete="off" placeholder="לדוגמה: מקרר 4 דלתות, 600 ליטר, 90 ס״מ או שחור" />
           <button id="clearSearch" class="clear-search" type="button" aria-label="נקה חיפוש" hidden>×</button>
         </label>
         <div class="catalog-meta">
@@ -37,12 +37,49 @@
         </div>
       </section>
 
+      <section class="category-filter-panel" aria-label="קטגוריות מוצרים">
+        <div class="filter-heading">
+          <span>קטגוריות</span>
+          <button id="clearCategory" type="button" hidden>כל הקטגוריות</button>
+        </div>
+        <div id="categoryFilters" class="category-filters"></div>
+      </section>
+
       <section class="color-filter-panel" aria-label="סינון לפי צבע">
         <div class="filter-heading">
           <span>סינון מהיר לפי צבע</span>
           <button id="clearColor" type="button" hidden>נקה סינון</button>
         </div>
         <div id="colorFilters" class="color-filters"></div>
+      </section>
+
+      <section class="attribute-filter-panel" aria-label="סינון מתקדם לפי מפרט">
+        <div class="filter-heading">
+          <span>סינון מתקדם לפי מאפיינים</span>
+          <button id="clearAttributes" type="button" hidden>נקה סינון מתקדם</button>
+        </div>
+        <div class="attribute-filter-grid">
+          <label>
+            <span>מאפיין מספרי</span>
+            <select id="attributeField">
+              <option value="">כל מאפיין</option>
+            </select>
+          </label>
+          <label>
+            <span>מינימום</span>
+            <input id="attributeMin" type="number" inputmode="decimal" placeholder="ללא" />
+          </label>
+          <label>
+            <span>מקסימום</span>
+            <input id="attributeMax" type="number" inputmode="decimal" placeholder="ללא" />
+          </label>
+          <label>
+            <span>דירוג אנרגטי</span>
+            <select id="energyRating">
+              <option value="">כל הדירוגים</option>
+            </select>
+          </label>
+        </div>
       </section>
 
       <p id="catalogStatus" class="catalog-status" role="status" aria-live="polite"></p>

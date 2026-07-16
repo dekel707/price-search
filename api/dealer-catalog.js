@@ -5,6 +5,7 @@ import { STATE_PATH, getBlobAuthOptions, hasBlobStorageCredentials, streamToText
 
 const DEFAULT_ASSET_ORIGIN = "https://price-search-teal.vercel.app";
 const MANIFEST_URL = new URL("../public/specs.json", import.meta.url);
+const CATALOG_ATTRIBUTES_PATH = "price-search/catalog-attributes.json";
 const COLOR_RULES = [
   ["שחור", /שחור|black|\bbk\b/i],
   ["לבן", /לבן|white|\bwh\b/i],
@@ -37,9 +38,9 @@ export default async function handler(request, response) {
   }
 
   try {
-    const [stored, manifest] = await Promise.all([readCatalogState(), readSpecManifest()]);
+    const [stored, manifest, attributes] = await Promise.all([readCatalogState(), readSpecManifest(), readCatalogAttributes()]);
     const assetOrigin = getAssetOrigin();
-    const products = sanitizeProducts(stored.state?.products, manifest, assetOrigin);
+    const products = sanitizeProducts(stored.state?.products, manifest, attributes, assetOrigin);
 
     sendJson(response, 200, {
       version: 1,
@@ -51,6 +52,14 @@ export default async function handler(request, response) {
     console.error("dealer_catalog_read_failed", error);
     sendJson(response, 503, { error: "catalog_unavailable" });
   }
+}
+
+async function readCatalogAttributes() {
+  if (!hasBlobStorageCredentials()) return {};
+  const stored = await get(CATALOG_ATTRIBUTES_PATH, { access: "private", useCache: true, ...getBlobAuthOptions() });
+  if (!stored || stored.statusCode !== 200 || !stored.stream) return {};
+  const catalog = JSON.parse(await streamToText(stored.stream));
+  return catalog?.items && typeof catalog.items === "object" ? catalog.items : {};
 }
 
 async function readCatalogState() {
@@ -79,7 +88,7 @@ async function readSpecManifest() {
   return manifestPromise;
 }
 
-function sanitizeProducts(value, manifest, assetOrigin) {
+function sanitizeProducts(value, manifest, attributesByModel, assetOrigin) {
   const seen = new Set();
   return (Array.isArray(value) ? value : [])
     .map((product) => {
@@ -89,15 +98,89 @@ function sanitizeProducts(value, manifest, assetOrigin) {
       const key = model.toUpperCase();
       if (seen.has(key)) return null;
       seen.add(key);
+      const attributes = attributesByModel?.[normalizeKey(model)] || {};
+      const technical = sanitizeTechnicalAttributes(attributes, name);
       return {
         model,
         name,
-        colors: inferColors(name),
+        category: technical.category,
+        colors: [...new Set([...inferColors(name), ...technical.colors])],
+        technical,
         documents: getDocuments(manifest, model, assetOrigin),
       };
     })
     .filter(Boolean)
     .sort((left, right) => left.model.localeCompare(right.model, "en"));
+}
+
+function sanitizeTechnicalAttributes(value, name) {
+  const attributes = value && typeof value === "object" ? value : {};
+  const dimensionsCm = numericRecord(attributes.dimensionsCm, ["widthCm", "heightCm", "depthCm"]);
+  const capacities = numericRecord(attributes.capacities, ["totalLiters", "fridgeLiters", "freezerLiters", "ovenLiters", "bottleCount", "placeSettings", "washKg"]);
+  const performance = numericRecord(attributes.performance, ["powerW", "programCount", "noiseDb", "waterConsumptionLiters", "spinRpm", "airflowM3h", "screenSizeInches"]);
+  const energyRating = cleanString(attributes.performance?.energyRating);
+  const temperatureRangeC = numericRange(attributes.performance?.temperatureRangeC);
+  const resolutionPixels = numericRecord(attributes.performance?.resolutionPixels, ["width", "height"]);
+  const displayDimensionsMm = {
+    withoutStand: numericRecord(attributes.displayDimensionsMm?.withoutStand, ["widthMm", "heightMm", "depthMm"]),
+    withStand: numericRecord(attributes.displayDimensionsMm?.withStand, ["widthMm", "heightMm", "depthMm"]),
+  };
+  const category = cleanString(attributes.classification?.category) || inferCategory(name);
+  const colors = [...new Set((Array.isArray(attributes.colors) ? attributes.colors : []).map(cleanString).filter(Boolean))];
+  const barcodes = [...new Set((Array.isArray(attributes.barcodes) ? attributes.barcodes : [])
+    .map(cleanString)
+    .filter((barcode) => /^\d{10,14}$/.test(barcode)))];
+  const facts = [...new Set([
+    ...(Array.isArray(attributes.features) ? attributes.features : []),
+    ...(Array.isArray(attributes.sourceFacts) ? attributes.sourceFacts : []),
+  ].map(cleanString).filter(Boolean))].slice(0, 80);
+  return {
+    category,
+    colors,
+    dimensionsCm,
+    ...(Object.keys(capacities).length ? { capacities } : {}),
+    ...(Object.keys(performance).length || energyRating || temperatureRangeC || Object.keys(resolutionPixels).length
+      ? { performance: { ...performance, ...(energyRating ? { energyRating } : {}), ...(temperatureRangeC ? { temperatureRangeC } : {}), ...(Object.keys(resolutionPixels).length ? { resolutionPixels } : {}) } }
+      : {}),
+    ...(Object.keys(displayDimensionsMm.withoutStand).length || Object.keys(displayDimensionsMm.withStand).length ? { displayDimensionsMm } : {}),
+    ...(isFiniteNumber(attributes.weightKg) ? { weightKg: Number(attributes.weightKg) } : {}),
+    ...(barcodes.length ? { barcodes } : {}),
+    facts,
+  };
+}
+
+function numericRecord(value, keys) {
+  const result = {};
+  for (const key of keys) {
+    if (isFiniteNumber(value?.[key])) result[key] = Number(value[key]);
+  }
+  return result;
+}
+
+function numericRange(value) {
+  if (!isFiniteNumber(value?.min) || !isFiniteNumber(value?.max)) return null;
+  return { min: Number(value.min), max: Number(value.max) };
+}
+
+function isFiniteNumber(value) {
+  return Number.isFinite(Number(value));
+}
+
+function inferCategory(name) {
+  const categories = [
+    ["טלוויזיה", ["TV", "טלוויז"]],
+    ["מיקרוגל", ["מיקרוגל"]],
+    ["תנור", ["תנור"]],
+    ["קולט אדים", ["קולט"]],
+    ["כיריים", ["כיריים"]],
+    ["מדיח כלים", ["מדיח"]],
+    ["מכונת כביסה", ["מכונת כביסה", "מ.כביסה"]],
+    ["מייבש כביסה", ["מייבש"]],
+    ["מקרר", ["מקרר"]],
+    ["מקפיא", ["מקפיא"]],
+  ];
+  const lowered = cleanString(name).toLocaleLowerCase("he-IL");
+  return categories.find(([, terms]) => terms.some((term) => lowered.includes(term.toLocaleLowerCase("he-IL"))))?.[0] || "אחר";
 }
 
 function getDocuments(manifest, model, assetOrigin) {
