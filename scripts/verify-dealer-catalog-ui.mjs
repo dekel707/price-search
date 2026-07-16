@@ -14,6 +14,9 @@ assert(page.includes('id="attributeField"'), "The catalog must expose the numeri
 assert(app.includes("METRIC_DEFINITIONS"), "The catalog must define its available numeric filters.");
 assert(app.includes("renderCategoryFilters"), "The catalog must render product categories.");
 assert(app.includes("matchesNumericFilter"), "The catalog must filter numeric specification ranges.");
+assert(app.includes("getProductHighlights"), "The catalog must display the strongest technical highlights on each product.");
+assert(app.includes('activeCategory = activeCategory === selectedCategory ? "" : selectedCategory'), "A selected category must toggle off when pressed again.");
+assert(app.includes('activeColor = activeColor === selectedColor ? "" : selectedColor'), "A selected quick color filter must toggle off when pressed again.");
 
 const refrigerator = fallback.products.find((product) => product.model === "FJ-NF820DX");
 assert(refrigerator, "Expected reference refrigerator in dealer catalog.");

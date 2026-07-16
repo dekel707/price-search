@@ -132,6 +132,9 @@ code { overflow: hidden; color: #dbe9f2; direction: ltr; font-family: ui-monospa
 .product-card h2 { min-height: 3.05em; margin: 0; color: #f0f5f9; font-size: 0.98rem; line-height: 1.52; }
 .color-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .color-tags span { min-height: 25px; padding-inline: 8px; border-color: rgba(162, 180, 199, 0.27); background: rgba(133, 151, 169, 0.11); color: #cedae4; font-size: 0.68rem; }
+.product-highlights { display: flex; flex-wrap: wrap; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.product-highlights li { display: inline-flex; min-height: 29px; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid rgba(91, 231, 205, 0.42); border-radius: 9px; background: linear-gradient(135deg, rgba(33, 138, 126, 0.28), rgba(22, 74, 94, 0.24)); color: #d2fff6; font-size: 0.7rem; font-weight: 900; box-shadow: inset 0 1px 0 rgba(234, 255, 251, 0.08); }
+.product-highlights li span { display: inline-grid; width: 17px; height: 17px; place-items: center; border-radius: 6px; background: rgba(103, 239, 213, 0.16); color: #72f4df; font-size: 0.8rem; line-height: 1; }
 .metric-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .metric-tags span { display: inline-flex; align-items: center; gap: 5px; min-height: 27px; padding: 0 8px; border: 1px solid rgba(107, 180, 207, 0.28); border-radius: 8px; background: rgba(38, 77, 99, 0.22); color: #cce9f5; font-size: 0.68rem; font-weight: 750; }
 .metric-tags b { color: #71dfd0; font-weight: 900; }

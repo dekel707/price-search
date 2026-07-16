@@ -73,7 +73,8 @@ function bindEvents() {
   dom.categoryFilters.addEventListener("click", (event) => {
     const button = event.target.closest("[data-category]");
     if (!button) return;
-    activeCategory = button.dataset.category || "";
+    const selectedCategory = button.dataset.category || "";
+    activeCategory = activeCategory === selectedCategory ? "" : selectedCategory;
     renderCategoryFilters();
     render();
   });
@@ -85,7 +86,8 @@ function bindEvents() {
   dom.colorFilters.addEventListener("click", (event) => {
     const button = event.target.closest("[data-color]");
     if (!button) return;
-    activeColor = button.dataset.color || "";
+    const selectedColor = button.dataset.color || "";
+    activeColor = activeColor === selectedColor ? "" : selectedColor;
     renderColorFilters();
     render();
   });
@@ -284,6 +286,10 @@ function renderProductCard(product) {
   const metrics = keyMetrics.length
     ? `<div class="metric-tags">${keyMetrics.map((row) => `<span><b>${escapeHtml(row.label)}</b>${escapeHtml(row.value)}</span>`).join("")}</div>`
     : "";
+  const highlights = getProductHighlights(product);
+  const highlightTags = highlights.length
+    ? `<ul class="product-highlights" aria-label="עיקרי המוצר">${highlights.map((highlight) => `<li title="${escapeAttribute(highlight.label)}"><span aria-hidden="true">${escapeHtml(highlight.icon)}</span>${escapeHtml(highlight.label)}</li>`).join("")}</ul>`
+    : "";
   const technicalDetails = rows.length || product.technical.facts.length
     ? `<details class="technical-details"><summary>מפרט טכני מלא</summary>${rows.length ? `<dl class="specification-grid">${rows.map((row) => `<div><dt>${escapeHtml(row.label)}</dt><dd>${escapeHtml(row.value)}</dd></div>`).join("")}</dl>` : ""}${product.technical.facts.length ? `<ul class="technical-facts">${product.technical.facts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>` : ""}</details>`
     : "";
@@ -295,11 +301,39 @@ function renderProductCard(product) {
       <div class="product-card-topline"><span class="category-label">${escapeHtml(product.category)}</span><code>${escapeHtml(product.model)}</code></div>
       <h2>${escapeHtml(product.name)}</h2>
       ${colors}
+      ${highlightTags}
       ${metrics}
       ${technicalDetails}
       ${documents}
     </article>
   `;
+}
+
+function getProductHighlights(product) {
+  const technical = product.technical;
+  const facts = normalizeSearch([product.name, ...technical.facts].join(" "));
+  const highlights = [];
+  const add = (icon, label) => {
+    if (!highlights.some((highlight) => highlight.label === label)) highlights.push({ icon, label });
+  };
+
+  if (technical.performance.resolutionPixels?.width >= 3840 || /\b4k\b|\buhd\b/.test(facts)) add("✦", "4K Ultra HD");
+  if (/smart/.test(facts)) add("◉", "Smart TV");
+  if (/wi\s*-?\s*fi|wifi/.test(facts)) add("⌁", "Wi‑Fi");
+  if (/no\s*frost|frost\s*no/.test(facts)) add("❄", "No Frost");
+  if (/inverter|אינוורטר/.test(facts)) add("ϟ", "מנוע אינוורטר");
+  if (/heat\s*pump|משאבת חום/.test(facts)) add("♨", "Heat Pump");
+  if (/אינדוקציה/.test(facts)) add("◎", "אינדוקציה");
+
+  if (isFiniteNumber(technical.capacities.totalLiters)) add("▣", `נפח ${formatNumber(technical.capacities.totalLiters)} ל׳`);
+  else if (isFiniteNumber(technical.capacities.washKg)) add("▣", `קיבולת ${formatNumber(technical.capacities.washKg)} ק״ג`);
+  else if (isFiniteNumber(technical.capacities.ovenLiters)) add("▣", `נפח ${formatNumber(technical.capacities.ovenLiters)} ל׳`);
+  else if (isFiniteNumber(technical.performance.screenSizeInches)) add("▣", `${formatNumber(technical.performance.screenSizeInches)} אינץ׳`);
+
+  if (isFiniteNumber(technical.performance.spinRpm)) add("↻", `${formatNumber(technical.performance.spinRpm)} סל״ד`);
+  if (isFiniteNumber(technical.performance.powerW)) add("ϟ", `${formatNumber(technical.performance.powerW)}W`);
+  if (technical.performance.energyRating) add("◎", `דירוג ${technical.performance.energyRating}`);
+  return highlights.slice(0, 4);
 }
 
 function getSpecificationRows(product) {
