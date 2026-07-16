@@ -14,6 +14,9 @@ assert(endpoint.includes("model,"));
 assert(endpoint.includes("name,"));
 assert(endpoint.includes("readCatalogAttributes"));
 assert(endpoint.includes("sanitizeTechnicalAttributes"));
+assert(endpoint.includes("assertDealerCatalogPrivacy(products)"), "The public catalog must fail closed when a commercial field is added.");
+assert(endpoint.includes("DEALER_PRIVATE_FIELDS"), "The public catalog must maintain an explicit private-field denylist.");
+assert(endpoint.includes("isDealerSafeFact"), "The public catalog must strip stock and price language from technical facts.");
 assert(endpoint.includes("category: technical.category"));
 assert(endpoint.includes("colors: [...new Set([...inferColors(name), ...technical.colors])"));
 assert(endpoint.includes("facts,"));
@@ -23,5 +26,6 @@ assert(!endpoint.includes("stockQuantity:"), "The public catalog must never expo
 assert(!endpoint.includes("customers:"), "The public catalog must never expose customers.");
 assert(!endpoint.includes("orders:"), "The public catalog must never expose orders.");
 assert(!endpoint.includes("reservations:"), "The public catalog must never expose reservations.");
+assert(!endpoint.includes("localStorage"), "The public catalog browser must not reuse an old cached payload.");
 
 console.log("Dealer catalog API safety checks passed.");

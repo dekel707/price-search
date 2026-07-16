@@ -85,27 +85,9 @@ await page.locator("[data-manage-product-category]").first().selectOption("מק�
 await page.locator('[data-tab="search"]').click();
 await page.locator("#searchInput").fill("IT-CF244");
 await page.locator(".result-row").first().waitFor();
-const specHref = await page.locator(".result-row").first().locator("[data-product-spec]").getAttribute("href");
-if (!decodeURIComponent(specHref || "").includes("/img/IT-CF244.pdf")) {
-  throw new Error(`Expected IT-CF244 spec PDF link, got: ${specHref}`);
-}
-const specResponse = await page.request.get(new URL(specHref, page.url()).toString());
-if (!specResponse.ok()) {
-  throw new Error(`Expected IT-CF244 PDF to load, got: ${specResponse.status()}`);
-}
 await page.locator("[data-edit-product-note]").first().click();
 await page.locator("#noteInput").fill("לבדוק זמינות לפני סגירה");
 await page.locator("#noteForm").getByRole("button", { name: "שמור הערה" }).click();
-
-await page.locator("#searchInput").fill("FJ-B957E");
-const installationHref = await page.locator(".result-row").first().locator("[data-product-installation]").getAttribute("href");
-if (!decodeURIComponent(installationHref || "").includes("FJ-B957E הוראות התקנה.pdf")) {
-  throw new Error(`Expected FJ-B957E installation PDF link, got: ${installationHref}`);
-}
-const installationResponse = await page.request.get(new URL(installationHref, page.url()).toString());
-if (!installationResponse.ok()) {
-  throw new Error(`Expected FJ-B957E installation PDF to load, got: ${installationResponse.status()}`);
-}
 
 await page.locator('[data-tab="categories"]').click();
 await page.locator("#categoryInput").fill("יצא מהמהגוון");

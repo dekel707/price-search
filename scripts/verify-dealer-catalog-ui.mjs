@@ -31,6 +31,10 @@ assert(app.includes("details.open = Boolean(activeValue);"), "All filter groups 
 assert(styles.includes("overflow-y: auto;"), "The desktop filter sidebar must support independent scrolling.");
 assert(styles.includes("overscroll-behavior: contain;"), "The filter sidebar must contain wheel scrolling instead of passing it to the product list.");
 assert(app.includes("stripBarcodes"), "Barcodes must be removed before dealer catalog rendering.");
+assert(!app.includes("localStorage"), "The dealer catalog must not render a stale locally cached payload.");
+assert(!app.includes("product.price"), "The dealer catalog UI must not handle or render prices.");
+assert(!app.includes("stockQuantity"), "The dealer catalog UI must not handle or render stock.");
+assert(!app.includes("product.availability"), "The dealer catalog UI must not handle or render availability.");
 assert(!app.includes('rows.push(["ברקוד"'), "The dealer catalog must not render barcode rows.");
 assert(!app.includes('add("◎", `דירוג ${technical.performance.energyRating}`)'), "Energy ratings must not be shown as prominent product icons.");
 assert(app.includes('activeCategory = activeCategory === selectedCategory ? "" : selectedCategory'), "A selected category must toggle off when pressed again.");
@@ -44,7 +48,25 @@ assert.equal(refrigerator.technical?.dimensionsCm?.heightCm, 191);
 assert.equal(refrigerator.technical?.capacities?.totalLiters, 600);
 assert(fallback.products.filter((product) => /קו\s*אפס/.test((product.technical?.facts || []).join(" "))).length >= 3, "Expected zero-line refrigerator data in the public catalog.");
 
-const forbidden = new Set(["price", "stockQuantity", "customers", "orders", "reservations", "collections"]);
+const forbidden = new Set([
+  "price",
+  "priceText",
+  "listPrice",
+  "unitPrice",
+  "priceSource",
+  "stock",
+  "stockQuantity",
+  "inventory",
+  "quantity",
+  "availability",
+  "available",
+  "inStock",
+  "outOfStock",
+  "customers",
+  "orders",
+  "reservations",
+  "collections",
+]);
 function assertPublicOnly(value, pathLabel = "catalog") {
   if (Array.isArray(value)) {
     value.forEach((item, index) => assertPublicOnly(item, `${pathLabel}[${index}]`));

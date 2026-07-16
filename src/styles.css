@@ -6639,6 +6639,45 @@ body {
 
 .advanced-search-meta span:last-child { color: #7fa0ac; }
 
+.advanced-nearby-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(106, 210, 196, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(20, 91, 90, 0.22), rgba(13, 41, 60, 0.34));
+}
+
+.advanced-nearby-label {
+  color: #a8e9df;
+  font-size: 0.73rem;
+  font-weight: 900;
+}
+
+.advanced-nearby-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.advanced-nearby-chip {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid rgba(109, 213, 201, 0.34);
+  border-radius: 999px;
+  background: rgba(21, 104, 103, 0.18);
+  color: #d2fff8;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.advanced-nearby-chip:hover,
+.advanced-nearby-chip:focus-visible,
+.advanced-nearby-chip[aria-pressed="true"] {
+  border-color: #74e6d8;
+  background: rgba(37, 166, 149, 0.3);
+  color: #f0fffc;
+}
+
 .advanced-category-filter-panel,
 .advanced-search-filter-panel,
 .advanced-product-card {
@@ -6884,6 +6923,9 @@ body {
 .advanced-document-link.installation { border-color: rgba(117, 214, 180, 0.48); background: rgba(20, 115, 80, 0.19); color: #b8f7d8; }
 .advanced-document-link:hover { border-color: #80f0de; background: rgba(35, 151, 134, 0.26); }
 .advanced-no-document { margin: auto 0 0; padding-top: 10px; border-top: 1px solid rgba(149, 169, 186, 0.16); color: #8d9eae; font-size: 0.74rem; }
+.advanced-spec-whatsapp { display: inline-flex; min-height: 37px; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid rgba(72, 222, 130, 0.6); border-radius: 10px; background: linear-gradient(135deg, rgba(22, 159, 87, 0.88), rgba(21, 111, 73, 0.82)); color: #effff5; font: inherit; font-size: 0.73rem; font-weight: 900; }
+.advanced-spec-whatsapp:hover,
+.advanced-spec-whatsapp:focus-visible { border-color: #8affb7; background: linear-gradient(135deg, #22b960, #197b51); color: #fff; }
 .advanced-empty-state { display: grid; grid-column: 1 / -1; gap: 7px; min-height: 180px; place-content: center; padding: 24px; border: 1px dashed rgba(141, 172, 197, 0.32); border-radius: 16px; color: #a9bac8; text-align: center; }
 .advanced-empty-state strong { color: #e6f7f5; }
 

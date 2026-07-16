@@ -224,6 +224,7 @@ const dom = {
   advancedSearchSummary: document.querySelector("#advancedSearchSummary"),
   advancedSearchStatus: document.querySelector("#advancedSearchStatus"),
   advancedSearchResults: document.querySelector("#advancedSearchResults"),
+  advancedNearbyOptions: document.querySelector("#advancedNearbyOptions"),
   fileInput: document.querySelector("#fileInput"),
   resetData: document.querySelector("#resetData"),
   stockFileInput: document.querySelector("#stockFileInput"),
@@ -481,6 +482,7 @@ let actionToastTimer = null;
 let advancedSearchCategory = "";
 const advancedSearchFacets = { color: "", energy: "", volume: "", height: "", width: "", feature: "" };
 const advancedSearchQuickFilters = {};
+let advancedSearchProximityOverride = null;
 
 init();
 
@@ -703,9 +705,13 @@ function bindEvents() {
   });
   dom.searchInput.addEventListener("input", render);
   dom.categoryFilter.addEventListener("change", render);
-  dom.advancedSearchInput.addEventListener("input", renderAdvancedSearch);
+  dom.advancedSearchInput.addEventListener("input", () => {
+    advancedSearchProximityOverride = null;
+    renderAdvancedSearch();
+  });
   dom.advancedClearSearch.addEventListener("click", () => {
     dom.advancedSearchInput.value = "";
+    advancedSearchProximityOverride = null;
     dom.advancedSearchInput.focus();
     renderAdvancedSearch();
   });
@@ -745,6 +751,21 @@ function bindEvents() {
     clearAdvancedSimpleFacets();
     clearAdvancedQuickFilters();
     renderAdvancedSearch();
+  });
+  dom.advancedNearbyOptions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-advanced-nearby-value]");
+    if (!button) return;
+    const value = Number(button.dataset.advancedNearbyValue);
+    const metric = button.dataset.advancedNearbyMetric || "";
+    if (!Number.isFinite(value) || !metric) return;
+    advancedSearchProximityOverride = { metric, value };
+    renderAdvancedSearch();
+  });
+  dom.advancedSearchResults.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-send-advanced-spec]");
+    if (!button) return;
+    const product = getAdvancedSearchProducts().find((item) => getModelKey(item.model) === button.dataset.sendAdvancedSpec);
+    if (product) sendAdvancedSpecificationToWhatsApp(product);
   });
   dom.addCategory.addEventListener("click", addCategoryFromInput);
   dom.categoryInput.addEventListener("keydown", (event) => {
@@ -2737,14 +2758,16 @@ function renderAdvancedSearch() {
   renderAdvancedSimpleFilters(advancedProducts);
 
   const query = normalizeSearch(dom.advancedSearchInput.value);
+  const searchContext = getAdvancedSearchContext(query);
   const visible = advancedProducts.filter((product) => (
-    advancedMatchesSearch(product, query)
+    advancedMatchesSearch(product, searchContext)
     && advancedMatchesActiveCategory(product)
     && advancedMatchesSimpleFilters(product)
   ));
   const hasFilters = Boolean(query || advancedSearchCategory || advancedHasActiveFilters());
 
   dom.advancedClearSearch.hidden = !dom.advancedSearchInput.value;
+  renderAdvancedNearbyOptions(advancedProducts, searchContext);
   dom.advancedSearchSummary.textContent = hasFilters
     ? `${visible.length.toLocaleString("he-IL")} התאמות`
     : `${advancedProducts.length.toLocaleString("he-IL")} דגמים עם מפרט טכני`;
@@ -2836,8 +2859,8 @@ function renderAdvancedSimpleFilters(advancedProducts) {
   dom.advancedClearFilters.hidden = !advancedSearchCategory && !advancedHasActiveFilters();
 }
 
-function advancedMatchesSearch(product, query) {
-  if (!query) return true;
+function advancedMatchesSearch(product, searchContext) {
+  if (!searchContext.query) return true;
   const rows = getAdvancedSpecificationRows(product).map((row) => `${row.label} ${row.value}`);
   const haystack = normalizeSearch([
     product.model,
@@ -2847,7 +2870,144 @@ function advancedMatchesSearch(product, query) {
     rows.join(" "),
     product.technical.facts.join(" "),
   ].join(" "));
-  return query.split(" ").every((term) => haystack.includes(term));
+  if (!searchContext.terms.every((term) => haystack.includes(term))) return false;
+  if (!searchContext.proximity) return true;
+  return advancedMatchesProximity(product, searchContext.proximity);
+}
+
+function getAdvancedSearchContext(query) {
+  const terms = query.split(" ").filter(Boolean);
+  const values = (query.match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(Number.isFinite);
+  const metric = advancedDetectProximityMetric(query, values);
+  if (!metric || !values.length) return { query, terms, proximity: null };
+
+  const requestedValue = values.at(-1);
+  const override = advancedSearchProximityOverride?.metric === metric ? advancedSearchProximityOverride : null;
+  const target = override?.value ?? requestedValue;
+  return {
+    query,
+    terms: terms.filter((term) => !values.some((value) => term === String(value))),
+    proximity: { metric, value: target, requestedValue },
+  };
+}
+
+function advancedDetectProximityMetric(query, values) {
+  const requestedValue = values.at(-1);
+  if (!Number.isFinite(requestedValue)) return "";
+  if (/גובה/.test(query)) return "height";
+  if (/רוחב/.test(query)) return "width";
+  if (/עומק/.test(query)) return "depth";
+  if (/סלד|סחיטה/.test(query)) return "spinRpm";
+  if (/אינץ|מסך/.test(query)) return "screenSize";
+  if (/קג|קילו|קיבולת/.test(query)) return "washKg";
+  if (/ליטר|נפח/.test(query)) return "volume";
+  if (/טלוויז|tv/.test(query) && requestedValue <= 120) return "screenSize";
+  if (/מכונ(?:ת)? כביסה|מייבש/.test(query) && requestedValue <= 30) return "washKg";
+  if (/מקרר|מקפיא|מיקרוגל/.test(query) && requestedValue >= 20) return "volume";
+  return "";
+}
+
+function renderAdvancedNearbyOptions(advancedProducts, searchContext) {
+  const container = dom.advancedNearbyOptions;
+  if (!searchContext.proximity) {
+    container.hidden = true;
+    container.replaceChildren();
+    return;
+  }
+
+  const candidates = advancedGetNearbyMetricValues(advancedProducts, searchContext);
+  if (!candidates.length) {
+    container.hidden = true;
+    container.replaceChildren();
+    return;
+  }
+
+  const heading = document.createElement("span");
+  heading.className = "advanced-nearby-label";
+  const requestedLabel = advancedFormatMetricValue(searchContext.proximity.metric, searchContext.proximity.requestedValue);
+  heading.textContent = `אפשרויות קרובות ל־${requestedLabel}`;
+
+  const options = document.createElement("div");
+  options.className = "advanced-nearby-chips";
+  candidates.forEach(({ value, count }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "advanced-nearby-chip";
+    button.dataset.advancedNearbyMetric = searchContext.proximity.metric;
+    button.dataset.advancedNearbyValue = String(value);
+    button.setAttribute("aria-pressed", String(value === searchContext.proximity.value));
+    button.textContent = `${advancedFormatMetricValue(searchContext.proximity.metric, value)} · ${count}`;
+    options.append(button);
+  });
+  container.replaceChildren(heading, options);
+  container.hidden = false;
+}
+
+function advancedGetNearbyMetricValues(advancedProducts, searchContext) {
+  const { metric, value: target } = searchContext.proximity || {};
+  if (!metric || !Number.isFinite(target)) return [];
+  const values = new Map();
+  advancedProducts
+    .filter((product) => advancedMatchesActiveCategory(product) && advancedMatchesSimpleFilters(product))
+    .filter((product) => advancedMatchesSearchText(product, searchContext.terms))
+    .forEach((product) => {
+      const value = advancedGetProductMetricValue(product, metric);
+      if (!Number.isFinite(value)) return;
+      values.set(value, (values.get(value) || 0) + 1);
+    });
+
+  const sorted = [...values.entries()]
+    .map(([value, count]) => ({ value, count, distance: Math.abs(value - target) }))
+    .sort((left, right) => left.distance - right.distance || left.value - right.value);
+  const tolerance = advancedGetProximityTolerance(metric, target);
+  const close = sorted.filter((option) => option.distance <= tolerance);
+  return (close.length ? close : sorted).slice(0, 6);
+}
+
+function advancedMatchesSearchText(product, terms) {
+  if (!terms.length) return true;
+  const rows = getAdvancedSpecificationRows(product).map((row) => `${row.label} ${row.value}`);
+  const haystack = normalizeSearch([
+    product.model,
+    product.name,
+    product.category,
+    product.colors.join(" "),
+    rows.join(" "),
+    product.technical.facts.join(" "),
+  ].join(" "));
+  return terms.every((term) => haystack.includes(term));
+}
+
+function advancedMatchesProximity(product, proximity) {
+  const value = advancedGetProductMetricValue(product, proximity.metric);
+  return Number.isFinite(value) && Math.abs(value - proximity.value) <= advancedGetProximityTolerance(proximity.metric, proximity.value);
+}
+
+function advancedGetProductMetricValue(product, metric) {
+  if (metric === "volume") return Number(product.technical.capacities.totalLiters);
+  if (metric === "washKg") return Number(product.technical.capacities.washKg);
+  if (metric === "screenSize") return Number(product.technical.performance.screenSizeInches);
+  if (metric === "spinRpm") return Number(product.technical.performance.spinRpm);
+  if (metric === "height") return Number(product.technical.dimensionsCm.heightCm);
+  if (metric === "width") return Number(product.technical.dimensionsCm.widthCm);
+  if (metric === "depth") return Number(product.technical.dimensionsCm.depthCm);
+  return NaN;
+}
+
+function advancedGetProximityTolerance(metric, target) {
+  const ratios = { volume: 0.2, washKg: 0.16, screenSize: 0.14, spinRpm: 0.18, height: 0.1, width: 0.1, depth: 0.12 };
+  const minimums = { volume: 40, washKg: 1, screenSize: 4, spinRpm: 200, height: 8, width: 5, depth: 5 };
+  return Math.max(minimums[metric] || 1, Math.round(Math.abs(target) * (ratios[metric] || 0.15)));
+}
+
+function advancedFormatMetricValue(metric, value) {
+  const number = advancedFormatNumber(value);
+  if (metric === "volume") return `${number} ליטר`;
+  if (metric === "washKg") return `${number} ק״ג`;
+  if (metric === "screenSize") return `${number} אינץ׳`;
+  if (metric === "spinRpm") return `${number} סל״ד`;
+  if (["height", "width", "depth"].includes(metric)) return `${number} ס״מ`;
+  return number;
 }
 
 function advancedGetActiveCategoryTab() {
@@ -3183,8 +3343,13 @@ function renderAdvancedProductCard(product) {
   } else {
     const missing = document.createElement("p");
     missing.className = "advanced-no-document";
-    missing.textContent = "אין עדיין מסמך זמין לדגם זה.";
-    actions.append(missing);
+    missing.textContent = "אין עדיין דף מוצר — אפשר לשלוח מפרט מלא ב‑WhatsApp.";
+    const sendSpecification = document.createElement("button");
+    sendSpecification.type = "button";
+    sendSpecification.className = "advanced-spec-whatsapp";
+    sendSpecification.dataset.sendAdvancedSpec = getModelKey(product.model);
+    sendSpecification.innerHTML = '<span aria-hidden="true">◉</span>שלח מפרט מלא ב‑WhatsApp';
+    actions.append(missing, sendSpecification);
   }
   article.append(actions);
   return article;
@@ -3232,6 +3397,35 @@ function getAdvancedSpecificationRows(product) {
   if (technical.performance.temperatureRangeC) rows.push({ label: "טווח טמפרטורה", value: `${advancedFormatNumber(technical.performance.temperatureRangeC.min)}–${advancedFormatNumber(technical.performance.temperatureRangeC.max)}°C` });
   if (technical.performance.resolutionPixels?.width && technical.performance.resolutionPixels?.height) rows.push({ label: "רזולוציה", value: `${technical.performance.resolutionPixels.width}×${technical.performance.resolutionPixels.height}` });
   return rows.filter((row) => row.value);
+}
+
+function sendAdvancedSpecificationToWhatsApp(product) {
+  const phone = normalizePhone(settings.whatsappNumber);
+  if (!phone) {
+    const message = "צריך להגדיר מספר WhatsApp קבוע בסל לפני שליחת מפרט.";
+    dom.advancedSearchStatus.textContent = message;
+    window.alert(message);
+    return;
+  }
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(createAdvancedSpecificationMessage(product))}`;
+  dom.advancedSearchStatus.textContent = `נפתח מפרט מלא של ${product.model} ב‑WhatsApp.`;
+  showActionToast("נפתח מפרט מלא ב‑WhatsApp.");
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function createAdvancedSpecificationMessage(product) {
+  const lines = ["מפרט מוצר", "", product.name, `דגם: ${product.model}`, `קטגוריה: ${product.category}`];
+  if (product.colors.length) lines.push(`צבעים: ${product.colors.join(" · ")}`);
+  const rows = getAdvancedSpecificationRows(product);
+  if (rows.length) {
+    lines.push("", "מפרט טכני:");
+    rows.forEach((row) => lines.push(`• ${row.label}: ${row.value}`));
+  }
+  if (product.technical.facts.length) {
+    lines.push("", "תכונות נוספות:");
+    product.technical.facts.forEach((fact) => lines.push(`• ${fact}`));
+  }
+  return lines.join("\n");
 }
 
 function advancedCreateCategoryButton(tab, count) {
@@ -3446,34 +3640,6 @@ function renderResultNodes(items, query, totalMatches) {
       futureStockButton.textContent = "הזמן למלאי עתידי";
       actions.append(futureStockButton);
     }
-
-    getProductDocuments(product).forEach((productDocument) => {
-      const specLink = document.createElement("a");
-      specLink.className = `spec-button${productDocument.installation ? " installation-button" : ""}`;
-      specLink.href = productDocument.url;
-      specLink.target = "_blank";
-      specLink.rel = "noreferrer";
-      if (productDocument.installation) {
-        specLink.dataset.productInstallation = product.skuKey;
-      } else {
-        specLink.dataset.productSpec = product.skuKey;
-      }
-      specLink.title = productDocument.installation ? "פתח הוראות התקנה" : "פתח דף מוצר";
-      specLink.setAttribute(
-        "aria-label",
-        `${productDocument.installation ? "פתח הוראות התקנה" : "פתח דף מוצר"} עבור ${product.sku || product.description}`,
-      );
-
-      const specIcon = document.createElement("span");
-      specIcon.className = "spec-button-icon";
-      specIcon.setAttribute("aria-hidden", "true");
-
-      const specText = document.createElement("span");
-      specText.textContent = productDocument.installation ? "התקנה" : "דף מוצר";
-
-      specLink.append(specIcon, specText);
-      actions.append(specLink);
-    });
 
     const noteButton = document.createElement("button");
     noteButton.className = "icon-text-button note-button";

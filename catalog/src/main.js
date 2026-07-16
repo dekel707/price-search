@@ -2,7 +2,6 @@ import "./styles.css";
 
 const SOURCE_ORIGIN = String(window.CATALOG_SOURCE_ORIGIN || "https://price-search-teal.vercel.app").replace(/\/+$/, "");
 const CATALOG_ENDPOINT = `${SOURCE_ORIGIN}/api/dealer-catalog`;
-const CACHE_KEY = "fujicom-dealer-catalog-v2";
 
 const VOLUME_RANGES = [
   ["up-to-100", "עד 100 ליטר", 0, 100],
@@ -152,29 +151,14 @@ async function loadCatalog() {
     const cleaned = normalizeProducts(data.products);
     if (!cleaned.length) throw new Error("live_catalog_empty");
     const catalog = { products: data.products, updatedAt: data.updatedAt || null, source: "live" };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(catalog));
     dom.status.textContent = "הקטלוג מחובר למפרטים הטכניים המעודכנים.";
     return catalog;
   } catch {
-    const saved = readCachedCatalog();
-    if (saved?.products?.length) {
-      dom.status.textContent = "מוצגת גרסה שמורה של הקטלוג עד לחידוש החיבור.";
-      return saved;
-    }
     const response = await fetch("/catalog-fallback.json", { cache: "no-store" });
     if (!response.ok) throw new Error("catalog_fallback_unavailable");
     const fallback = await response.json();
     dom.status.textContent = "מוצגת גרסת גיבוי של הקטלוג.";
     return fallback;
-  }
-}
-
-function readCachedCatalog() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
   }
 }
 

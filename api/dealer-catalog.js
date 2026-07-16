@@ -6,6 +6,28 @@ import { STATE_PATH, getBlobAuthOptions, hasBlobStorageCredentials, streamToText
 const DEFAULT_ASSET_ORIGIN = "https://price-search-teal.vercel.app";
 const MANIFEST_URL = new URL("../public/specs.json", import.meta.url);
 const CATALOG_ATTRIBUTES_PATH = "price-search/catalog-attributes.json";
+const DEALER_PRIVATE_FIELDS = new Set([
+  "price",
+  "pricetext",
+  "priceincludesvat",
+  "listprice",
+  "unitprice",
+  "pricesource",
+  "stock",
+  "stockquantity",
+  "inventory",
+  "quantity",
+  "available",
+  "availability",
+  "instock",
+  "outofstock",
+  "isavailable",
+  "מחיר",
+  "מלאי",
+  "כמות",
+  "זמינות",
+  "זמין",
+]);
 const COLOR_RULES = [
   ["שחור", /שחור|black|\bbk\b/i],
   ["לבן", /לבן|white|\bwh\b/i],
@@ -41,6 +63,7 @@ export default async function handler(request, response) {
     const [stored, manifest, attributes] = await Promise.all([readCatalogState(), readSpecManifest(), readCatalogAttributes()]);
     const assetOrigin = getAssetOrigin();
     const products = sanitizeProducts(stored.state?.products, manifest, attributes, assetOrigin);
+    assertDealerCatalogPrivacy(products);
 
     sendJson(response, 200, {
       version: 1,
@@ -133,7 +156,7 @@ function sanitizeTechnicalAttributes(value, name) {
   const facts = [...new Set([
     ...(Array.isArray(attributes.features) ? attributes.features : []),
     ...(Array.isArray(attributes.sourceFacts) ? attributes.sourceFacts : []),
-  ].map(cleanString).filter(Boolean))].slice(0, 80);
+  ].map(cleanString).filter(isDealerSafeFact))].slice(0, 80);
   return {
     category,
     colors,
@@ -147,6 +170,31 @@ function sanitizeTechnicalAttributes(value, name) {
     ...(barcodes.length ? { barcodes } : {}),
     facts,
   };
+}
+
+// This guard sits after the explicit whitelist above. If a later code change
+// accidentally adds a commercial field to the public response, the request
+// fails closed instead of exposing price, stock, quantity or availability.
+function assertDealerCatalogPrivacy(value, path = "catalog") {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertDealerCatalogPrivacy(item, `${path}[${index}]`));
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, item] of Object.entries(value)) {
+    const normalizedKey = cleanString(key).toLocaleLowerCase("en-US");
+    if (DEALER_PRIVATE_FIELDS.has(normalizedKey)) {
+      throw new Error(`dealer_catalog_private_field:${path}.${key}`);
+    }
+    assertDealerCatalogPrivacy(item, `${path}.${key}`);
+  }
+}
+
+function isDealerSafeFact(value) {
+  const fact = cleanString(value);
+  if (!fact) return false;
+  // Technical facts must not turn into an indirect stock or price label.
+  return !/(?:מחיר|מלאי|זמינ(?:ות|ים)?|אזל|price|stock|availability|inventory)/i.test(fact);
 }
 
 function numericRecord(value, keys) {
