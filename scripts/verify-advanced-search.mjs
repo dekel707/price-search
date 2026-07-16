@@ -28,6 +28,9 @@ assert(app.includes("advancedGetNearbyMetricValues"), "החיפוש המתקדם
 assert(app.includes("advancedGetProximityTolerance"), "החיפוש המתקדם אינו מגביל טווח קרוב לפי סוג נתון");
 assert(app.includes("sendAdvancedSpecificationToWhatsApp"), "חסרה שליחת מפרט מלא ב‑WhatsApp לדגם ללא דף מוצר");
 assert(app.includes("createAdvancedSpecificationMessage"), "חסרה יצירת הודעת מפרט מלאה ל‑WhatsApp");
+assert(app.includes("sendAdvancedProductPageToWhatsApp"), "חסרה שליחת דף מוצר ב‑WhatsApp");
+assert(app.includes("createAdvancedProductPageMessage"), "חסרה יצירת הודעה עם קישור לדף מוצר");
+assert(app.includes("data-send-advanced-product-page"), "חסר כפתור שליחת דף מוצר בכרטיס עם דף מוצר");
 assert(app.includes("details.open = Boolean(activeValue);"), "מסנני החיפוש המתקדם אינם סגורים כברירת מחדל");
 assert(app.includes("advancedSearchQuickFilters[quickGroup] = advancedSearchQuickFilters[quickGroup] === value ? \"\" : value"), "בחירה חוזרת במסנן מהיר אינה מבטלת אותו");
 
@@ -46,6 +49,7 @@ assert(styles.includes("overscroll-behavior: contain;"), "גלילת המסננ�
 assert(styles.includes(".advanced-search-results"), "חסר עיצוב לכרטיסי התוצאות המתקדמות");
 assert(styles.includes(".advanced-nearby-options"), "חסר עיצוב לאפשרויות קרובות");
 assert(styles.includes(".advanced-spec-whatsapp"), "חסר כפתור WhatsApp למפרט חסר");
+assert(styles.includes(".advanced-document-whatsapp"), "חסר עיצוב לכפתור שליחת דף מוצר ב‑WhatsApp");
 
 const specifications = Object.values(catalog.items || {});
 assert(specifications.length >= 120, "מאגר המפרטים קטן מהמצופה");

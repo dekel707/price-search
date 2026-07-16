@@ -762,6 +762,13 @@ function bindEvents() {
     renderAdvancedSearch();
   });
   dom.advancedSearchResults.addEventListener("click", (event) => {
+    const productPageButton = event.target.closest("[data-send-advanced-product-page]");
+    if (productPageButton) {
+      const product = getAdvancedSearchProducts().find((item) => getModelKey(item.model) === productPageButton.dataset.sendAdvancedProductPage);
+      const productPage = product?.documents.find((document) => document.type === "specification");
+      if (product && productPage?.url) sendAdvancedProductPageToWhatsApp(product, productPage);
+      return;
+    }
     const button = event.target.closest("[data-send-advanced-spec]");
     if (!button) return;
     const product = getAdvancedSearchProducts().find((item) => getModelKey(item.model) === button.dataset.sendAdvancedSpec);
@@ -3340,6 +3347,16 @@ function renderAdvancedProductCard(product) {
       link.append(icon, productDocument.label);
       actions.append(link);
     });
+    const productPage = product.documents.find((document) => document.type === "specification");
+    if (productPage?.url) {
+      const sendProductPage = document.createElement("button");
+      sendProductPage.type = "button";
+      sendProductPage.className = "advanced-document-whatsapp";
+      sendProductPage.dataset.sendAdvancedProductPage = getModelKey(product.model);
+      sendProductPage.setAttribute("aria-label", `שלח דף מוצר של ${product.model} ב‑WhatsApp`);
+      sendProductPage.innerHTML = '<span aria-hidden="true">◉</span>שלח דף מוצר ב‑WhatsApp';
+      actions.append(sendProductPage);
+    }
   } else {
     const missing = document.createElement("p");
     missing.className = "advanced-no-document";
@@ -3411,6 +3428,34 @@ function sendAdvancedSpecificationToWhatsApp(product) {
   dom.advancedSearchStatus.textContent = `נפתח מפרט מלא של ${product.model} ב‑WhatsApp.`;
   showActionToast("נפתח מפרט מלא ב‑WhatsApp.");
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function sendAdvancedProductPageToWhatsApp(product, productPage) {
+  const phone = normalizePhone(settings.whatsappNumber);
+  if (!phone) {
+    const message = "צריך להגדיר מספר WhatsApp קבוע בסל לפני שליחת דף מוצר.";
+    dom.advancedSearchStatus.textContent = message;
+    window.alert(message);
+    return;
+  }
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(createAdvancedProductPageMessage(product, productPage))}`;
+  dom.advancedSearchStatus.textContent = `נפתח דף מוצר של ${product.model} ב‑WhatsApp.`;
+  showActionToast("נפתח דף מוצר ב‑WhatsApp.");
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function createAdvancedProductPageMessage(product, productPage) {
+  const lines = [
+    "דף מוצר",
+    "",
+    product.name,
+    `דגם: ${product.model}`,
+    `קטגוריה: ${product.category}`,
+    "",
+    "קישור לדף המוצר:",
+    productPage.url,
+  ];
+  return lines.join("\n");
 }
 
 function createAdvancedSpecificationMessage(product) {
