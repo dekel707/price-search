@@ -59,6 +59,7 @@
 
       <nav class="tabs" aria-label="ניווט">
         <button class="tab-button active" type="button" data-tab="search">חיפוש</button>
+        <button class="tab-button" type="button" data-tab="advanced-search">חיפוש מתקדם</button>
         <button class="tab-button" type="button" data-tab="ai-assistant">עוזר AI</button>
         <button class="tab-button" type="button" data-tab="dashboard">דאשבורד</button>
         <button class="tab-button" type="button" data-tab="cart">סל</button>
@@ -113,6 +114,62 @@
         </section>
 
         <section class="results" id="results" aria-live="polite"></section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="advanced-search">
+        <section class="advanced-search-panel" aria-label="חיפוש מתקדם במפרטי מוצרים">
+          <div class="panel-header advanced-search-header">
+            <div class="standard-panel-title">
+              <span class="standard-panel-icon advanced-search" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="5.8" /><path d="m15 15 5 5" /><path d="M4 6h3M4 10h2M4 14h3" /></svg>
+              </span>
+              <div>
+                <p class="eyebrow">מפרטים חכמים</p>
+                <h2>חיפוש מתקדם</h2>
+              </div>
+            </div>
+            <span class="standard-panel-chip">קריאה בלבד · ללא שינוי הזמנות</span>
+          </div>
+
+          <p class="advanced-search-intro">חיפוש לפי דגם, שם ומפרט טכני — כולל קטגוריות, נפח, מידות, צבע, קו אפס, תכונות בולטות ומסמכים.</p>
+
+          <label class="advanced-search-field" for="advancedSearchInput">
+            <span class="advanced-search-field-icon" aria-hidden="true">⌕</span>
+            <input id="advancedSearchInput" type="search" autocomplete="off" placeholder="לדוגמה: מקרר קו אפס, 600 ליטר, 9 ק״ג או שחור" />
+            <button id="advancedClearSearch" class="advanced-clear-search" type="button" aria-label="נקה חיפוש מתקדם" hidden>×</button>
+          </label>
+
+          <div class="advanced-search-meta">
+            <span id="advancedSearchSummary">טוען מפרטים…</span>
+            <span>החיפוש אינו משנה סל, הזמנות או מלאי</span>
+          </div>
+
+          <section class="advanced-category-filter-panel" aria-label="קטגוריות מוצרים לחיפוש מתקדם">
+            <div class="advanced-filter-heading">
+              <span>קטגוריות</span>
+              <button id="advancedClearCategory" type="button" hidden>כל הקטגוריות</button>
+            </div>
+            <div id="advancedCategoryFilters" class="advanced-category-filters"></div>
+          </section>
+
+          <div class="advanced-search-layout">
+            <aside class="advanced-search-filter-panel" aria-label="סינון פשוט בחיפוש מתקדם">
+              <div class="advanced-simple-filter-heading">
+                <div>
+                  <span id="advancedSearchFilterKicker" class="advanced-simple-filter-kicker">סינון פשוט</span>
+                  <strong id="advancedSearchFilterTitle">מצא את הדגם המתאים</strong>
+                </div>
+                <button id="advancedClearFilters" type="button" hidden>נקה הכל</button>
+              </div>
+              <div id="advancedSimpleFilters" class="advanced-simple-filters"></div>
+            </aside>
+
+            <div class="advanced-search-results-area">
+              <p id="advancedSearchStatus" class="advanced-search-status" role="status" aria-live="polite"></p>
+              <section id="advancedSearchResults" class="advanced-search-results" aria-live="polite"></section>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section class="tab-panel" data-tab-panel="ai-assistant">
