@@ -975,7 +975,10 @@ function bindEvents() {
     if (futureStockButton) {
       const product = products.find((item) => item.skuKey === futureStockButton.dataset.addFutureStock);
       if (!product) return;
-      if (shouldAskForCartCustomer()) {
+      // Even when a customer is already selected, open the short dialog if
+      // that customer has this exact model in reservation. It is the only
+      // place where the user can deliberately choose the reservation route.
+      if (shouldAskForCartCustomer() || canOfferFutureStockReservation(product)) {
         openCartCustomerDialog(product, { futureStock: true });
         return;
       }
@@ -2804,6 +2807,12 @@ function isDiscontinuedCategory(category) {
 
 function isFutureStockEligibleProduct(product) {
   return Boolean(product && isDiscontinuedCategory(getAnnotation(product).category));
+}
+
+function canOfferFutureStockReservation(product) {
+  if (!product || orderType !== "delivery") return false;
+  const customer = getSelectedCustomer();
+  return Boolean(customer && (getCustomerReservation(customer, product.skuKey)?.quantity || 0) > 0);
 }
 
 function getFutureStockEligibleCartProducts() {
@@ -8387,6 +8396,7 @@ function requestFutureStockOrder(product, options = {}) {
 
   const request = {
     product,
+    customer,
     customerId: customer?.id || cleanString(options.customerId),
     customerName,
     customerCode: customer?.code || cleanString(options.customerCode),
@@ -8394,6 +8404,7 @@ function requestFutureStockOrder(product, options = {}) {
     quantity: Math.max(1, parseQuantity(options.quantity ?? 1)),
     unitPrice: Math.max(0, parsePrice(options.unitPrice) ?? product.price),
     priceSource: options.priceSource || getProductPriceSource(product, options.unitPrice ?? product.price),
+    fromReservation: Boolean(options.fromReservation),
   };
   const arrivalDate = normalizeDateInput(getAnnotation(product).arrivalDate);
 
@@ -8415,21 +8426,46 @@ function createFutureStockOrder(request, futureStockDate) {
   }
 
   const now = new Date();
+  const customer = request.customer || customers.find((item) => item.id === request.customerId) || findCustomerByName(request.customerName);
+  const quantity = Math.max(1, parseQuantity(request.quantity));
   const unitPrice = Math.max(0, parsePrice(request.unitPrice) ?? product.price);
   const priceSource = request.priceSource || getProductPriceSource(product, unitPrice);
-  const item = {
-    lineKey: createCartLineKey(product.skuKey, false, unitPrice, priceSource),
-    skuKey: product.skuKey,
-    sku: product.sku,
-    description: product.description,
-    listPrice: product.price,
-    unitPrice,
-    priceSource,
-    bonusType: "",
-    quantity: Math.max(1, parseQuantity(request.quantity)),
-    fromReservation: false,
-  };
-  item.lineTotal = roundMoney(item.quantity * item.unitPrice);
+  const reservation = request.fromReservation ? getCustomerReservation(customer, product.skuKey) : null;
+  const reservedQuantity = Math.min(quantity, Math.max(0, reservation?.quantity || 0));
+  const paidQuantity = quantity - reservedQuantity;
+  const items = [];
+
+  if (reservedQuantity > 0) {
+    items.push({
+      lineKey: createCartLineKey(product.skuKey, true, 0, "reservation"),
+      skuKey: product.skuKey,
+      sku: product.sku,
+      description: product.description,
+      listPrice: product.price,
+      unitPrice: 0,
+      priceSource: "reservation",
+      bonusType: "",
+      quantity: reservedQuantity,
+      lineTotal: 0,
+      fromReservation: true,
+    });
+  }
+
+  if (paidQuantity > 0) {
+    items.push({
+      lineKey: createCartLineKey(product.skuKey, false, unitPrice, priceSource),
+      skuKey: product.skuKey,
+      sku: product.sku,
+      description: product.description,
+      listPrice: product.price,
+      unitPrice,
+      priceSource,
+      bonusType: "",
+      quantity: paidQuantity,
+      lineTotal: roundMoney(paidQuantity * unitPrice),
+      fromReservation: false,
+    });
+  }
 
   const draft = {
     id: `draft-${now.getTime()}`,
@@ -8444,7 +8480,7 @@ function createFutureStockOrder(request, futureStockDate) {
     futureStockOrder: true,
     futureStockDate: date,
     draftReminderDate: "",
-    items: [item],
+    items,
   };
   draft.total = getOrderTotal(draft.items);
 
@@ -8454,7 +8490,12 @@ function createFutureStockOrder(request, futureStockDate) {
   queueCloudSave({ action: "future-stock-create" });
   render();
   setActiveTab("future-stock-orders");
-  dom.status.textContent = `הזמנת מלאי עתידי נשמרה ל־${formatReminderDate(date)}. היא לא נכנסה למכירות, לשריונים או לדוחות.`;
+  const reservationStatus = reservedQuantity
+    ? paidQuantity
+      ? ` ${reservedQuantity} יח׳ יסומנו לשריון ו־${paidQuantity} יח׳ במחירון בעת השמירה.`
+      : ` הכמות תצא מהשריון רק בעת שמירת ההזמנה הפעילה.`
+    : "";
+  dom.status.textContent = `הזמנת מלאי עתידי נשמרה ל־${formatReminderDate(date)}. היא לא נכנסה למכירות, לשריונים או לדוחות.${reservationStatus}`;
   return draft;
 }
 
@@ -8551,8 +8592,7 @@ function openCartCustomerDialog(product, options = {}) {
     dom.cartProductPromotion.checked = false;
     dom.dialogPromotionOption.hidden = true;
     dom.cartProductReservation.checked = false;
-    dom.dialogReservationOption.hidden = true;
-    updateDialogReservationPricing();
+    renderDialogReservationOption();
   } else {
     renderDialogReservationOption();
     updateDialogPromotionState();
@@ -8632,7 +8672,7 @@ function confirmCartCustomer(event) {
   const product = pendingCartProduct;
   const futureStock = pendingCartFutureStock;
   const quantity = parseQuantity(dom.cartProductQuantity.value);
-  const fromReservation = !futureStock && orderType === "delivery" && dom.cartProductReservation.checked;
+  const fromReservation = orderType === "delivery" && dom.cartProductReservation.checked && !dom.dialogReservationOption.hidden;
   const unitPrice = Math.max(0, parsePrice(dom.cartProductPrice.value) ?? product?.price ?? 0);
   const priceSource = pendingCartPriceSource;
   const usePromotion = !futureStock && dom.cartProductPromotion.checked && !dom.dialogPromotionOption.hidden;
@@ -8647,6 +8687,7 @@ function confirmCartCustomer(event) {
         quantity,
         unitPrice,
         priceSource,
+        fromReservation,
       }
     : null;
 
@@ -8680,12 +8721,6 @@ function confirmCartCustomer(event) {
 }
 
 function renderDialogReservationOption() {
-  if (pendingCartFutureStock) {
-    dom.dialogReservationOption.hidden = true;
-    dom.cartProductReservation.checked = false;
-    updateDialogReservationPricing();
-    return;
-  }
   const customer = findCustomerByName(dom.cartCustomerInput.value);
   const reservation = pendingCartProduct ? getCustomerReservation(customer, pendingCartProduct.skuKey) : null;
   const available = reservation?.quantity || 0;
@@ -8695,12 +8730,17 @@ function renderDialogReservationOption() {
     updateDialogReservationPricing();
     return;
   }
-  dom.dialogReservationOption.hidden = orderType === "reservation" || available <= 0;
-  dom.dialogReservationLabel.textContent = `מהשריון · נותרו ${available.toLocaleString("he-IL")} יח׳`;
+  const canUseReservation = orderType === "delivery" && Boolean(customer) && available > 0;
+  dom.dialogReservationOption.hidden = !canUseReservation;
+  dom.dialogReservationLabel.textContent = pendingCartFutureStock
+    ? `מהשריון בעת שמירת ההזמנה · נותרו ${available.toLocaleString("he-IL")} יח׳`
+    : `מהשריון · נותרו ${available.toLocaleString("he-IL")} יח׳`;
   if (orderType === "reservation" || available <= 0) {
     dom.cartProductReservation.checked = false;
   } else if (!pendingReservationChoiceTouched) {
-    dom.cartProductReservation.checked = true;
+    // A future order does not reserve stock immediately. Keep this opt-in so
+    // the customer reservation is used only when the user explicitly chooses it.
+    dom.cartProductReservation.checked = !pendingCartFutureStock;
   }
   updateDialogReservationPricing();
 }
@@ -9602,6 +9642,7 @@ function renderFutureStockOrderCard(draft) {
   const customer = getOrderCustomer(draft);
   const customerName = customer?.name || draft.customerName;
   const itemCount = draft.items.reduce((sum, item) => sum + item.quantity, 0);
+  const reservationUsage = getOrderReservationUsage(draft);
   const summary = draft.items
     .slice(0, 2)
     .map((item) => `${item.description} × ${item.quantity}`)
@@ -9619,6 +9660,7 @@ function renderFutureStockOrderCard(draft) {
       </div>
       <span class="future-stock-date-state ${isDue ? "due" : "waiting"}">${isDue ? "הגיע התאריך" : "ממתין למלאי"}</span>
     </div>
+    ${reservationUsage ? `<span class="order-reservation-badge ${reservationUsage.partial ? "partial" : "full"}">${getOrderActionIcon("package")}<span>${reservationUsage.label}</span></span>` : ""}
     ${customerName ? `<div class="order-card-customer">${getOrderActionIcon("customer")}<span>${escapeHtml(customerName)}</span></div>` : ""}
     <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>${escapeHtml(formatPrice(draft.total))}</b></div>
     <small class="order-card-summary">${escapeHtml(summary)}</small>
@@ -9628,6 +9670,7 @@ function renderFutureStockOrderCard(draft) {
   actions.className = "order-actions future-stock-actions";
   actions.innerHTML = `
     <button class="file-button order-action-button future-stock-commit" type="button" data-commit-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("receipt")}<span>שמור הזמנה</span></button>
+    <button class="whatsapp-button order-action-button future-stock-send-commit" type="button" data-send-and-commit-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("whatsapp")}<span>שמור ושלח וואטסאפ</span></button>
     <button class="secondary-button order-action-button order-action-view" type="button" data-toggle-future-stock-details="${escapeHtml(draft.id)}" aria-expanded="false">${getOrderActionIcon("view")}<span>הצג הזמנה</span></button>
     <button class="secondary-button order-action-button order-action-edit" type="button" data-edit-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("edit")}<span>ערוך</span></button>
     <button class="secondary-button order-action-button" type="button" data-load-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("load")}<span>טען לסל</span></button>
@@ -10329,6 +10372,12 @@ function handleDraftActionClick(event) {
 }
 
 function handleFutureStockOrderActionClick(event) {
+  const sendAndCommitButton = event.target.closest("[data-send-and-commit-future-stock]");
+  if (sendAndCommitButton) {
+    sendFutureStockToWhatsApp(sendAndCommitButton.dataset.sendAndCommitFutureStock);
+    return;
+  }
+
   const commitButton = event.target.closest("[data-commit-future-stock]");
   if (commitButton) {
     commitFutureStockOrder(commitButton.dataset.commitFutureStock);
@@ -10375,12 +10424,32 @@ function handleFutureStockOrderActionClick(event) {
   toggleButton.innerHTML = `${getOrderActionIcon("view")}<span>${shouldOpen ? "סגור הזמנה" : "הצג הזמנה"}</span>`;
 }
 
-function commitFutureStockOrder(draftId) {
+function commitFutureStockOrder(draftId, options = {}) {
   const draft = drafts.find((item) => item.id === draftId);
   if (!isFutureStockDraft(draft)) return null;
   return commitDraftToOrders(draftId, {
-    status: "הזמנת המלאי העתידי נשמרה כהזמנה פעילה והועברה ללשונית המתאימה לפי שעת השמירה.",
+    ...options,
+    status: options.status || "הזמנת המלאי העתידי נשמרה כהזמנה פעילה והועברה ללשונית המתאימה לפי שעת השמירה.",
   });
+}
+
+function sendFutureStockToWhatsApp(draftId) {
+  const draft = drafts.find((item) => item.id === draftId);
+  if (!isFutureStockDraft(draft)) return;
+  if (!normalizePhone(settings.whatsappNumber)) {
+    const message = "צריך להגדיר מספר וואטסאפ קבוע לפני שליחה.";
+    dom.status.textContent = message;
+    window.alert(message);
+    return;
+  }
+
+  const order = commitFutureStockOrder(draftId, {
+    status: "ההזמנה נשמרה, הועברה ללשונית המתאימה ונפתחה לשליחה בוואטסאפ.",
+  });
+  if (!order) return;
+
+  const url = createWhatsAppUrl(order.items, order);
+  if (url) window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function updateDraftReminderDate(draftId, value) {

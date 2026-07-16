@@ -7110,49 +7110,74 @@ body {
   background: linear-gradient(135deg, rgba(33, 130, 181, 0.96), rgba(68, 174, 213, 0.95));
 }
 
-.future-stock-save-toggle {
-  border-color: rgba(91, 188, 243, 0.52) !important;
-  background: linear-gradient(135deg, rgba(16, 87, 132, 0.28), rgba(20, 46, 74, 0.38)) !important;
-}
-
-.future-stock-save-toggle input {
-  accent-color: #5bbcf3;
-}
-
-.future-stock-date-control {
-  border: 1px solid rgba(91, 188, 243, 0.32);
-  border-radius: 12px;
-  padding: 12px;
-  background: rgba(18, 62, 91, 0.24);
-}
-
-.future-stock-date-control small,
-.future-stock-orders-intro {
-  color: #a9dff7;
-  font-size: 0.8rem;
-  line-height: 1.5;
-}
-
 .future-stock-orders-panel {
-  border-color: rgba(91, 188, 243, 0.34) !important;
+  border-color: rgba(150, 164, 181, 0.34) !important;
+  background:
+    radial-gradient(circle at 100% 0, rgba(196, 208, 224, 0.09), transparent 31%),
+    radial-gradient(circle at 0 100%, rgba(74, 88, 106, 0.13), transparent 38%),
+    linear-gradient(145deg, rgba(12, 18, 27, 0.98), rgba(7, 12, 19, 0.98)) !important;
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(235, 243, 255, 0.045);
+}
+
+[data-tab-panel="future-stock-orders"] .panel-header > .orders-panel-title {
+  padding-inline-start: 0;
+}
+
+[data-tab-panel="future-stock-orders"] .panel-header > .orders-panel-title::before {
+  content: none;
+}
+
+.orders-panel-icon.future-stock {
+  border-color: rgba(182, 196, 213, 0.58);
+  background: linear-gradient(145deg, rgba(95, 109, 127, 0.85), rgba(35, 43, 55, 0.95));
+  color: #f0f5fb;
+}
+
+.orders-panel-chip.future-stock {
+  border-color: rgba(180, 194, 211, 0.4);
+  background: rgba(162, 177, 196, 0.11);
+  color: #dbe5ef;
 }
 
 .future-stock-orders-intro {
   margin: 0;
   padding: 12px 14px;
-  border: 1px solid rgba(91, 188, 243, 0.21);
+  border: 1px solid rgba(167, 182, 200, 0.22);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(18, 70, 102, 0.3), rgba(9, 36, 59, 0.36));
+  background: linear-gradient(145deg, rgba(53, 63, 77, 0.36), rgba(16, 22, 31, 0.66));
+  color: #b9c6d3;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.future-stock-orders-panel .field-wrap input {
+  border-color: rgba(167, 183, 202, 0.29);
+  background: rgba(4, 8, 14, 0.52);
+  color: #e8eef5;
+}
+
+.future-stock-orders-panel .field-wrap input:focus {
+  border-color: rgba(211, 222, 235, 0.7);
+  box-shadow: 0 0 0 3px rgba(174, 190, 210, 0.1);
 }
 
 .future-stock-order-card {
-  border-color: rgba(91, 188, 243, 0.36) !important;
-  background: linear-gradient(145deg, rgba(10, 45, 70, 0.92), rgba(7, 25, 43, 0.96)) !important;
+  border-color: rgba(158, 174, 194, 0.28) !important;
+  background:
+    linear-gradient(145deg, rgba(42, 51, 64, 0.62), rgba(11, 17, 26, 0.95)),
+    rgba(9, 14, 22, 0.88) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(232, 240, 250, 0.035);
 }
 
 .future-stock-order-card::before {
-  background: #5bbcf3 !important;
-  box-shadow: 0 0 17px rgba(91, 188, 243, 0.58) !important;
+  background: #a9b7c6 !important;
+  box-shadow: 0 0 17px rgba(170, 186, 204, 0.38) !important;
+}
+
+.future-stock-order-card .order-card-kind-icon.calendar {
+  border-color: rgba(187, 201, 217, 0.54);
+  background: linear-gradient(145deg, rgba(108, 123, 141, 0.52), rgba(43, 51, 65, 0.72));
+  color: #eff5fb;
 }
 
 .future-stock-date-state {
@@ -7160,10 +7185,10 @@ body {
   align-items: center;
   min-height: 28px;
   padding: 0 9px;
-  border: 1px solid rgba(91, 188, 243, 0.42);
+  border: 1px solid rgba(183, 198, 214, 0.42);
   border-radius: 999px;
-  background: rgba(91, 188, 243, 0.12);
-  color: #bdeaff;
+  background: rgba(172, 188, 207, 0.12);
+  color: #d7e0e9;
   font-size: 0.72rem;
   font-weight: 900;
   white-space: nowrap;
@@ -7175,18 +7200,48 @@ body {
   color: #ffe0a5;
 }
 
-.future-stock-actions .future-stock-commit {
-  border-color: rgba(100, 219, 193, 0.7);
-  background: linear-gradient(135deg, #168f7c, #35bea7);
-  color: #effffb;
+.future-stock-actions .future-stock-commit,
+.future-stock-actions .order-action-view,
+.future-stock-actions .order-action-edit,
+.future-stock-actions [data-load-future-stock] {
+  border-color: rgba(171, 188, 208, 0.37);
+  background: linear-gradient(145deg, rgba(72, 84, 101, 0.46), rgba(24, 31, 42, 0.72));
+  color: #e0e9f2;
+}
+
+.future-stock-actions .future-stock-commit:hover,
+.future-stock-actions .future-stock-commit:focus-visible,
+.future-stock-actions .order-action-view:hover,
+.future-stock-actions .order-action-view:focus-visible,
+.future-stock-actions .order-action-edit:hover,
+.future-stock-actions .order-action-edit:focus-visible,
+.future-stock-actions [data-load-future-stock]:hover,
+.future-stock-actions [data-load-future-stock]:focus-visible {
+  border-color: rgba(223, 232, 242, 0.7);
+  background: linear-gradient(145deg, rgba(100, 115, 135, 0.64), rgba(38, 47, 61, 0.82));
+  color: #fff;
+}
+
+.future-stock-actions .future-stock-send-commit {
+  border-color: #38d77a;
+  background: linear-gradient(135deg, #168e4b, #31c86e);
+  color: #effff5;
+}
+
+.future-stock-actions .future-stock-send-commit:hover,
+.future-stock-actions .future-stock-send-commit:focus-visible {
+  border-color: #82eda8;
+  background: linear-gradient(135deg, #1fa85a, #45db82);
+}
+
+.future-stock-actions .order-action-whatsapp {
+  border-color: rgba(89, 207, 133, 0.63);
+  background: rgba(27, 127, 69, 0.3);
+  color: #b9f3cd;
 }
 
 @media (max-width: 640px) {
-  [data-tab-panel="future-stock-orders"] .panel-header > div:first-child {
-    padding-inline-start: 47px;
-  }
-
-  [data-tab-panel="future-stock-orders"] .panel-header > div:first-child::before {
+  .orders-panel-icon.future-stock {
     width: 36px;
     height: 36px;
   }

@@ -7,6 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 const html = read("index.html");
 const app = read("src/app.js");
+const styles = read("src/styles.css");
 const stateApi = read("api/state.js");
 const database = read("api/_database.js");
 
@@ -23,6 +24,31 @@ assert(app.includes("function createFutureStockOrder(request, futureStockDate)")
 assert(app.includes("futureStockOrder: true"));
 assert(app.includes('queueCloudSave({ action: "future-stock-create" })'));
 assert(app.includes("setActiveTab(\"future-stock-orders\")"));
+
+// A selected existing customer can choose the exact-model reservation during
+// future-stock creation. It is recorded as a reservation line but deducted
+// only when the future order is explicitly saved as an active order.
+assert(app.includes("function canOfferFutureStockReservation(product)"));
+assert(app.includes("canOfferFutureStockReservation(product)"));
+assert(app.includes("fromReservation: Boolean(options.fromReservation)"));
+assert(app.includes("const reservation = request.fromReservation ? getCustomerReservation(customer, product.skuKey) : null;"));
+assert(app.includes("const reservedQuantity = Math.min(quantity, Math.max(0, reservation?.quantity || 0));"));
+assert(app.includes("fromReservation: true"));
+assert(app.includes("מהשריון בעת שמירת ההזמנה"));
+
+// The combined button must save the future order first, then open WhatsApp
+// using the resulting active order and its calculated delivery destination.
+assert(app.includes("data-send-and-commit-future-stock"));
+assert(app.includes("function sendFutureStockToWhatsApp(draftId)"));
+assert(app.includes("commitFutureStockOrder(draftId, {"));
+assert(app.includes("הועברה ללשונית המתאימה ונפתחה לשליחה בוואטסאפ"));
+
+// The future-stock panel uses the same order-card layout, with its own dark
+// glass palette rather than the old bright-blue draft treatment.
+assert(html.includes('class="orders-panel future-stock-orders-panel"'));
+assert(styles.includes(".future-stock-orders-panel"));
+assert(styles.includes(".orders-panel-icon.future-stock"));
+assert(styles.includes(".future-stock-actions .future-stock-send-commit"));
 
 // A cloud outage must not permit creation of an order that only exists in a
 // browser tab, and failed syncing has an automatic recovery path.
