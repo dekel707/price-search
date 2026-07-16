@@ -349,6 +349,8 @@ const dom = {
   metadata: document.querySelector("#metadata"),
   status: document.querySelector("#status"),
   results: document.querySelector("#results"),
+  actionToast: document.querySelector("#actionToast"),
+  actionToastMessage: document.querySelector("#actionToastMessage"),
 };
 
 let products = [];
@@ -411,6 +413,7 @@ let cloudRetryTimer = null;
 let cloudRetryAttempt = 0;
 let appStarted = false;
 let israelClockTimer = null;
+let actionToastTimer = null;
 
 init();
 
@@ -493,6 +496,26 @@ function startIsraelClock() {
   updateIsraelClock();
   if (israelClockTimer) return;
   israelClockTimer = window.setInterval(updateIsraelClock, 30_000);
+}
+
+function showActionToast(message) {
+  if (!message || !dom.actionToast || !dom.actionToastMessage) return;
+  if (actionToastTimer) window.clearTimeout(actionToastTimer);
+  dom.actionToastMessage.textContent = message;
+  dom.actionToast.hidden = false;
+  dom.actionToast.classList.remove("visible");
+  window.requestAnimationFrame(() => dom.actionToast.classList.add("visible"));
+  actionToastTimer = window.setTimeout(() => {
+    dom.actionToast.classList.remove("visible");
+    window.setTimeout(() => {
+      if (!dom.actionToast.classList.contains("visible")) dom.actionToast.hidden = true;
+    }, 180);
+  }, 3_800);
+}
+
+function announceDeletion(message) {
+  dom.status.textContent = message;
+  showActionToast(message);
 }
 
 function updateIsraelClock() {
@@ -2898,7 +2921,7 @@ function deleteCategory(category) {
   saveCategories();
   saveAnnotations();
   render();
-  dom.status.textContent = "הקטגוריה נמחקה.";
+  announceDeletion("הקטגוריה נמחקה.");
 }
 
 function updateAnnotation(productKey, patch, options = {}) {
@@ -2951,7 +2974,7 @@ function deleteProductNote() {
   updateAnnotation(pendingNoteProduct.skuKey, { note: "" });
   closeNoteDialog();
   render();
-  dom.status.textContent = "ההערה נמחקה.";
+  announceDeletion("ההערה נמחקה.");
 }
 
 function openArrivalDialog(product, options = {}) {
@@ -3002,7 +3025,7 @@ function deleteProductArrivalDate() {
   updateAnnotation(pendingArrivalProduct.skuKey, { arrivalDate: "" });
   closeArrivalDialog();
   render();
-  dom.status.textContent = "תאריך ההגעה נמחק.";
+  announceDeletion("תאריך החזרה למלאי נמחק.");
 }
 
 function isActiveArrivalDate(value, reference = new Date()) {
@@ -3789,6 +3812,7 @@ function deleteReservation(reservationId) {
   reservations = reservations.filter((item) => item.id !== reservationId);
   saveReservations();
   render();
+  announceDeletion(`${reservation.sku || "המוצר"} נמחק מהשריון.`);
 }
 
 function exportCustomerReservations(customerId) {
@@ -4474,6 +4498,7 @@ function deleteReminder(reminderId) {
   saveReminders();
   renderRemindersPanel();
   renderDashboard();
+  announceDeletion("התזכורת נמחקה.");
 }
 
 function startOfLocalMonth(value) {
@@ -8830,6 +8855,8 @@ function updateCartLine(lineKey, patch, options = { render: true }) {
 }
 
 function removeCartLine(lineKey) {
+  const removedLine = cart.find((line) => line.lineKey === lineKey);
+  if (!removedLine) return;
   cart = cart.filter((line) => line.lineKey !== lineKey);
   if (!cart.length) {
     editingOrderId = "";
@@ -8849,9 +8876,11 @@ function removeCartLine(lineKey) {
   } else {
     render();
   }
+  announceDeletion(`${removedLine.description || removedLine.sku || "המוצר"} הוסר מהסל.`);
 }
 
 function clearCart() {
+  const clearedItems = cart.reduce((sum, line) => sum + parseQuantity(line.quantity), 0);
   cart = [];
   const wasEditingOrder = Boolean(editingOrderId);
   const wasEditingDraft = Boolean(editingDraftId);
@@ -8868,6 +8897,9 @@ function clearCart() {
   saveSettings();
   render();
   dom.status.textContent = wasEditingDraft ? "עריכת הטיוטה בוטלה." : wasEditingOrder ? "עריכת ההזמנה בוטלה." : "הסל נוקה.";
+  if (clearedItems > 0 && !wasEditingDraft && !wasEditingOrder) {
+    showActionToast(`הסל נוקה · ${clearedItems.toLocaleString("he-IL")} פריטים הוסרו.`);
+  }
 }
 
 function setOrderType(value, options = { render: true }) {
@@ -10167,6 +10199,7 @@ function deleteOrder(orderId) {
   renderCustomersPanel();
   renderReservationsPanel();
   renderDashboard();
+  announceDeletion("ההזמנה נמחקה. הדוחות והשריונים עודכנו.");
 }
 
 function reverseReservationPurchase(order) {
@@ -10669,7 +10702,7 @@ function deleteDraft(draftId) {
   }
   saveDrafts();
   render();
-  dom.status.textContent = futureStockOrder ? "הזמנת המלאי העתידי והתזכורת שלה נמחקו." : "הטיוטה נמחקה.";
+  announceDeletion(futureStockOrder ? "הזמנת המלאי העתידי והתזכורת שלה נמחקו." : "הטיוטה נמחקה.");
 }
 
 function startEditingOrder(orderId) {

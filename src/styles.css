@@ -6825,6 +6825,62 @@ body {
   }
 }
 
+/* A global confirmation stays visible even when the deleted row disappears
+   immediately after rendering. It is informational only and changes no action. */
+.action-toast {
+  position: fixed;
+  inset: auto 18px 20px auto;
+  z-index: 120;
+  display: flex;
+  max-width: min(390px, calc(100vw - 36px));
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(86, 224, 169, 0.58);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(19, 82, 62, 0.97), rgba(10, 39, 33, 0.98));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(229, 255, 244, 0.08);
+  color: #eafff3;
+  direction: rtl;
+  font-size: 0.84rem;
+  font-weight: 850;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.action-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.action-toast-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 1px solid rgba(151, 255, 205, 0.58);
+  border-radius: 50%;
+  background: rgba(44, 191, 124, 0.2);
+  color: #b9ffda;
+  font-size: 0.86rem;
+  font-weight: 950;
+}
+
+@media (max-width: 640px) {
+  .action-toast {
+    inset: auto 12px 14px 12px;
+    max-width: none;
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+  }
+}
+
 /* Compact management signals. */
 .dashboard-smart-signals-header {
   display: flex;
