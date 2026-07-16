@@ -2270,7 +2270,9 @@ function normalizeProducts(items) {
 
 function getProductCatalogAttributes(item, sku) {
   const current = item?.catalogAttributes;
-  const staticAttributes = catalogAttributesBySku[getSkuKey(sku)];
+  // Catalog data is keyed by a punctuation-free model key (FJMW25LB), while
+  // price lists keep the human-readable SKU with dashes (FJ-MW25LB).
+  const staticAttributes = catalogAttributesBySku[getModelKey(sku)];
   const attributes = staticAttributes || current;
   return attributes && typeof attributes === "object" && !Array.isArray(attributes) ? attributes : null;
 }

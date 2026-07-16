@@ -18,6 +18,7 @@ const assert = (condition, message) => {
 
 assert(catalog.schemaVersion === 1, "גרסת מאגר המפרטים אינה תקינה");
 assert(appSource.includes('CATALOG_ATTRIBUTES_ENDPOINT = "/api/catalog-specifications"'), "החיפוש אינו מחובר למאגר המפרטים המוגן");
+assert(appSource.includes("catalogAttributesBySku[getModelKey(sku)]"), "מפת המפרטים אינה משתמשת במפתח הדגם התקין");
 assert(catalogApiSource.includes("isAuthorized(request)"), "נקודת הגישה למפרטים אינה מוגנת");
 await access(new URL("../public/catalog-attributes.json", import.meta.url)).then(
   () => { throw new Error("מאגר המפרטים לא אמור להיות חשוף כקובץ ציבורי"); },
