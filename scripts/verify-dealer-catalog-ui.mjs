@@ -19,6 +19,14 @@ assert(app.includes("getSimpleFilterGroups"), "The catalog must render simple fi
 assert(app.includes("VOLUME_RANGES"), "The catalog must provide simple volume ranges.");
 assert(app.includes("FEATURE_FILTERS"), "The catalog must provide prominent feature filters.");
 assert(app.includes("getProductHighlights"), "The catalog must display the strongest technical highlights on each product.");
+assert(app.includes("CATEGORY_TABS"), "The catalog must expose the dealer-friendly top category tabs.");
+assert(app.includes('key: "top-freezer"'), "The catalog must include a top-freezer category tab.");
+assert(app.includes('key: "bottom-freezer"'), "The catalog must include a bottom-freezer category tab.");
+assert(app.includes("getCategoryQuickFilterGroups"), "The catalog must provide category-specific quick filters.");
+assert(app.includes('"washKg", "קיבולת כביסה"'), "Washing machines must expose quick capacity choices.");
+assert(app.includes("stripBarcodes"), "Barcodes must be removed before dealer catalog rendering.");
+assert(!app.includes('rows.push(["ברקוד"'), "The dealer catalog must not render barcode rows.");
+assert(!app.includes('add("◎", `דירוג ${technical.performance.energyRating}`)'), "Energy ratings must not be shown as prominent product icons.");
 assert(app.includes('activeCategory = activeCategory === selectedCategory ? "" : selectedCategory'), "A selected category must toggle off when pressed again.");
 assert(app.includes('activeFacets[group] = activeFacets[group] === value ? "" : value'), "A selected simple filter must toggle off when pressed again.");
 
@@ -28,7 +36,6 @@ assert.equal(refrigerator.category, "מקרר");
 assert.equal(refrigerator.technical?.dimensionsCm?.widthCm, 92);
 assert.equal(refrigerator.technical?.dimensionsCm?.heightCm, 191);
 assert.equal(refrigerator.technical?.capacities?.totalLiters, 600);
-assert(refrigerator.technical?.barcodes?.includes("7290114724692"), "Expected barcode to be searchable in the public technical catalog.");
 
 const forbidden = new Set(["price", "stockQuantity", "customers", "orders", "reservations", "collections"]);
 function assertPublicOnly(value, pathLabel = "catalog") {
