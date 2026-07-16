@@ -85,10 +85,11 @@ async function readPdfDocs() {
 }
 
 function createPdfDoc(fileName) {
-  const stem = fileName.slice(0, -extname(fileName).length);
+  const safeFileName = normalizeFilename(fileName);
+  const stem = safeFileName.slice(0, -extname(safeFileName).length);
   const modelKeys = extractModelKeys(stem);
   return {
-    fileName,
+    fileName: safeFileName,
     url: encodeURI(`/img/${fileName}`),
     modelKeys,
     installation: /הוראות|התקנה|install|manual/i.test(stem),
@@ -187,7 +188,9 @@ function normalizeFilename(value) {
     .normalize("NFKC")
     .replace(/\u00a0/g, " ")
     .replace(/\ufffd/g, " ")
-    .replace(/_/g, " ");
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getModelKey(value) {

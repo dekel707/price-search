@@ -512,7 +512,11 @@ async function startApp() {
     settings.customerId = findCustomerByName(settings.customerName)?.id || "";
   }
   lastPrices = readJson(LAST_PRICES_KEY) || {};
-  activeTab = readJson(ACTIVE_TAB_KEY) || "search";
+  // Every fresh visit starts from the order search. A tab remains active only
+  // while this page is open, so a reload never drops the user into an old
+  // dashboard, order or management screen.
+  activeTab = "search";
+  localStorage.removeItem(ACTIVE_TAB_KEY);
   dom.customerName.value = settings.customerName || "";
   dom.whatsappNumber.value = settings.whatsappNumber || "";
   activeCustomerId = settings.customerId || customers[0]?.id || "";
@@ -2834,7 +2838,7 @@ function normalizeAdvancedTechnical(attributes) {
     capacities,
     performance: {
       ...performance,
-      ...(cleanString(value.performance?.energyRating) ? { energyRating: cleanString(value.performance.energyRating) } : {}),
+      ...(advancedCleanEnergyRating(value.performance?.energyRating) ? { energyRating: advancedCleanEnergyRating(value.performance.energyRating) } : {}),
       ...(temperatureRangeC ? { temperatureRangeC } : {}),
       ...(Object.keys(resolutionPixels).length ? { resolutionPixels } : {}),
     },
@@ -3542,12 +3546,44 @@ function advancedJoinParts(parts) {
 }
 
 function advancedCleanFact(value) {
-  return cleanString(value)
+  const raw = cleanString(value);
+  if (
+    !raw ||
+    /[?？�]/.test(raw) ||
+    /(?:https?:\/\/|www\.)/i.test(raw) ||
+    /\b(?:unknown|n\/?a|null|undefined)\b/i.test(raw) ||
+    /^[\s•|,;:()\-–—.]+$/.test(raw) ||
+    /:\s*$/.test(raw) ||
+    (raw.includes("•") && (!raw.trim().startsWith("•") || (raw.match(/•/g) || []).length > 1))
+  ) return "";
+
+  const fact = raw
     .replace(/\b\d{10,14}\b/g, "")
-    .replace(/\s*[|,]\s*(?=[|,]|$)/g, " ")
-    .replace(/^[\s|,;()\-–]+|[\s|,;()\-–]+$/g, "")
+    .replace(/^[\s•|,;:()\-–—]+/, "")
+    .replace(/\s*\|\s*/g, " · ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/[\s|,;·()\-–—]+$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+
+  if (!fact || fact.length < 3 || isAdvancedTechnicalHeadingOrLooseValue(fact)) return "";
+  // PDF extraction sometimes creates half a sentence. Never present a guess
+  // as product information; keep only facts that finish as a complete phrase.
+  if (/(?:\b(?:with|and|or)|עם|של|מול|מערכת|טכנולוגיית|חיבור|הפעלה|כולל|מובנה|לקליטת|לנוחיות|לרשת|לבהירות|מגירת|תאורת|עוצמת|צריכת)$/i.test(fact)) return "";
+  return fact;
+}
+
+function advancedCleanEnergyRating(value) {
+  const rating = cleanString(value).toUpperCase();
+  return /^[A-G](?:\+{0,3})$/.test(rating) ? rating : "";
+}
+
+function isAdvancedTechnicalHeadingOrLooseValue(value) {
+  return /^(?:(?:FJ|IT)[\s-]*[A-Z0-9-]+|להמחשה|גודל מסך|יחס תצוגה|רזולוציה|מידות(?: ללא מעמד| כולל מעמד)?|משקל|נפח(?: כללי)?|תא מזון|תא הקפאה|תא אפייה|קיבולת|הספק|תוכניות|תכניות|סל[״"]?ד|רמת רעש|צריכת מים|עוצמת יניקה|דירוג אנרגטי|צבע|ברקוד)$/i.test(value)
+    || /^\d{1,2}:\d{1,2}$/.test(value)
+    || /^\d+(?:\.\d+)?\s*(?:[״"]|ליטר|ק[״"]?ג|w|db|סל[״"]?ד|אינץ[׳']?)$/i.test(value)
+    || /^(?:גימור|מאפיינים(?: מיוחדים)?|מערכות|דגם(?: ברקוד)?|מבנה(?: תא(?: הקירור| ההקפאה)?| מיוחד)?|נפח תא(?: המזון| ההקפאה| האפייה)?|אביזרים(?: נלווים)?|תכונות|מנגנונים(?: מיוחדים)?|מיוחדים|מולטימדיה|כניסות|לחצנים וכפתורים|סוגי התוכניות|תיאור כללי|פונקציות|כיריים|תאים|מנוע|מבנה|מיוחד|גוף|אוטומטי|עוצמה|הקירור|ההקפאה|התמונה|הדחה|הספק(?: מנוע|י המבערים| מקסימלי)?|קיבולת כביסה|מהירות סחיטה|מצב כיבוי תאורה|צג וכפתורים|מגירות ומידוף|טכנולוגיית קירור|נפח תא|מקסימלית|תאורה|התקנה|שחור|לבן|שמנת|נירוסטה|כסוף|אפור|אדום|כחול|ירוק|זכוכית(?: שחורה| לבנה)?|שחורה|לבנה)$/i.test(value)
+    || /^(?:לסאונד|לעיצוב|לבטיחות|של הקור|בתוך|ופונקציות|ומידוף|וקערות|המאפשר|הכולל|המפסיקים|מקררת את|לא יפעלו|באמצעות|לאחר סיום|ממצב|צורכים|עומד בקו|זמזם|פתיחה צד|תמונה גבוהים|גבוהים במיוחד|המשתמש|לפקודות|מנגנון נעילת|שווה ואחידה)/i.test(value);
 }
 
 function advancedInferColors(value) {

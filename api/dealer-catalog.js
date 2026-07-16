@@ -141,7 +141,7 @@ function sanitizeTechnicalAttributes(value, name) {
   const dimensionsCm = numericRecord(attributes.dimensionsCm, ["widthCm", "heightCm", "depthCm"]);
   const capacities = numericRecord(attributes.capacities, ["totalLiters", "fridgeLiters", "freezerLiters", "ovenLiters", "bottleCount", "placeSettings", "washKg"]);
   const performance = numericRecord(attributes.performance, ["powerW", "programCount", "noiseDb", "waterConsumptionLiters", "spinRpm", "airflowM3h", "screenSizeInches"]);
-  const energyRating = cleanString(attributes.performance?.energyRating);
+  const energyRating = cleanEnergyRating(attributes.performance?.energyRating);
   const temperatureRangeC = numericRange(attributes.performance?.temperatureRangeC);
   const resolutionPixels = numericRecord(attributes.performance?.resolutionPixels, ["width", "height"]);
   const displayDimensionsMm = {
@@ -156,7 +156,7 @@ function sanitizeTechnicalAttributes(value, name) {
   const facts = [...new Set([
     ...(Array.isArray(attributes.features) ? attributes.features : []),
     ...(Array.isArray(attributes.sourceFacts) ? attributes.sourceFacts : []),
-  ].map(cleanString).filter(isDealerSafeFact))].slice(0, 80);
+  ].map(cleanTechnicalFact).filter(isDealerSafeFact))].slice(0, 80);
   return {
     category,
     colors,
@@ -191,10 +191,49 @@ function assertDealerCatalogPrivacy(value, path = "catalog") {
 }
 
 function isDealerSafeFact(value) {
-  const fact = cleanString(value);
+  const fact = cleanTechnicalFact(value);
   if (!fact) return false;
   // Technical facts must not turn into an indirect stock or price label.
   return !/(?:מחיר|מלאי|זמינ(?:ות|ים)?|אזל|price|stock|availability|inventory)/i.test(fact);
+}
+
+function cleanTechnicalFact(value) {
+  const raw = cleanString(value);
+  if (
+    !raw ||
+    /[?？�]/.test(raw) ||
+    /(?:https?:\/\/|www\.)/i.test(raw) ||
+    /\b(?:unknown|n\/?a|null|undefined)\b/i.test(raw) ||
+    /^[\s•|,;:()\-–—.]+$/.test(raw) ||
+    /:\s*$/.test(raw) ||
+    (raw.includes("•") && (!raw.trim().startsWith("•") || (raw.match(/•/g) || []).length > 1))
+  ) return "";
+
+  const fact = raw
+    .replace(/\b\d{10,14}\b/g, "")
+    .replace(/^[\s•|,;:()\-–—]+/, "")
+    .replace(/\s*\|\s*/g, " · ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/[\s|,;·()\-–—]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (!fact || fact.length < 3 || isTechnicalHeadingOrLooseValue(fact)) return "";
+  if (/(?:\b(?:with|and|or)|עם|של|מול|מערכת|טכנולוגיית|חיבור|הפעלה|כולל|מובנה|לקליטת|לנוחיות|לרשת|לבהירות|מגירת|תאורת|עוצמת|צריכת)$/i.test(fact)) return "";
+  return fact;
+}
+
+function cleanEnergyRating(value) {
+  const rating = cleanString(value).toUpperCase();
+  return /^[A-G](?:\+{0,3})$/.test(rating) ? rating : "";
+}
+
+function isTechnicalHeadingOrLooseValue(value) {
+  return /^(?:(?:FJ|IT)[\s-]*[A-Z0-9-]+|להמחשה|גודל מסך|יחס תצוגה|רזולוציה|מידות(?: ללא מעמד| כולל מעמד)?|משקל|נפח(?: כללי)?|תא מזון|תא הקפאה|תא אפייה|קיבולת|הספק|תוכניות|תכניות|סל[״"]?ד|רמת רעש|צריכת מים|עוצמת יניקה|דירוג אנרגטי|צבע|ברקוד)$/i.test(value)
+    || /^\d{1,2}:\d{1,2}$/.test(value)
+    || /^\d+(?:\.\d+)?\s*(?:[״"]|ליטר|ק[״"]?ג|w|db|סל[״"]?ד|אינץ[׳']?)$/i.test(value)
+    || /^(?:גימור|מאפיינים(?: מיוחדים)?|מערכות|דגם(?: ברקוד)?|מבנה(?: תא(?: הקירור| ההקפאה)?| מיוחד)?|נפח תא(?: המזון| ההקפאה| האפייה)?|אביזרים(?: נלווים)?|תכונות|מנגנונים(?: מיוחדים)?|מיוחדים|מולטימדיה|כניסות|לחצנים וכפתורים|סוגי התוכניות|תיאור כללי|פונקציות|כיריים|תאים|מנוע|מבנה|מיוחד|גוף|אוטומטי|עוצמה|הקירור|ההקפאה|התמונה|הדחה|הספק(?: מנוע|י המבערים| מקסימלי)?|קיבולת כביסה|מהירות סחיטה|מצב כיבוי תאורה|צג וכפתורים|מגירות ומידוף|טכנולוגיית קירור|נפח תא|מקסימלית|תאורה|התקנה|שחור|לבן|שמנת|נירוסטה|כסוף|אפור|אדום|כחול|ירוק|זכוכית(?: שחורה| לבנה)?|שחורה|לבנה)$/i.test(value)
+    || /^(?:לסאונד|לעיצוב|לבטיחות|של הקור|בתוך|ופונקציות|ומידוף|וקערות|המאפשר|הכולל|המפסיקים|מקררת את|לא יפעלו|באמצעות|לאחר סיום|ממצב|צורכים|עומד בקו|זמזם|פתיחה צד|תמונה גבוהים|גבוהים במיוחד|המשתמש|לפקודות|מנגנון נעילת|שווה ואחידה)/i.test(value);
 }
 
 function numericRecord(value, keys) {

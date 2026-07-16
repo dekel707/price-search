@@ -64,9 +64,9 @@
     "FJ-NF440GDB.pdf",
     "FJ-NF683X.pdf",
     "FJ-WM1214S.pdf",
+    "FJ-WM6060PD.pdf",
     "IT-46L.pdf",
-    "IT-60L.pdf",
-    "��FJ-WM6060PD.pdf"
+    "IT-60L.pdf"
   ],
   "items": {
     "FJ-B957E": {
@@ -563,7 +563,7 @@
         },
         {
           "url": "/img/FJ-FNF212BI_%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf",
-          "fileName": "FJ-FNF212BI_ הוראות התקנה.pdf",
+          "fileName": "FJ-FNF212BI הוראות התקנה.pdf",
           "label": "הוראות התקנה",
           "installation": true
         }
@@ -584,20 +584,20 @@
       ]
     },
     "FJ-FNF377WE": {
-      "url": "/img/FJ-FNF377WE.pdf",
-      "fileName": "FJ-FNF377WE.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
+      "fileName": "FJ-FNF377W.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
-          "url": "/img/FJ-FNF377WE.pdf",
-          "fileName": "FJ-FNF377WE.pdf",
+          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
+          "fileName": "FJ-FNF377W.pdf",
           "label": "מפרט PDF",
           "installation": false
         },
         {
-          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
-          "fileName": "��FJ-FNF377W.pdf",
+          "url": "/img/FJ-FNF377WE.pdf",
+          "fileName": "FJ-FNF377WE.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -779,13 +779,13 @@
     },
     "FJ-HP1010": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
-      "fileName": "��FJ-HP1010.pdf",
+      "fileName": "FJ-HP1010.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
-          "fileName": "��FJ-HP1010.pdf",
+          "fileName": "FJ-HP1010.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -821,13 +821,13 @@
     },
     "FJ-IDZ150": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-      "fileName": "��FJ-IDZ150 - M.pdf",
+      "fileName": "FJ-IDZ150 - M.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-          "fileName": "��FJ-IDZ150 - M.pdf",
+          "fileName": "FJ-IDZ150 - M.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -875,7 +875,7 @@
         },
         {
           "url": "/img/%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94%20%20FJ-NF241BI.pdf",
-          "fileName": "הוראות התקנה  FJ-NF241BI.pdf",
+          "fileName": "הוראות התקנה FJ-NF241BI.pdf",
           "label": "הוראות התקנה",
           "installation": true
         }
@@ -1384,20 +1384,20 @@
       ]
     },
     "FJ-WM1014W": {
-      "url": "/img/FJ-WM1014W.pdf",
-      "fileName": "FJ-WM1014W.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
+      "fileName": "FJ-WM101W.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
-          "url": "/img/FJ-WM1014W.pdf",
-          "fileName": "FJ-WM1014W.pdf",
+          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
+          "fileName": "FJ-WM101W.pdf",
           "label": "מפרט PDF",
           "installation": false
         },
         {
-          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
-          "fileName": "��FJ-WM101W.pdf",
+          "url": "/img/FJ-WM1014W.pdf",
+          "fileName": "FJ-WM1014W.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -1475,13 +1475,13 @@
     },
     "IT-170L": {
       "url": "/img/IT-170L%20%C2%A0.pdf",
-      "fileName": "IT-170L  .pdf",
+      "fileName": "IT-170L .pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/IT-170L%20%C2%A0.pdf",
-          "fileName": "IT-170L  .pdf",
+          "fileName": "IT-170L .pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2193,7 +2193,7 @@
         },
         {
           "url": "/img/FJ-FNF212BI_%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf",
-          "fileName": "FJ-FNF212BI_ הוראות התקנה.pdf",
+          "fileName": "FJ-FNF212BI הוראות התקנה.pdf",
           "label": "הוראות התקנה",
           "installation": true
         }
@@ -2271,33 +2271,33 @@
     },
     "FJFNF377W": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
-      "fileName": "��FJ-FNF377W.pdf",
+      "fileName": "FJ-FNF377W.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
-          "fileName": "��FJ-FNF377W.pdf",
+          "fileName": "FJ-FNF377W.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
       ]
     },
     "FJFNF377WE": {
-      "url": "/img/FJ-FNF377WE.pdf",
-      "fileName": "FJ-FNF377WE.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
+      "fileName": "FJ-FNF377W.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
-          "url": "/img/FJ-FNF377WE.pdf",
-          "fileName": "FJ-FNF377WE.pdf",
+          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
+          "fileName": "FJ-FNF377W.pdf",
           "label": "מפרט PDF",
           "installation": false
         },
         {
-          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
-          "fileName": "��FJ-FNF377W.pdf",
+          "url": "/img/FJ-FNF377WE.pdf",
+          "fileName": "FJ-FNF377WE.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2535,13 +2535,13 @@
     },
     "FJHP1010": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
-      "fileName": "��FJ-HP1010.pdf",
+      "fileName": "FJ-HP1010.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
-          "fileName": "��FJ-HP1010.pdf",
+          "fileName": "FJ-HP1010.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2577,13 +2577,13 @@
     },
     "FJIDZ150": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-      "fileName": "��FJ-IDZ150 - M.pdf",
+      "fileName": "FJ-IDZ150 - M.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-          "fileName": "��FJ-IDZ150 - M.pdf",
+          "fileName": "FJ-IDZ150 - M.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2591,13 +2591,13 @@
     },
     "FJIDZ150M": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-      "fileName": "��FJ-IDZ150 - M.pdf",
+      "fileName": "FJ-IDZ150 - M.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-          "fileName": "��FJ-IDZ150 - M.pdf",
+          "fileName": "FJ-IDZ150 - M.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2645,7 +2645,7 @@
         },
         {
           "url": "/img/%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94%20%20FJ-NF241BI.pdf",
-          "fileName": "הוראות התקנה  FJ-NF241BI.pdf",
+          "fileName": "הוראות התקנה FJ-NF241BI.pdf",
           "label": "הוראות התקנה",
           "installation": true
         }
@@ -3216,20 +3216,20 @@
       ]
     },
     "FJWM1014W": {
-      "url": "/img/FJ-WM1014W.pdf",
-      "fileName": "FJ-WM1014W.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
+      "fileName": "FJ-WM101W.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
-          "url": "/img/FJ-WM1014W.pdf",
-          "fileName": "FJ-WM1014W.pdf",
+          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
+          "fileName": "FJ-WM101W.pdf",
           "label": "מפרט PDF",
           "installation": false
         },
         {
-          "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
-          "fileName": "��FJ-WM101W.pdf",
+          "url": "/img/FJ-WM1014W.pdf",
+          "fileName": "FJ-WM1014W.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3237,13 +3237,13 @@
     },
     "FJWM101W": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
-      "fileName": "��FJ-WM101W.pdf",
+      "fileName": "FJ-WM101W.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
-          "fileName": "��FJ-WM101W.pdf",
+          "fileName": "FJ-WM101W.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3279,13 +3279,13 @@
     },
     "FJWM6060PD": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM6060PD.pdf",
-      "fileName": "��FJ-WM6060PD.pdf",
+      "fileName": "FJ-WM6060PD.pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM6060PD.pdf",
-          "fileName": "��FJ-WM6060PD.pdf",
+          "fileName": "FJ-WM6060PD.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3349,13 +3349,13 @@
     },
     "IT170L": {
       "url": "/img/IT-170L%20%C2%A0.pdf",
-      "fileName": "IT-170L  .pdf",
+      "fileName": "IT-170L .pdf",
       "label": "מפרט PDF",
       "installation": false,
       "files": [
         {
           "url": "/img/IT-170L%20%C2%A0.pdf",
-          "fileName": "IT-170L  .pdf",
+          "fileName": "IT-170L .pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3814,7 +3814,7 @@
       "installation": false
     },
     {
-      "fileName": "FJ-FNF212BI_ הוראות התקנה.pdf",
+      "fileName": "FJ-FNF212BI הוראות התקנה.pdf",
       "url": "/img/FJ-FNF212BI_%20%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94.pdf",
       "modelKeys": [
         "FJFNF212BI"
@@ -3866,6 +3866,14 @@
       "url": "/img/FJ-FNF280BKE.pdf",
       "modelKeys": [
         "FJFNF280BKE"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-FNF377W.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
+      "modelKeys": [
+        "FJFNF377W"
       ],
       "installation": false
     },
@@ -4006,6 +4014,14 @@
       "installation": false
     },
     {
+      "fileName": "FJ-HP1010.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
+      "modelKeys": [
+        "FJHP1010"
+      ],
+      "installation": false
+    },
+    {
       "fileName": "FJ-HP88.pdf",
       "url": "/img/FJ-HP88.pdf",
       "modelKeys": [
@@ -4018,6 +4034,15 @@
       "url": "/img/FJ-HP99.pdf",
       "modelKeys": [
         "FJHP99"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-IDZ150 - M.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
+      "modelKeys": [
+        "FJIDZ150M",
+        "FJIDZ150"
       ],
       "installation": false
     },
@@ -4358,6 +4383,14 @@
       "installation": false
     },
     {
+      "fileName": "FJ-WM101W.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
+      "modelKeys": [
+        "FJWM101W"
+      ],
+      "installation": false
+    },
+    {
       "fileName": "FJ-WM1214S.pdf",
       "url": "/img/FJ-WM1214S.pdf",
       "modelKeys": [
@@ -4370,6 +4403,14 @@
       "url": "/img/FJ-WM1215W.pdf",
       "modelKeys": [
         "FJWM1215W"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-WM6060PD.pdf",
+      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM6060PD.pdf",
+      "modelKeys": [
+        "FJWM6060PD"
       ],
       "installation": false
     },
@@ -4414,7 +4455,7 @@
       "installation": false
     },
     {
-      "fileName": "IT-170L  .pdf",
+      "fileName": "IT-170L .pdf",
       "url": "/img/IT-170L%20%C2%A0.pdf",
       "modelKeys": [
         "IT170L"
@@ -4446,53 +4487,12 @@
       "installation": false
     },
     {
-      "fileName": "הוראות התקנה  FJ-NF241BI.pdf",
+      "fileName": "הוראות התקנה FJ-NF241BI.pdf",
       "url": "/img/%D7%94%D7%95%D7%A8%D7%90%D7%95%D7%AA%20%D7%94%D7%AA%D7%A7%D7%A0%D7%94%20%20FJ-NF241BI.pdf",
       "modelKeys": [
         "FJNF241BI"
       ],
       "installation": true
-    },
-    {
-      "fileName": "��FJ-FNF377W.pdf",
-      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-FNF377W.pdf",
-      "modelKeys": [
-        "FJFNF377W"
-      ],
-      "installation": false
-    },
-    {
-      "fileName": "��FJ-HP1010.pdf",
-      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
-      "modelKeys": [
-        "FJHP1010"
-      ],
-      "installation": false
-    },
-    {
-      "fileName": "��FJ-IDZ150 - M.pdf",
-      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-IDZ150%20-%20M.pdf",
-      "modelKeys": [
-        "FJIDZ150M",
-        "FJIDZ150"
-      ],
-      "installation": false
-    },
-    {
-      "fileName": "��FJ-WM101W.pdf",
-      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM101W.pdf",
-      "modelKeys": [
-        "FJWM101W"
-      ],
-      "installation": false
-    },
-    {
-      "fileName": "��FJ-WM6060PD.pdf",
-      "url": "/img/%EF%BF%BD%EF%BF%BDFJ-WM6060PD.pdf",
-      "modelKeys": [
-        "FJWM6060PD"
-      ],
-      "installation": false
     }
   ]
 }

@@ -9,6 +9,7 @@
     "test:order-schedule": "node scripts/verify-order-schedule.mjs",
     "test:future-stock": "node scripts/verify-future-stock-flow.mjs",
     "test:delete-feedback": "node scripts/verify-delete-feedback.mjs",
+    "test:data-integrity": "node scripts/verify-data-integrity.mjs",
     "test:dealer-catalog": "node scripts/verify-dealer-catalog-api.mjs",
     "test:catalog-attributes": "node scripts/verify-catalog-attributes.mjs",
     "predev": "npm run generate:specs",
