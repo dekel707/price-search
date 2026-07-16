@@ -6,7 +6,6 @@
   "scripts": {
     "generate:fallback": "node scripts/generate-fallback.mjs",
     "dev": "vite --host 0.0.0.0",
-    "prebuild": "npm run generate:fallback",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0"
   },
