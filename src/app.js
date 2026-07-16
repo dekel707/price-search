@@ -54,6 +54,7 @@ const COLLECTION_IMPORT_ENDPOINT = "/api/import-collections";
 const AI_ORDER_ENDPOINT = "/api/ai-order";
 const ZMANIM_ENDPOINT = "/api/zmanim";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
+const CATALOG_ATTRIBUTES_ENDPOINT = "/api/catalog-specifications";
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const CLOUD_SYNC_DISABLED = URL_PARAMS.has("local");
 const AUTH_DISABLED =
@@ -355,6 +356,7 @@ const dom = {
 
 let products = [];
 let defaultProducts = [];
+let catalogAttributesBySku = {};
 let activeMeta = null;
 let categories = [];
 let annotations = {};
@@ -428,6 +430,7 @@ async function startApp() {
   appStarted = true;
   startIsraelClock();
   bindEvents();
+  catalogAttributesBySku = await loadCatalogAttributes();
   defaultProducts = await loadDefaultProducts();
   specManifest = await loadSpecManifest();
   categories = readCategories();
@@ -1223,6 +1226,20 @@ async function loadDefaultProducts() {
     console.error(error);
     dom.status.textContent = "לא הצלחתי לטעון את מחירון ברירת המחדל.";
     return [];
+  }
+}
+
+async function loadCatalogAttributes() {
+  try {
+    const response = await fetch(CATALOG_ATTRIBUTES_ENDPOINT, { cache: "no-store" });
+    if (!response.ok) throw new Error("Catalog attributes are unavailable");
+    const data = await response.json();
+    return data?.items && typeof data.items === "object" && !Array.isArray(data.items) ? data.items : {};
+  } catch (error) {
+    // Product search must keep working even if the optional specification file
+    // is temporarily unavailable. It will be retried on the next page load.
+    console.warn("Catalog attributes failed to load", error);
+    return {};
   }
 }
 
@@ -2234,6 +2251,7 @@ function normalizeProducts(items) {
       if ((!sku && !description) || price === null || seen.has(key)) return null;
       seen.add(key);
 
+      const catalogAttributes = getProductCatalogAttributes(item, sku);
       const product = {
         id: `${sku || "row"}-${index}`,
         sku,
@@ -2241,12 +2259,20 @@ function normalizeProducts(items) {
         description,
         price,
         priceText: formatPrice(price),
-        searchText: normalizeSearch(`${sku} ${description}`),
+        searchText: normalizeSearch(`${sku} ${description} ${catalogAttributes?.searchText || ""}`),
       };
       if (stockQuantity !== null) product.stockQuantity = stockQuantity;
+      if (catalogAttributes) product.catalogAttributes = catalogAttributes;
       return product;
     })
     .filter(Boolean);
+}
+
+function getProductCatalogAttributes(item, sku) {
+  const current = item?.catalogAttributes;
+  const staticAttributes = catalogAttributesBySku[getSkuKey(sku)];
+  const attributes = staticAttributes || current;
+  return attributes && typeof attributes === "object" && !Array.isArray(attributes) ? attributes : null;
 }
 
 function mergeExistingProductStock(nextProducts, currentProducts) {
@@ -2255,10 +2281,23 @@ function mergeExistingProductStock(nextProducts, currentProducts) {
       .filter((product) => hasStockQuantity(product))
       .map((product) => [product.skuKey, product.stockQuantity]),
   );
+  const catalogAttributesByCurrentSku = new Map(
+    currentProducts
+      .filter((product) => product.catalogAttributes)
+      .map((product) => [product.skuKey, product.catalogAttributes]),
+  );
 
   return nextProducts.map((product) => {
-    if (hasStockQuantity(product) || !stockBySku.has(product.skuKey)) return product;
-    return { ...product, stockQuantity: stockBySku.get(product.skuKey) };
+    const stockQuantity = hasStockQuantity(product) ? product.stockQuantity : stockBySku.get(product.skuKey);
+    const catalogAttributes = product.catalogAttributes || catalogAttributesByCurrentSku.get(product.skuKey);
+    return {
+      ...product,
+      ...(stockQuantity !== undefined ? { stockQuantity } : {}),
+      ...(catalogAttributes ? {
+        catalogAttributes,
+        searchText: normalizeSearch(`${product.sku} ${product.description} ${catalogAttributes.searchText || ""}`),
+      } : {}),
+    };
   });
 }
 

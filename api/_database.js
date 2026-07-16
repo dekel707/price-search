@@ -143,6 +143,65 @@ export async function listDatabaseBackups(limit = 30) {
   }));
 }
 
+export async function saveCatalogSpecifications(catalog) {
+  const sql = await getSql();
+  const items = catalog?.items && typeof catalog.items === "object" ? catalog.items : {};
+  const rows = Object.entries(items)
+    .filter(([skuKey, attributes]) => skuKey && attributes && typeof attributes === "object")
+    .map(([skuKey, attributes]) => ({
+      skuKey: String(skuKey),
+      model: String(attributes?.identity?.model || skuKey),
+      attributes,
+    }));
+
+  if (!rows.length) throw new Error("catalog_specifications_empty");
+
+  return sql.begin(async (transaction) => {
+    // This table is a separate, read-only technical catalog. Replacing it in
+    // one transaction can never affect business state, orders, stock or their
+    // backups in price_search_state.
+    await transaction`DELETE FROM price_search_catalog_specifications`;
+    for (const row of rows) {
+      await transaction`
+        INSERT INTO price_search_catalog_specifications (sku_key, model, attributes, updated_at)
+        VALUES (${row.skuKey}, ${row.model}, ${JSON.stringify(row.attributes)}::jsonb, NOW())
+      `;
+    }
+    return { count: rows.length };
+  });
+}
+
+export async function getCatalogSpecificationStatus() {
+  const sql = await getSql();
+  const [row] = await sql`
+    SELECT COUNT(*)::int AS count, MAX(updated_at) AS updated_at
+    FROM price_search_catalog_specifications
+  `;
+  return {
+    count: Number(row?.count || 0),
+    updatedAt: row?.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
+}
+
+export async function readCatalogSpecificationSummaries() {
+  const sql = await getSql();
+  const rows = await sql`
+    SELECT sku_key, COALESCE(attributes->>'searchSummary', '') AS search_summary
+    FROM price_search_catalog_specifications
+  `;
+  return new Map(rows.map((row) => [String(row.sku_key), String(row.search_summary || "")]));
+}
+
+export async function readCatalogSpecifications() {
+  const sql = await getSql();
+  const rows = await sql`
+    SELECT sku_key, attributes
+    FROM price_search_catalog_specifications
+    ORDER BY sku_key
+  `;
+  return Object.fromEntries(rows.map((row) => [String(row.sku_key), typeof row.attributes === "string" ? JSON.parse(row.attributes) : row.attributes]));
+}
+
 async function getSql() {
   const url = getDatabaseUrl();
   if (!url) throw new Error("database_not_configured");
@@ -183,6 +242,18 @@ async function ensureSchema(sql) {
       await sql`
         CREATE INDEX IF NOT EXISTS price_search_state_backups_captured_at_idx
         ON price_search_state_backups (captured_at DESC)
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS price_search_catalog_specifications (
+          sku_key TEXT PRIMARY KEY,
+          model TEXT NOT NULL,
+          attributes JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS price_search_catalog_specifications_updated_at_idx
+        ON price_search_catalog_specifications (updated_at DESC)
       `;
     })().catch((error) => {
       schemaPromise = null;

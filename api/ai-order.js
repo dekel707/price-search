@@ -1,5 +1,6 @@
 import { get } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
+import { hasDatabaseStorageCredentials, readCatalogSpecificationSummaries } from "./_database.js";
 
 const STATE_PATH = "price-search/state.json";
 const MAX_INSTRUCTION_LENGTH = 2_000;
@@ -51,7 +52,17 @@ export default async function handler(request, response) {
     }
 
     const state = await readCloudState();
-    const catalog = normalizeCatalog(state.products);
+    let catalogSearchBySku = new Map();
+    if (hasDatabaseStorageCredentials()) {
+      try {
+        catalogSearchBySku = await readCatalogSpecificationSummaries();
+      } catch (error) {
+        // The order assistant must remain available while the optional
+        // technical-catalog table is being deployed or repaired.
+        console.warn("catalog_specifications_unavailable", error);
+      }
+    }
+    const catalog = normalizeCatalog(state.products, catalogSearchBySku);
     const customers = normalizeCustomers(state.customers);
     const reservations = normalizeReservations(state.reservations);
     if (!catalog.length) {
@@ -91,7 +102,9 @@ async function readCloudState() {
 }
 
 async function extractOrderIntent({ instruction, catalog, customers, apiKey }) {
-  const catalogText = catalog.map((product) => `${product.sku} | ${product.description}`).join("\n");
+  const catalogText = catalog
+    .map((product) => `${product.sku} | ${product.description}${product.catalogSearch ? ` | מפרט: ${product.catalogSearch}` : ""}`)
+    .join("\n");
   const customerText = customers.map((customer) => `${customer.name}${customer.code ? ` | ${customer.code}` : ""}`).join("\n");
   const prompt = [
     `בקשת המשתמש: ${instruction}`,
@@ -267,7 +280,7 @@ function resolveProduct(sku, query, catalog) {
   if (!normalizedQuery) return null;
   const candidates = catalog
     .map((product) => {
-      const productText = normalizeIdentity(`${product.sku} ${product.description}`);
+      const productText = normalizeIdentity(`${product.sku} ${product.description} ${product.catalogSearch || ""}`);
       return { product, score: scoreTextMatch(normalizedQuery, productText) };
     })
     .filter((item) => item.score > 0)
@@ -289,14 +302,15 @@ function scoreTextMatch(query, target) {
   return score;
 }
 
-function normalizeCatalog(value) {
+function normalizeCatalog(value, catalogSearchBySku = new Map()) {
   return (Array.isArray(value) ? value : [])
     .map((item) => {
       const sku = cleanString(item?.sku);
       const description = cleanString(item?.description);
       const skuKey = normalizeSku(sku);
       if (!skuKey || !description) return null;
-      return { skuKey, sku, description, price: Math.max(0, toNumber(item?.price)) };
+      const catalogSearch = cleanString(catalogSearchBySku.get(skuKey) || item?.catalogAttributes?.searchSummary).slice(0, 600);
+      return { skuKey, sku, description, price: Math.max(0, toNumber(item?.price)), catalogSearch };
     })
     .filter(Boolean);
 }
