@@ -1230,26 +1230,17 @@ async function hydrateCloudState() {
     cloudStateVersion = response.headers.get("x-state-version") || "";
     const state = await response.json();
     if (hasCloudState(state)) {
-      const sharedStateResult = applySharedState(state);
+      applySharedState(state);
       persistSharedStateLocally();
       cloudSyncState = "synced";
       cloudHydrated = true;
       markCloudSyncRecovered();
       render();
       if (resumePendingCloudSave()) return;
-      if (
-        !Array.isArray(state.customers) ||
-        !state.customers.length ||
-        sharedStateResult.seededReservations ||
-        sharedStateResult.removedDraftReminders ||
-        sharedStateResult.migratedCollectionReminders ||
-        sharedStateResult.migratedCompletedOrders ||
-        sharedStateResult.restoredCurrentDayOrders ||
-        Number(state.orderCompletionMigrationVersion || 0) < ORDER_COMPLETION_MIGRATION_VERSION ||
-        Number(state.orderOpenRestoreMigrationVersion || 0) < ORDER_OPEN_RESTORE_MIGRATION_VERSION
-      ) {
-        queueCloudSave(0);
-      }
+      // Loading a screen must never write a migration or a repair back to the
+      // cloud by itself. An older open device could otherwise race this tab
+      // and trigger a conflict without the user making any business change.
+      // A real, explicit save still includes the normalized state safely.
       if (cloudSaveAgain) {
         cloudSaveAgain = false;
         queueCloudSave(0);
