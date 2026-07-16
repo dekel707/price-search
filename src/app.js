@@ -10958,9 +10958,19 @@ async function saveSharedStateNow() {
       return;
     }
     if (response.status === 409) {
-      cloudSyncState = "conflict";
+      const conflict = await response.json().catch(() => null);
+      // The API has already preserved this attempted state as an immutable
+      // recovery backup. Do not leave a fresh tab locked behind an old local
+      // envelope: clear that envelope and reload the current cloud version.
+      // Recent missing orders are merged by the API before this branch, so no
+      // saved order is silently discarded here.
+      clearPendingCloudSave(envelope.id);
       cloudSaveAgain = false;
-      dom.status.textContent = "השמירה נעצרה כדי לא לדרוס נתונים ממכשיר אחר. נשמר עותק שחזור מלא של הפעולה — יש לרענן את האתר לפני המשך עבודה.";
+      cloudSyncState = "syncing";
+      dom.status.textContent = conflict?.error === "order_removal_blocked"
+        ? "פעולת המחיקה נחסמה להגנה. נטענים מחדש הנתונים העדכניים; עותק שחזור נשמר בענן."
+        : "נמצא מסך ישן. העותק שלו נשמר בגיבוי בענן והנתונים העדכניים נטענים מחדש.";
+      await hydrateCloudState();
       return;
     }
     if (!response.ok) throw new Error(`Cloud save failed: ${response.status}`);

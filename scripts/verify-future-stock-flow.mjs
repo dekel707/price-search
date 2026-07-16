@@ -58,6 +58,8 @@ assert(app.includes("function requestCloudRecovery()"));
 assert(app.includes('if (cloudSyncState === "offline") return "ממתין לשמירה בענן";'));
 assert(app.includes('futureStockRequest && !requireCloudReadyForMutation("ליצור הזמנת מלאי עתידי")'));
 assert(!app.includes("sharedStateResult.seededReservations"), "Loading cloud state must not auto-save migration changes.");
+assert(app.includes("clearPendingCloudSave(envelope.id);"));
+assert(app.includes("await hydrateCloudState();"));
 
 // Each successful API state change stores a before and after restore point in
 // the configured cloud storage. The database path does the same atomically.
