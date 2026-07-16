@@ -550,7 +550,7 @@ function renderProductCard(product) {
     : "";
   const documents = product.documents.length
     ? `<div class="document-actions">${product.documents.map((document) => `<a href="${escapeAttribute(document.url)}" target="_blank" rel="noreferrer" class="document-link ${escapeAttribute(document.type)}"><span>${document.type === "installation" ? "⌁" : "▤"}</span>${escapeHtml(document.label)}</a>`).join("")}</div>`
-    : `<p class="no-document">אין עדיין מסמך זמין לדגם זה.</p>`;
+    : `<p class="no-document">אין עדיין מסמך לדגם זה.</p>`;
   return `
     <article class="product-card">
       <div class="product-card-topline"><span class="category-label">${escapeHtml(product.category)}</span><code>${escapeHtml(product.model)}</code></div>
