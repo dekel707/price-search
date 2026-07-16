@@ -6596,6 +6596,235 @@ body {
   }
 }
 
+/* Unified glass workspace: every tab uses the calm future-stock structure.
+   Feature colors remain as a thin signal only; controls keep their existing
+   palettes and behaviour. */
+.tab-panel > .search-panel,
+.tab-panel > .ai-assistant-panel,
+.tab-panel > .dashboard-panel,
+.tab-panel > .cart-panel,
+.tab-panel > .sold-products-panel,
+.tab-panel > .customer-sales-panel,
+.tab-panel > .monthly-sales-panel,
+.tab-panel > .collections-panel,
+.tab-panel > .customers-panel,
+.tab-panel > .reservations-panel,
+.tab-panel > .reminders-panel,
+.tab-panel > .calendar-panel,
+.tab-panel > .categories-panel,
+.tab-panel > .drafts-panel,
+.tab-panel > .orders-panel {
+  --workspace-tone: #a9b7c6;
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--workspace-tone) 34%, transparent) !important;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--workspace-tone) 10%, transparent), transparent 31%),
+    radial-gradient(circle at 0 100%, color-mix(in srgb, var(--workspace-tone) 7%, transparent), transparent 38%),
+    linear-gradient(145deg, rgba(12, 18, 27, 0.98), rgba(7, 12, 19, 0.98)) !important;
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(235, 243, 255, 0.045);
+}
+
+/* Each workspace retains its own quiet accent, so the information hierarchy
+   stays obvious without turning the panels into separate design systems. */
+[data-tab-panel="search"] > .search-panel { --workspace-tone: #70d6f3; }
+[data-tab-panel="ai-assistant"] > .ai-assistant-panel { --workspace-tone: #aab7ff; }
+[data-tab-panel="dashboard"] > .dashboard-panel { --workspace-tone: #67d9c8; }
+[data-tab-panel="cart"] > .cart-panel { --workspace-tone: #f3c46f; }
+[data-tab-panel="sold-products"] > .sold-products-panel { --workspace-tone: #71d9e8; }
+[data-tab-panel="customer-sales"] > .customer-sales-panel { --workspace-tone: #8fb7ff; }
+[data-tab-panel="monthly-sales"] > .monthly-sales-panel { --workspace-tone: #b8a5ff; }
+[data-tab-panel="collections"] > .collections-panel { --workspace-tone: #eeaa68; }
+[data-tab-panel="customers"] > .customers-panel { --workspace-tone: #a7c7e7; }
+[data-tab-panel="reservations"] > .reservations-panel { --workspace-tone: #70d79f; }
+[data-tab-panel="reminders"] > .reminders-panel { --workspace-tone: #f0c66f; }
+[data-tab-panel="calendar"] > .calendar-panel { --workspace-tone: #75d8ee; }
+[data-tab-panel="categories"] > .categories-panel { --workspace-tone: #a9b7c6; }
+[data-tab-panel="drafts"] > .drafts-panel { --workspace-tone: #b7a7df; }
+[data-tab-panel="future-stock-orders"] > .orders-panel { --workspace-tone: #a9b7c6; }
+[data-tab-panel="orders"] > .orders-panel { --workspace-tone: #63cce3; }
+[data-tab-panel="completed-orders"] > .orders-panel { --workspace-tone: #6ed49e; }
+[data-tab-panel="tomorrow-orders"] > .orders-panel { --workspace-tone: #e79a4b; }
+
+.tab-panel > :is(
+  .search-panel,
+  .ai-assistant-panel,
+  .dashboard-panel,
+  .cart-panel,
+  .sold-products-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .customers-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .calendar-panel,
+  .categories-panel,
+  .drafts-panel,
+  .orders-panel
+) > .panel-header {
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom-color: color-mix(in srgb, var(--workspace-tone) 18%, transparent);
+}
+
+.tab-panel > :is(
+  .search-panel,
+  .ai-assistant-panel,
+  .dashboard-panel,
+  .cart-panel,
+  .sold-products-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .customers-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .calendar-panel,
+  .categories-panel,
+  .drafts-panel,
+  .orders-panel
+) > .panel-header h2 {
+  color: color-mix(in srgb, var(--workspace-tone) 24%, #f5f9fc);
+}
+
+.tab-panel > :is(
+  .search-panel,
+  .ai-assistant-panel,
+  .dashboard-panel,
+  .cart-panel,
+  .sold-products-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .customers-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .calendar-panel,
+  .categories-panel,
+  .drafts-panel,
+  .orders-panel
+) > .panel-header .eyebrow {
+  color: color-mix(in srgb, var(--workspace-tone) 46%, #aab7c6);
+}
+
+/* The existing icon and title layout is made consistent across all workspaces
+   without touching header buttons, summaries or any interactive controls. */
+[data-tab-panel="ai-assistant"] .ai-assistant-header > .standard-panel-title,
+[data-tab-panel="search"] .search-panel-header > .standard-panel-title,
+[data-tab-panel="calendar"] .calendar-panel-header > .standard-panel-title {
+  padding-inline-start: 0;
+}
+
+[data-tab-panel="ai-assistant"] .ai-assistant-header > .standard-panel-title::before,
+[data-tab-panel="search"] .search-panel-header > .standard-panel-title::before,
+[data-tab-panel="calendar"] .calendar-panel-header > .standard-panel-title::before {
+  content: none;
+}
+
+.tab-panel > :is(
+  .search-panel,
+  .ai-assistant-panel,
+  .dashboard-panel,
+  .cart-panel,
+  .sold-products-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .customers-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .calendar-panel,
+  .categories-panel,
+  .drafts-panel,
+  .orders-panel
+) .field-wrap :is(input, select, textarea) {
+  border-color: color-mix(in srgb, var(--workspace-tone) 25%, transparent);
+  background: rgba(4, 8, 14, 0.52);
+}
+
+.tab-panel > :is(
+  .search-panel,
+  .ai-assistant-panel,
+  .dashboard-panel,
+  .cart-panel,
+  .sold-products-panel,
+  .customer-sales-panel,
+  .monthly-sales-panel,
+  .collections-panel,
+  .customers-panel,
+  .reservations-panel,
+  .reminders-panel,
+  .calendar-panel,
+  .categories-panel,
+  .drafts-panel,
+  .orders-panel
+) .field-wrap :is(input, select, textarea):focus {
+  border-color: color-mix(in srgb, var(--workspace-tone) 70%, #eaf2f8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--workspace-tone) 10%, transparent);
+}
+
+/* All four order tabs share the future-stock card construction. The colour
+   strip is the only visual status cue that changes between open, completed,
+   tomorrow, reservation and future orders. */
+.orders-panel .order-card {
+  --order-tone: var(--workspace-tone);
+  border-color: color-mix(in srgb, var(--order-tone) 34%, rgba(158, 174, 194, 0.28)) !important;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--order-tone) 9%, transparent), transparent 35%),
+    linear-gradient(145deg, rgba(42, 51, 64, 0.62), rgba(11, 17, 26, 0.95)),
+    rgba(9, 14, 22, 0.88) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(232, 240, 250, 0.035);
+}
+
+.orders-panel .order-card::before {
+  background: var(--order-tone) !important;
+  box-shadow: 0 0 17px color-mix(in srgb, var(--order-tone) 38%, transparent) !important;
+}
+
+.orders-panel .order-card.orders-history-card { --order-tone: #63cce3; }
+.orders-panel .order-card.completed-order-card { --order-tone: #6ed49e; }
+.orders-panel .order-card.tomorrow-order-card { --order-tone: #e79a4b; }
+.orders-panel .order-card.future-stock-order-card { --order-tone: #a9b7c6; }
+.orders-panel .order-card.reservation-purchase-order { --order-tone: #ffb648; }
+
+.orders-panel .order-card:hover {
+  border-color: color-mix(in srgb, var(--order-tone) 63%, #e9f1f7) !important;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--order-tone) 15%, transparent), transparent 39%),
+    linear-gradient(145deg, rgba(52, 63, 78, 0.72), rgba(14, 22, 33, 0.98)),
+    rgba(9, 14, 22, 0.9) !important;
+}
+
+.orders-panel .order-card .order-card-kind-icon {
+  border-color: color-mix(in srgb, var(--order-tone) 52%, transparent);
+  background: color-mix(in srgb, var(--order-tone) 15%, #18222d);
+  color: color-mix(in srgb, var(--order-tone) 70%, #f4f8fb);
+}
+
+@media (max-width: 640px) {
+  .tab-panel > :is(
+    .search-panel,
+    .ai-assistant-panel,
+    .dashboard-panel,
+    .cart-panel,
+    .sold-products-panel,
+    .customer-sales-panel,
+    .monthly-sales-panel,
+    .collections-panel,
+    .customers-panel,
+    .reservations-panel,
+    .reminders-panel,
+    .calendar-panel,
+    .categories-panel,
+    .drafts-panel,
+    .orders-panel
+  ) {
+    border-radius: 14px;
+  }
+}
+
 /* Compact management signals. */
 .dashboard-smart-signals-header {
   display: flex;
