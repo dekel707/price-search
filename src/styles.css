@@ -4629,6 +4629,7 @@ h2 {
 .tab-button[data-tab="calendar"]::before { content: "▣"; }
 .tab-button[data-tab="categories"]::before { content: "▱"; }
 .tab-button[data-tab="drafts"]::before { content: "✎"; }
+.tab-button[data-tab="future-stock-orders"]::before { content: "◫"; }
 .tab-button[data-tab="orders"]::before { content: "≡"; }
 .tab-button[data-tab="tomorrow-orders"]::before { content: "→"; }
 
@@ -6970,6 +6971,7 @@ body {
 [data-tab-panel="reminders"] .panel-header > div:first-child::before { content: "◷"; }
 [data-tab-panel="categories"] .panel-header > div:first-child::before { content: "▱"; }
 [data-tab-panel="drafts"] .panel-header > div:first-child::before { content: "✎"; }
+[data-tab-panel="future-stock-orders"] .panel-header > div:first-child::before { content: "◫"; }
 
 .search-panel-header {
   align-items: center;
@@ -7086,6 +7088,117 @@ body {
 
 .result-actions .add-cart-button {
   grid-column: span 1;
+}
+
+.future-stock-button {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(91, 188, 243, 0.8);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(22, 108, 156, 0.9), rgba(50, 152, 195, 0.9));
+  box-shadow: 0 8px 18px rgba(17, 96, 148, 0.2);
+  color: #e5f7ff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.future-stock-button:hover,
+.future-stock-button:focus-visible {
+  border-color: #b9ecff;
+  background: linear-gradient(135deg, rgba(33, 130, 181, 0.96), rgba(68, 174, 213, 0.95));
+}
+
+.future-stock-save-toggle {
+  border-color: rgba(91, 188, 243, 0.52) !important;
+  background: linear-gradient(135deg, rgba(16, 87, 132, 0.28), rgba(20, 46, 74, 0.38)) !important;
+}
+
+.future-stock-save-toggle input {
+  accent-color: #5bbcf3;
+}
+
+.future-stock-date-control {
+  border: 1px solid rgba(91, 188, 243, 0.32);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(18, 62, 91, 0.24);
+}
+
+.future-stock-date-control small,
+.future-stock-orders-intro {
+  color: #a9dff7;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.future-stock-orders-panel {
+  border-color: rgba(91, 188, 243, 0.34) !important;
+}
+
+.future-stock-orders-intro {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(91, 188, 243, 0.21);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(18, 70, 102, 0.3), rgba(9, 36, 59, 0.36));
+}
+
+.future-stock-order-card {
+  border-color: rgba(91, 188, 243, 0.36) !important;
+  background: linear-gradient(145deg, rgba(10, 45, 70, 0.92), rgba(7, 25, 43, 0.96)) !important;
+}
+
+.future-stock-order-card::before {
+  background: #5bbcf3 !important;
+  box-shadow: 0 0 17px rgba(91, 188, 243, 0.58) !important;
+}
+
+.future-stock-date-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(91, 188, 243, 0.42);
+  border-radius: 999px;
+  background: rgba(91, 188, 243, 0.12);
+  color: #bdeaff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.future-stock-date-state.due {
+  border-color: rgba(255, 192, 91, 0.72);
+  background: rgba(177, 104, 20, 0.22);
+  color: #ffe0a5;
+}
+
+.future-stock-actions .future-stock-commit {
+  border-color: rgba(100, 219, 193, 0.7);
+  background: linear-gradient(135deg, #168f7c, #35bea7);
+  color: #effffb;
+}
+
+@media (max-width: 640px) {
+  [data-tab-panel="future-stock-orders"] .panel-header > div:first-child {
+    padding-inline-start: 47px;
+  }
+
+  [data-tab-panel="future-stock-orders"] .panel-header > div:first-child::before {
+    width: 36px;
+    height: 36px;
+  }
+
+  .future-stock-orders-intro {
+    padding: 10px 11px;
+    font-size: 0.75rem;
+  }
+
+  .future-stock-date-state {
+    font-size: 0.67rem;
+  }
 }
 
 .cart-line,
