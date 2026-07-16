@@ -325,11 +325,19 @@ const dom = {
   floatingCartTotal: document.querySelector("#floatingCartTotal"),
   clearCart: document.querySelector("#clearCart"),
   saveAsDraft: document.querySelector("#saveAsDraft"),
+  futureStockOrderToggle: document.querySelector("#futureStockOrderToggle"),
+  saveAsFutureStock: document.querySelector("#saveAsFutureStock"),
+  futureStockDateControl: document.querySelector("#futureStockDateControl"),
+  futureStockDate: document.querySelector("#futureStockDate"),
+  futureStockOrderHint: document.querySelector("#futureStockOrderHint"),
   saveOrder: document.querySelector("#saveOrder"),
   sendWhatsApp: document.querySelector("#sendWhatsApp"),
   draftSearch: document.querySelector("#draftSearch"),
   draftsSummary: document.querySelector("#draftsSummary"),
   draftsList: document.querySelector("#draftsList"),
+  futureStockOrdersSearch: document.querySelector("#futureStockOrdersSearch"),
+  futureStockOrdersSummary: document.querySelector("#futureStockOrdersSummary"),
+  futureStockOrdersList: document.querySelector("#futureStockOrdersList"),
   orderSearch: document.querySelector("#orderSearch"),
   ordersList: document.querySelector("#ordersList"),
   completedOrderSearch: document.querySelector("#completedOrderSearch"),
@@ -376,6 +384,7 @@ let activeTab = "search";
 let orderType = "delivery";
 let activeCustomerId = "";
 let pendingCartProduct = null;
+let pendingCartFutureStock = false;
 let pendingCartPriceSource = "list";
 let pendingReservationChoiceTouched = false;
 let pendingOrderImport = null;
@@ -959,6 +968,24 @@ function bindEvents() {
       return;
     }
 
+    const futureStockButton = event.target.closest("[data-add-future-stock]");
+    if (futureStockButton) {
+      const product = products.find((item) => item.skuKey === futureStockButton.dataset.addFutureStock);
+      if (!product) return;
+      if (shouldAskForCartCustomer()) {
+        openCartCustomerDialog(product, { futureStock: true });
+        return;
+      }
+      addProductToCart(product, {
+        quantity: 1,
+        unitPrice: product.price,
+        priceSource: "list",
+        fromReservation: false,
+      });
+      startFutureStockOrderFromCart();
+      return;
+    }
+
     const button = event.target.closest("[data-add-to-cart]");
     if (!button) return;
     const product = products.find((item) => item.skuKey === button.dataset.addToCart);
@@ -1102,7 +1129,20 @@ function bindEvents() {
     renderCustomerHint();
   });
   dom.clearCart.addEventListener("click", clearCart);
-  dom.saveAsDraft.addEventListener("change", renderCart);
+  dom.saveAsDraft.addEventListener("change", () => {
+    if (dom.saveAsDraft.checked) dom.saveAsFutureStock.checked = false;
+    renderCart();
+  });
+  dom.saveAsFutureStock.addEventListener("change", () => {
+    if (dom.saveAsFutureStock.checked) {
+      dom.saveAsDraft.checked = false;
+      orderReportTomorrow = false;
+      orderReportToday = false;
+      saveOrderReportTomorrow();
+    }
+    renderCart();
+  });
+  dom.futureStockDate.addEventListener("change", renderCart);
   dom.reportTomorrow.addEventListener("change", () => {
     orderReportTomorrow = dom.reportTomorrow.checked;
     if (orderReportTomorrow) {
@@ -1128,11 +1168,15 @@ function bindEvents() {
       : "תאריך הדיווח יחושב אוטומטית לפי שעת ההקמה.";
   });
   dom.floatingCart.addEventListener("click", () => setActiveTab("cart"));
-  dom.saveOrder.addEventListener("click", () => (editingDraftId || dom.saveAsDraft.checked ? saveDraftOrder() : saveOrder()));
+  dom.saveOrder.addEventListener("click", () =>
+    editingDraftId || dom.saveAsDraft.checked || dom.saveAsFutureStock.checked ? saveDraftOrder() : saveOrder(),
+  );
   dom.sendWhatsApp.addEventListener("click", sendCurrentOrderToWhatsApp);
   dom.draftSearch.addEventListener("input", renderDrafts);
   dom.draftsList.addEventListener("change", handleDraftFieldChange);
   dom.draftsList.addEventListener("click", handleDraftActionClick);
+  dom.futureStockOrdersSearch.addEventListener("input", renderFutureStockOrders);
+  dom.futureStockOrdersList.addEventListener("click", handleFutureStockOrderActionClick);
   dom.orderSearch.addEventListener("input", renderOrders);
   dom.completedOrderSearch.addEventListener("input", renderCompletedOrders);
   dom.tomorrowOrderSearch.addEventListener("input", renderTomorrowOrders);
@@ -2222,6 +2266,7 @@ function render() {
   renderMonthlySalesPanel();
   renderCart();
   renderDrafts();
+  renderFutureStockOrders();
   renderOrders();
   renderCompletedOrders();
   renderTomorrowOrders();
@@ -2510,6 +2555,7 @@ function renderResultNodes(items, query, totalMatches) {
   return items.map((product) => {
     const annotation = getAnnotation(product);
     const isDiscontinued = isDiscontinuedCategory(annotation.category);
+    const futureStockEligible = isFutureStockEligibleProduct(product);
     const article = document.createElement("article");
     article.className = "result-row";
     article.classList.toggle("discontinued-product", isDiscontinued);
@@ -2557,7 +2603,7 @@ function renderResultNodes(items, query, totalMatches) {
     if (isDiscontinued) {
       const availability = document.createElement("span");
       availability.className = "unavailable-label";
-      availability.textContent = "יצא מהמגוון · לא ניתן להזמנה";
+      availability.textContent = "יצא מהמגוון · זמין להזמנת מלאי עתידי בלבד";
       annotationMeta.append(availability);
     }
 
@@ -2582,6 +2628,15 @@ function renderResultNodes(items, query, totalMatches) {
       promotionButton.setAttribute("aria-label", `הוסף מבצע 10 ועוד 1 עבור ${product.sku || product.description}`);
       promotionButton.innerHTML = `${getOrderActionIcon("bonus")}<span>10+1</span>`;
       actions.append(promotionButton);
+    }
+
+    if (futureStockEligible) {
+      const futureStockButton = document.createElement("button");
+      futureStockButton.className = "future-stock-button";
+      futureStockButton.type = "button";
+      futureStockButton.dataset.addFutureStock = product.skuKey;
+      futureStockButton.textContent = "הזמן למלאי עתידי";
+      actions.append(futureStockButton);
     }
 
     getProductDocuments(product).forEach((productDocument) => {
@@ -2700,6 +2755,29 @@ function getProductDocuments(product) {
 function isDiscontinuedCategory(category) {
   const key = normalizeSearch(category).replace(/\s+/g, "");
   return key === "יצאממגוון" || key === "יצאמהמגוון" || key === "יצאמהמהגוון";
+}
+
+function isFutureStockEligibleProduct(product) {
+  if (!product) return false;
+  if (isDiscontinuedCategory(getAnnotation(product).category)) return true;
+  return hasStockQuantity(product) && Number(product.stockQuantity) < 10;
+}
+
+function getFutureStockEligibleCartProducts() {
+  const seen = new Set();
+  return cart
+    .map((line) => products.find((product) => product.skuKey === line.skuKey))
+    .filter((product) => product && isFutureStockEligibleProduct(product))
+    .filter((product) => {
+      if (seen.has(product.skuKey)) return false;
+      seen.add(product.skuKey);
+      return true;
+    });
+}
+
+function getFutureStockEligibilityLabel(product) {
+  if (isDiscontinuedCategory(getAnnotation(product).category)) return "יצא מהמגוון";
+  return `מלאי נמוך · ${formatStockQuantity(product)} יח׳`;
 }
 
 function getDiscontinuedCategoryName() {
@@ -7908,6 +7986,70 @@ function formatReminderDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("he-IL");
 }
 
+function isFutureStockDraft(draft) {
+  return Boolean(draft?.futureStockOrder && normalizeDateInput(draft.futureStockDate));
+}
+
+function getFutureStockReminderId(draftId) {
+  return `future-stock-reminder-${draftId}`;
+}
+
+function buildFutureStockReminderTitle(draft) {
+  const customer = getOrderCustomer(draft);
+  const customerName = customer?.name || draft.customerName || "ללא לקוח";
+  const itemSummary = draft.items
+    .slice(0, 2)
+    .map((item) => `${item.description} × ${item.quantity}`)
+    .join(" · ");
+  return `מלאי עתידי: ${customerName}${itemSummary ? ` · ${itemSummary}` : ""}`;
+}
+
+function syncFutureStockReminder(draft) {
+  const reminderId = getFutureStockReminderId(draft.id);
+  const existing = reminders.find((reminder) => reminder.id === reminderId);
+  const shouldCreate = isFutureStockDraft(draft);
+  const customer = getOrderCustomer(draft);
+  const now = new Date().toISOString();
+  const nextReminder = shouldCreate
+    ? {
+        id: reminderId,
+        title: buildFutureStockReminderTitle(draft),
+        dueDate: draft.futureStockDate,
+        customerId: customer?.id || draft.customerId || "",
+        customerName: customer?.name || draft.customerName || "",
+        completed: false,
+        completedAt: "",
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+        sourceType: "future-stock",
+        sourceId: draft.id,
+      }
+    : null;
+
+  const unchanged =
+    Boolean(existing && nextReminder) &&
+    existing.title === nextReminder.title &&
+    existing.dueDate === nextReminder.dueDate &&
+    existing.customerId === nextReminder.customerId &&
+    existing.customerName === nextReminder.customerName &&
+    !existing.completed;
+  if (unchanged) return false;
+
+  reminders = reminders.filter((reminder) => reminder.id !== reminderId);
+  if (nextReminder) reminders = [nextReminder, ...reminders];
+  if (existing || nextReminder) saveReminders({ sync: false });
+  return Boolean(existing || nextReminder);
+}
+
+function removeFutureStockReminder(draftId) {
+  const reminderId = getFutureStockReminderId(draftId);
+  const before = reminders.length;
+  reminders = reminders.filter((reminder) => reminder.id !== reminderId);
+  if (reminders.length === before) return false;
+  saveReminders({ sync: false });
+  return true;
+}
+
 function formatSundayOrderDate(value) {
   const date = new Date(`${value}T12:00:00`);
   return Number.isNaN(date.getTime())
@@ -7978,6 +8120,11 @@ function isOrderReportedToday(order) {
 
 function isOrderForTomorrow(order, reference = new Date()) {
   return getOrderReportDateKey(order) > getIsraelDateKey(reference);
+}
+
+function getOrderDestinationTab(order, reference = new Date()) {
+  if (isOrderCompleted(order)) return "completed-orders";
+  return isOrderForTomorrow(order, reference) ? "tomorrow-orders" : "orders";
 }
 
 function isOrderCompleted(order) {
@@ -8174,6 +8321,24 @@ function addTenPlusOneToCart(product, options = {}) {
   dom.status.textContent = `מבצע 10+1 נוסף: 10 יח׳ ב־${formatPrice(unitPrice)} ועוד יחידת בונוס ב־₪0.`;
 }
 
+function startFutureStockOrderFromCart() {
+  const eligibleProducts = getFutureStockEligibleCartProducts();
+  if (!eligibleProducts.length) {
+    dom.status.textContent = "הזמנת מלאי עתידי זמינה רק למוצר שיצא מהמגוון או שמלאי שלו מתחת ל־10 יח׳.";
+    return;
+  }
+
+  dom.saveAsFutureStock.checked = true;
+  dom.saveAsDraft.checked = false;
+  orderReportTomorrow = false;
+  orderReportToday = false;
+  saveOrderReportTomorrow();
+  setActiveTab("cart");
+  renderCart();
+  dom.status.textContent = "נפתחה הזמנת מלאי עתידי. בחר תאריך ושמור; היא לא תיכנס לדוחות עד שתאשר אותה מהלשונית החדשה.";
+  window.setTimeout(() => dom.futureStockDate.focus(), 50);
+}
+
 function upsertCartLine(product, quantity, options) {
   const bonusType = normalizeBonusType(options.bonusType);
   const lineKey = createCartLineKey(
@@ -8252,6 +8417,7 @@ function getProductPriceSource(product, unitPrice) {
 
 function openCartCustomerDialog(product, options = {}) {
   pendingCartProduct = product;
+  pendingCartFutureStock = Boolean(options.futureStock);
   pendingReservationChoiceTouched = false;
   const last = lastPrices[product.skuKey];
   pendingCartPriceSource = "list";
@@ -8303,6 +8469,7 @@ function renderDialogQuickPrices(product, last) {
 
 function closeCartCustomerDialog() {
   pendingCartProduct = null;
+  pendingCartFutureStock = false;
   dom.cartCustomerDialog.hidden = true;
   dom.cartCustomerInput.value = "";
   dom.cartProductQuantity.value = "1";
@@ -8346,8 +8513,9 @@ function confirmCartCustomer(event) {
   saveSettings();
   renderCustomerHint();
   const product = pendingCartProduct;
+  const futureStock = pendingCartFutureStock;
   const quantity = parseQuantity(dom.cartProductQuantity.value);
-  const fromReservation = orderType === "delivery" && dom.cartProductReservation.checked;
+  const fromReservation = !futureStock && orderType === "delivery" && dom.cartProductReservation.checked;
   const unitPrice = Math.max(0, parsePrice(dom.cartProductPrice.value) ?? product?.price ?? 0);
   const priceSource = pendingCartPriceSource;
   const usePromotion = dom.cartProductPromotion.checked && !dom.dialogPromotionOption.hidden;
@@ -8358,6 +8526,7 @@ function confirmCartCustomer(event) {
   } else {
     addProductToCart(product, { quantity, unitPrice, priceSource, fromReservation });
   }
+  if (futureStock) startFutureStockOrderFromCart();
 }
 
 function renderDialogReservationOption() {
@@ -8469,6 +8638,8 @@ function removeCartLine(lineKey) {
     orderReportTomorrow = false;
     orderReportToday = false;
     dom.saveAsDraft.checked = false;
+    dom.saveAsFutureStock.checked = false;
+    dom.futureStockDate.value = "";
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
     saveOrderReportTomorrow();
@@ -8492,6 +8663,8 @@ function clearCart() {
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
   saveCart();
@@ -8547,6 +8720,27 @@ function saveDraftOrder(options = {}) {
   const now = new Date();
   const originalDraft = editingDraftId ? drafts.find((draft) => draft.id === editingDraftId) : null;
   if (editingDraftId && !originalDraft) editingDraftId = "";
+  const futureStockOrder = Boolean(dom.saveAsFutureStock.checked);
+  const futureStockDate = normalizeDateInput(dom.futureStockDate.value);
+  if (futureStockOrder && !futureStockDate) {
+    const message = "צריך לבחור תאריך לתזכורת של הזמנת המלאי העתידי.";
+    dom.status.textContent = message;
+    window.alert(message);
+    dom.futureStockDate.focus();
+    return null;
+  }
+  if (futureStockOrder && orderType !== "delivery") {
+    const message = "הזמנת מלאי עתידי מיועדת לאספקה ללקוח, ולא לרכישה לשריון.";
+    dom.status.textContent = message;
+    window.alert(message);
+    return null;
+  }
+  if (futureStockOrder && !isFutureStockDraft(originalDraft) && !getFutureStockEligibleCartProducts().length) {
+    const message = "הזמנת מלאי עתידי זמינה רק כשבסל יש מוצר שיצא מהמגוון או שמלאי שלו מתחת ל־10 יח׳.";
+    dom.status.textContent = message;
+    window.alert(message);
+    return null;
+  }
   const customer = getSelectedCustomer();
   const customerName = customer?.name || cleanString(dom.customerName.value);
   if (duplicatedOrderNeedsCustomer && !customerName) {
@@ -8580,6 +8774,8 @@ function saveDraftOrder(options = {}) {
     customerCode: customer?.code || "",
     customerPhone: customer?.phone || "",
     orderType,
+    futureStockOrder,
+    futureStockDate: futureStockOrder ? futureStockDate : "",
     draftReminderDate: originalDraft?.draftReminderDate || "",
     items: cart.map((line) => ({
       ...line,
@@ -8591,6 +8787,7 @@ function saveDraftOrder(options = {}) {
   drafts = originalDraft
     ? drafts.map((item) => (item.id === draft.id ? draft : item)).sort(compareOrdersByCreatedAt)
     : [draft, ...drafts.filter((item) => item.id !== draft.id)];
+  syncFutureStockReminder(draft);
   cart = [];
   editingOrderId = "";
   editingDraftId = "";
@@ -8598,20 +8795,24 @@ function saveDraftOrder(options = {}) {
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
   saveDrafts({ sync: false });
   saveCart();
   saveSettings();
   saveOrderReportTomorrow();
-  queueCloudSave({ action: originalDraft ? "draft-edit" : "draft-create" });
+  queueCloudSave({ action: futureStockOrder ? (originalDraft ? "future-stock-edit" : "future-stock-create") : originalDraft ? "draft-edit" : "draft-create" });
   render();
-  if (options.activateTab !== false) setActiveTab("drafts");
+  if (options.activateTab !== false) setActiveTab(futureStockOrder ? "future-stock-orders" : "drafts");
   dom.status.textContent =
     options.status ||
-    (originalDraft
-      ? "השינויים בטיוטה נשמרו. היא עדיין לא נכנסה להזמנות ולא עדכנה שריונים."
-      : "הטיוטה נשמרה. היא לא נכנסה להזמנות ולא עדכנה שריונים.");
+    (futureStockOrder
+      ? `הזמנת המלאי העתידי נשמרה. תזכורת תופיע ב־${formatReminderDate(futureStockDate)} והיא לא נכנסה להזמנות או לדוחות.`
+      : originalDraft
+        ? "השינויים בטיוטה נשמרו. היא עדיין לא נכנסה להזמנות ולא עדכנה שריונים."
+        : "הטיוטה נשמרה. היא לא נכנסה להזמנות ולא עדכנה שריונים.");
   return draft;
 }
 
@@ -8682,6 +8883,8 @@ function saveOrder(options = {}) {
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
   saveOrders();
@@ -8869,9 +9072,11 @@ function sendCurrentOrderToWhatsApp(event) {
   }
 
   event.preventDefault();
-  if (editingDraftId || dom.saveAsDraft.checked) {
+  if (editingDraftId || dom.saveAsDraft.checked || dom.saveAsFutureStock.checked) {
     const draft = saveDraftOrder({
-      status: "הטיוטה נשמרה וההודעה נפתחה בוואטסאפ. היא לא נכנסה להזמנות.",
+      status: dom.saveAsFutureStock.checked
+        ? "הזמנת המלאי העתידי נשמרה וההודעה נפתחה בוואטסאפ. היא לא נכנסה להזמנות."
+        : "הטיוטה נשמרה וההודעה נפתחה בוואטסאפ. היא לא נכנסה להזמנות.",
     });
     if (!draft) return;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -8891,30 +9096,59 @@ function renderCart() {
   const isReservationPurchase = orderType === "reservation";
   const isEditingOrder = Boolean(editingOrderId);
   const isEditingDraft = Boolean(editingDraftId);
+  const editingDraft = isEditingDraft ? drafts.find((draft) => draft.id === editingDraftId) : null;
+  const editingFutureStockOrder = isFutureStockDraft(editingDraft);
+  const eligibleFutureStockProducts = getFutureStockEligibleCartProducts();
+  const canSaveAsFutureStock =
+    !isReservationPurchase && (editingFutureStockOrder || eligibleFutureStockProducts.length > 0);
+  if (!canSaveAsFutureStock && dom.saveAsFutureStock.checked) {
+    dom.saveAsFutureStock.checked = false;
+    dom.futureStockDate.value = "";
+  }
+  const saveAsFutureStock = Boolean(dom.saveAsFutureStock.checked);
   dom.cartPanel.classList.toggle("reservation-purchase-cart", isReservationPurchase);
   dom.cartPanel.classList.toggle("editing-order-cart", isEditingOrder);
   dom.cartPanel.classList.toggle("editing-draft-cart", isEditingDraft);
-  dom.cartTitle.textContent = isEditingDraft
-    ? "עריכת טיוטה"
+  dom.cartPanel.classList.toggle("future-stock-cart", saveAsFutureStock);
+  dom.futureStockOrderToggle.hidden = !canSaveAsFutureStock;
+  dom.futureStockDateControl.hidden = !saveAsFutureStock;
+  dom.futureStockOrderHint.textContent = eligibleFutureStockProducts.length
+    ? `זמין עבור: ${eligibleFutureStockProducts.map(getFutureStockEligibilityLabel).join(" · ")}. ההזמנה לא תיכנס לדוחות עד שתשמור אותה כהזמנה.`
+    : "ההזמנה נשמרת בנפרד ולא תיכנס לדוחות עד שתשמור אותה כהזמנה.";
+  dom.cartTitle.textContent = editingFutureStockOrder
+    ? "עריכת הזמנת מלאי עתידי"
+    : isEditingDraft
+      ? "עריכת טיוטה"
     : isEditingOrder
-    ? "עריכת הזמנה"
-    : isReservationPurchase
-      ? "הזמנה חדשה לשריון"
-      : "הזמנה נוכחית";
+      ? "עריכת הזמנה"
+      : isReservationPurchase
+        ? "הזמנה חדשה לשריון"
+        : "הזמנה נוכחית";
   const saveAsDraft = dom.saveAsDraft.checked;
-  dom.saveOrder.textContent = isEditingDraft || saveAsDraft
-    ? "שמור טיוטה"
-    : isEditingOrder
-    ? "שמור שינויים"
-    : isReservationPurchase
-      ? "שמור והוסף לשריון"
-      : "שמור הזמנה";
-  dom.clearCart.textContent = isEditingDraft ? "בטל עריכת טיוטה" : isEditingOrder ? "בטל עריכה" : "נקה סל";
+  dom.saveOrder.textContent = saveAsFutureStock
+    ? "שמור הזמנת מלאי עתידי"
+    : isEditingDraft || saveAsDraft
+      ? "שמור טיוטה"
+      : isEditingOrder
+        ? "שמור שינויים"
+        : isReservationPurchase
+          ? "שמור והוסף לשריון"
+          : "שמור הזמנה";
+  dom.clearCart.textContent = editingFutureStockOrder
+    ? "בטל עריכת מלאי עתידי"
+    : isEditingDraft
+      ? "בטל עריכת טיוטה"
+      : isEditingOrder
+        ? "בטל עריכה"
+        : "נקה סל";
   dom.orderTypeInputs.forEach((input) => {
     input.checked = input.value === orderType;
+    input.disabled = saveAsFutureStock;
   });
   dom.reportTomorrow.checked = orderReportTomorrow;
   dom.reportToday.checked = orderReportToday;
+  dom.reportTomorrow.disabled = saveAsFutureStock;
+  dom.reportToday.disabled = saveAsFutureStock;
   renderCartSummary();
 
   if (!cart.length) {
@@ -9159,7 +9393,8 @@ function filterOrdersByQuery(orderList, query) {
 
 function renderDrafts() {
   const query = normalizeSearch(dom.draftSearch.value);
-  const visibleDrafts = drafts.filter((draft) => {
+  const ordinaryDrafts = drafts.filter((draft) => !isFutureStockDraft(draft));
+  const visibleDrafts = ordinaryDrafts.filter((draft) => {
     if (!query) return true;
     const searchable = [
       draft.customerName,
@@ -9172,11 +9407,11 @@ function renderDrafts() {
   }).sort(compareOrdersByCreatedAt);
 
   dom.draftsSummary.textContent = query
-    ? `${visibleDrafts.length.toLocaleString("he-IL")} מתוך ${drafts.length.toLocaleString("he-IL")}`
-    : drafts.length === 1
+    ? `${visibleDrafts.length.toLocaleString("he-IL")} מתוך ${ordinaryDrafts.length.toLocaleString("he-IL")}`
+    : ordinaryDrafts.length === 1
       ? "טיוטה אחת"
-      : `${drafts.length.toLocaleString("he-IL")} טיוטות`;
-  if (!drafts.length) {
+      : `${ordinaryDrafts.length.toLocaleString("he-IL")} טיוטות`;
+  if (!ordinaryDrafts.length) {
     dom.draftsList.replaceChildren(emptyState("אין טיוטות שמורות."));
     return;
   }
@@ -9186,6 +9421,95 @@ function renderDrafts() {
   }
 
   dom.draftsList.replaceChildren(...visibleDrafts.slice(0, query ? 80 : 20).map(renderDraftCard));
+}
+
+function renderFutureStockOrders() {
+  const query = normalizeSearch(dom.futureStockOrdersSearch.value);
+  const futureStockOrders = drafts
+    .filter(isFutureStockDraft)
+    .filter((draft) => {
+      if (!query) return true;
+      const searchable = [
+        draft.customerName,
+        draft.customerCode,
+        draft.customerPhone,
+        getOrderCustomer(draft)?.name,
+        ...draft.items.flatMap((item) => [item.sku, item.description]),
+      ].join(" ");
+      return normalizeSearch(searchable).includes(query);
+    })
+    .sort((a, b) => a.futureStockDate.localeCompare(b.futureStockDate) || compareOrdersByCreatedAt(a, b));
+
+  const allFutureStockOrders = drafts.filter(isFutureStockDraft);
+  dom.futureStockOrdersSummary.textContent = query
+    ? `${futureStockOrders.length.toLocaleString("he-IL")} מתוך ${allFutureStockOrders.length.toLocaleString("he-IL")}`
+    : allFutureStockOrders.length === 1
+      ? "הזמנה אחת"
+      : `${allFutureStockOrders.length.toLocaleString("he-IL")} הזמנות`;
+
+  if (!allFutureStockOrders.length) {
+    dom.futureStockOrdersList.replaceChildren(emptyState("אין הזמנות שממתינות למלאי עתידי."));
+    return;
+  }
+  if (!futureStockOrders.length) {
+    dom.futureStockOrdersList.replaceChildren(emptyState("לא נמצאו הזמנות מלאי עתידי מתאימות."));
+    return;
+  }
+
+  dom.futureStockOrdersList.replaceChildren(...futureStockOrders.slice(0, query ? 80 : 40).map(renderFutureStockOrderCard));
+}
+
+function renderFutureStockOrderCard(draft) {
+  const card = document.createElement("article");
+  card.className = "order-card draft-card future-stock-order-card";
+  const customer = getOrderCustomer(draft);
+  const customerName = customer?.name || draft.customerName;
+  const itemCount = draft.items.reduce((sum, item) => sum + item.quantity, 0);
+  const summary = draft.items
+    .slice(0, 2)
+    .map((item) => `${item.description} × ${item.quantity}`)
+    .join(" · ");
+  const isDue = draft.futureStockDate <= getLocalDateKey(new Date());
+
+  const body = document.createElement("div");
+  body.className = "order-body";
+  body.innerHTML = `
+    <div class="order-card-heading">
+      <span class="order-card-kind-icon calendar" aria-hidden="true">${getOrderActionIcon("calendar")}</span>
+      <div class="order-card-heading-copy">
+        <strong>${escapeHtml(formatReminderDate(draft.futureStockDate))}</strong>
+        <span class="order-card-state">מלאי עתידי</span>
+      </div>
+      <span class="future-stock-date-state ${isDue ? "due" : "waiting"}">${isDue ? "הגיע התאריך" : "ממתין למלאי"}</span>
+    </div>
+    ${customerName ? `<div class="order-card-customer">${getOrderActionIcon("customer")}<span>${escapeHtml(customerName)}</span></div>` : ""}
+    <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>${escapeHtml(formatPrice(draft.total))}</b></div>
+    <small class="order-card-summary">${escapeHtml(summary)}</small>
+  `;
+
+  const actions = document.createElement("div");
+  actions.className = "order-actions future-stock-actions";
+  actions.innerHTML = `
+    <button class="file-button order-action-button future-stock-commit" type="button" data-commit-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("receipt")}<span>שמור הזמנה</span></button>
+    <button class="secondary-button order-action-button order-action-view" type="button" data-toggle-future-stock-details="${escapeHtml(draft.id)}" aria-expanded="false">${getOrderActionIcon("view")}<span>הצג הזמנה</span></button>
+    <button class="secondary-button order-action-button order-action-edit" type="button" data-edit-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("edit")}<span>ערוך</span></button>
+    <button class="secondary-button order-action-button" type="button" data-load-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("load")}<span>טען לסל</span></button>
+    <a class="whatsapp-button compact order-action-button order-action-whatsapp" href="${escapeHtml(createWhatsAppUrl(draft.items, draft) || "#")}" target="_blank" rel="noreferrer" data-send-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("whatsapp")}<span>וואטסאפ</span></a>
+    <button class="danger-button order-action-button order-action-delete" type="button" data-delete-future-stock="${escapeHtml(draft.id)}">${getOrderActionIcon("trash")}<span>מחק</span></button>
+  `;
+  const whatsapp = actions.querySelector("[data-send-future-stock]");
+  if (!createWhatsAppUrl(draft.items, draft)) {
+    whatsapp.classList.add("disabled");
+    whatsapp.setAttribute("aria-disabled", "true");
+  }
+
+  const details = createOrderTextDetails(draft, { showReportDate: false });
+  const date = document.createElement("p");
+  date.className = "order-details-meta";
+  date.textContent = `תאריך תזכורת למלאי: ${formatReminderDate(draft.futureStockDate)}`;
+  details.prepend(date);
+  card.append(body, actions, details);
+  return card;
 }
 
 function renderDraftCard(draft) {
@@ -9793,6 +10117,8 @@ function handleOrderActionClick(event) {
   settings.customerName = customer?.name || order.customerName || "";
   dom.customerName.value = settings.customerName;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   customerConfirmedForCurrentCart = Boolean(settings.customerName);
   setOrderType(order.orderType, { render: false });
   saveSettings();
@@ -9864,6 +10190,61 @@ function handleDraftActionClick(event) {
   details.hidden = !shouldOpen;
   toggleButton.setAttribute("aria-expanded", String(shouldOpen));
   toggleButton.textContent = shouldOpen ? "סגור טיוטה" : "הצג טיוטה";
+}
+
+function handleFutureStockOrderActionClick(event) {
+  const commitButton = event.target.closest("[data-commit-future-stock]");
+  if (commitButton) {
+    commitFutureStockOrder(commitButton.dataset.commitFutureStock);
+    return;
+  }
+
+  const editButton = event.target.closest("[data-edit-future-stock]");
+  if (editButton) {
+    startEditingDraft(editButton.dataset.editFutureStock);
+    return;
+  }
+
+  const loadButton = event.target.closest("[data-load-future-stock]");
+  if (loadButton) {
+    loadDraftToCart(loadButton.dataset.loadFutureStock);
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-delete-future-stock]");
+  if (deleteButton) {
+    deleteDraft(deleteButton.dataset.deleteFutureStock);
+    return;
+  }
+
+  const whatsapp = event.target.closest("[data-send-future-stock]");
+  if (whatsapp) {
+    if (whatsapp.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+      dom.status.textContent = "צריך להגדיר מספר וואטסאפ קבוע לפני שליחה.";
+      return;
+    }
+    dom.status.textContent = "ההודעה נפתחה בוואטסאפ. ההזמנה עדיין ממתינה למלאי עתידי ולא נכנסה לדוחות.";
+    return;
+  }
+
+  const toggleButton = event.target.closest("[data-toggle-future-stock-details]");
+  if (!toggleButton) return;
+  const card = toggleButton.closest(".order-card");
+  const details = card?.querySelector(".order-text-details");
+  if (!details) return;
+  const shouldOpen = details.hidden;
+  details.hidden = !shouldOpen;
+  toggleButton.setAttribute("aria-expanded", String(shouldOpen));
+  toggleButton.innerHTML = `${getOrderActionIcon("view")}<span>${shouldOpen ? "סגור הזמנה" : "הצג הזמנה"}</span>`;
+}
+
+function commitFutureStockOrder(draftId) {
+  const draft = drafts.find((item) => item.id === draftId);
+  if (!isFutureStockDraft(draft)) return null;
+  return commitDraftToOrders(draftId, {
+    status: "הזמנת המלאי העתידי נשמרה כהזמנה פעילה והועברה ללשונית המתאימה לפי שעת השמירה.",
+  });
 }
 
 function updateDraftReminderDate(draftId, value) {
@@ -9940,6 +10321,7 @@ function commitDraftToOrders(draftId, options = {}) {
     });
     if (!draft) return null;
   }
+  const futureStockOrder = isFutureStockDraft(draft);
   const customer = getOrderCustomer(draft) || customers.find((item) => item.id === draft.customerId);
   if (isReservationPurchaseOrder(draft) && !customer) {
     const message = "כדי להכניס טיוטה לשריון צריך שהלקוח יהיה קיים.";
@@ -9957,12 +10339,17 @@ function commitDraftToOrders(draftId, options = {}) {
 
   const now = new Date();
   const createdAt = now.toISOString();
+  const { futureStockOrder: _futureStockOrder, futureStockDate: _futureStockDate, ...orderDraft } = draft;
   const order = {
-    ...draft,
+    ...orderDraft,
     id: `order-${Date.now()}`,
     createdAt,
     updatedAt: now.toISOString(),
-    reportDate: getOrderReportDateForDraft(createdAt, isOrderReportedTomorrow(draft), isOrderReportedToday(draft)),
+    reportDate: getOrderReportDateForDraft(
+      createdAt,
+      futureStockOrder ? false : isOrderReportedTomorrow(draft),
+      futureStockOrder ? false : isOrderReportedToday(draft),
+    ),
     items: draft.items.map((line) => ({
       ...line,
       lineTotal: roundMoney(line.quantity * line.unitPrice),
@@ -9979,15 +10366,16 @@ function commitDraftToOrders(draftId, options = {}) {
   orders = [order, ...orders].sort(compareOrdersByCreatedAt);
   drafts = drafts.filter((item) => item.id !== draft.id);
   removeDraftAutoReminder(draft.id);
+  removeFutureStockReminder(draft.id);
   lastPrices = rebuildLastPricesFromOrders(orders);
   saveOrders();
   saveDrafts({ sync: false });
   saveReservations({ sync: false });
   saveLastPrices();
-  queueCloudSave({ action: "draft-to-order" });
+  queueCloudSave({ action: futureStockOrder ? "future-stock-to-order" : "draft-to-order" });
   render();
-  if (options.activateTab !== false) setActiveTab("orders");
-  dom.status.textContent = options.status || "הטיוטה הוכנסה להזמנות לפי זמן שמירת הטיוטה.";
+  if (options.activateTab !== false) setActiveTab(getOrderDestinationTab(order, now));
+  dom.status.textContent = options.status || "הטיוטה הוכנסה להזמנות לפי שעת השמירה.";
   return order;
 }
 
@@ -10000,13 +10388,15 @@ function loadDraftToCart(draftId) {
   editingOrderId = "";
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
-  orderReportTomorrow = isOrderReportedTomorrow(draft);
-  orderReportToday = isOrderReportedToday(draft);
+  orderReportTomorrow = isFutureStockDraft(draft) ? false : isOrderReportedTomorrow(draft);
+  orderReportToday = isFutureStockDraft(draft) ? false : isOrderReportedToday(draft);
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
   dom.customerName.value = settings.customerName;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   customerConfirmedForCurrentCart = Boolean(settings.customerName);
   setOrderType(draft.orderType, { render: false });
   saveSettings();
@@ -10014,7 +10404,9 @@ function loadDraftToCart(draftId) {
   saveCart();
   render();
   setActiveTab("cart");
-  dom.status.textContent = "הטיוטה נטענה לסל. הטיוטה המקורית עדיין שמורה עד שתמחק אותה או תכניס להזמנות.";
+  dom.status.textContent = isFutureStockDraft(draft)
+    ? "הזמנת המלאי העתידי נטענה לסל. היא המקורית עדיין שמורה עד שתערוך, תמחק או תשמור אותה כהזמנה."
+    : "הטיוטה נטענה לסל. הטיוטה המקורית עדיין שמורה עד שתמחק אותה או תכניס להזמנות.";
 }
 
 function startEditingDraft(draftId) {
@@ -10028,16 +10420,19 @@ function startEditingDraft(draftId) {
   if (cart.length && editingDraftId !== draft.id && !window.confirm("להחליף את הסל הנוכחי בעריכת הטיוטה?")) return;
 
   const customer = getOrderCustomer(draft);
+  const futureStockOrder = isFutureStockDraft(draft);
   editingOrderId = "";
   editingDraftId = draft.id;
   duplicatedOrderNeedsCustomer = false;
-  orderReportTomorrow = isOrderReportedTomorrow(draft);
-  orderReportToday = isOrderReportedToday(draft);
+  orderReportTomorrow = futureStockOrder ? false : isOrderReportedTomorrow(draft);
+  orderReportToday = futureStockOrder ? false : isOrderReportedToday(draft);
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
   dom.customerName.value = settings.customerName;
-  dom.saveAsDraft.checked = true;
+  dom.saveAsDraft.checked = !futureStockOrder;
+  dom.saveAsFutureStock.checked = futureStockOrder;
+  dom.futureStockDate.value = futureStockOrder ? draft.futureStockDate : "";
   customerConfirmedForCurrentCart = Boolean(settings.customerName);
   setOrderType(draft.orderType, { render: false });
   saveSettings();
@@ -10045,7 +10440,9 @@ function startEditingDraft(draftId) {
   saveCart();
   render();
   setActiveTab("cart");
-  dom.status.textContent = "הטיוטה נטענה לעריכה. שמירה תעדכן את הטיוטה הקיימת ולא תכניס אותה להזמנות.";
+  dom.status.textContent = futureStockOrder
+    ? "הזמנת המלאי העתידי נטענה לעריכה. שמירה תעדכן אותה בלבד ולא תכניס אותה להזמנות."
+    : "הטיוטה נטענה לעריכה. שמירה תעדכן את הטיוטה הקיימת ולא תכניס אותה להזמנות.";
 }
 
 function deleteDraft(draftId) {
@@ -10053,8 +10450,10 @@ function deleteDraft(draftId) {
   if (!draft) return;
   const label = draft.customerName ? ` של ${draft.customerName}` : "";
   if (!window.confirm(`למחוק את הטיוטה${label}?`)) return;
+  const futureStockOrder = isFutureStockDraft(draft);
   drafts = drafts.filter((item) => item.id !== draftId);
   removeDraftAutoReminder(draftId);
+  removeFutureStockReminder(draftId);
   if (editingDraftId === draftId) {
     cart = [];
     editingDraftId = "";
@@ -10062,6 +10461,8 @@ function deleteDraft(draftId) {
     orderReportTomorrow = false;
     orderReportToday = false;
     dom.saveAsDraft.checked = false;
+    dom.saveAsFutureStock.checked = false;
+    dom.futureStockDate.value = "";
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
     saveCart();
@@ -10070,7 +10471,7 @@ function deleteDraft(draftId) {
   }
   saveDrafts();
   render();
-  dom.status.textContent = "הטיוטה נמחקה.";
+  dom.status.textContent = futureStockOrder ? "הזמנת המלאי העתידי והתזכורת שלה נמחקו." : "הטיוטה נמחקה.";
 }
 
 function startEditingOrder(orderId) {
@@ -10089,6 +10490,8 @@ function startEditingOrder(orderId) {
   settings.customerName = customer?.name || order.customerName || "";
   dom.customerName.value = settings.customerName;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   customerConfirmedForCurrentCart = Boolean(settings.customerName);
   setOrderType(order.orderType, { render: false });
   saveSettings();
@@ -10109,6 +10512,8 @@ function duplicateOrderToCart(orderId) {
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
+  dom.saveAsFutureStock.checked = false;
+  dom.futureStockDate.value = "";
   cart = mergeCartLines(
     order.items.map((item) => {
       const wasFromReservation = isReservationOrderItem(item);
@@ -10573,6 +10978,8 @@ function normalizeOrders(value) {
       customerCode: cleanString(order.customerCode),
       customerPhone: cleanString(order.customerPhone),
       orderType: normalizeOrderType(order.orderType),
+      futureStockOrder: Boolean(order.futureStockOrder),
+      futureStockDate: normalizeDateInput(order.futureStockDate),
       draftReminderDate: normalizeDateInput(order.draftReminderDate),
       items: Array.isArray(order.items)
         ? order.items.map((line) => ({
