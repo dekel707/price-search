@@ -1,10 +1,15 @@
+import { get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
 import {
   getCatalogSpecificationStatus,
   hasDatabaseStorageCredentials,
   readCatalogSpecifications,
+  readCatalogSpecificationSummaries as readDatabaseCatalogSpecificationSummaries,
   saveCatalogSpecifications,
 } from "./_database.js";
+import { getBlobAuthOptions, hasBlobStorageCredentials, streamToText } from "./_state-backups.js";
+
+const CATALOG_BLOB_PATH = "price-search/catalog-attributes.json";
 
 export const config = {
   api: {
@@ -28,21 +33,21 @@ export default async function handler(request, response) {
     sendJson(response, 401, { error: "unauthorized" });
     return;
   }
-  if (!hasDatabaseStorageCredentials()) {
-    sendJson(response, 503, { error: "database_not_configured" });
+  if (!hasDatabaseStorageCredentials() && !hasBlobStorageCredentials()) {
+    sendJson(response, 503, { error: "catalog_storage_not_configured" });
     return;
   }
 
   try {
     if (request.method === "GET") {
-      const [items, status] = await Promise.all([readCatalogSpecifications(), getCatalogSpecificationStatus()]);
-      sendJson(response, 200, { ok: true, ...status, items });
+      const catalog = await readStoredCatalogSpecifications();
+      sendJson(response, 200, { ok: true, ...catalog });
       return;
     }
     if (request.method === "POST") {
       const catalog = normalizeCatalog(request.body);
-      const saved = await saveCatalogSpecifications(catalog);
-      sendJson(response, 200, { ok: true, ...saved, ...(await getCatalogSpecificationStatus()) });
+      const saved = await saveStoredCatalogSpecifications(catalog);
+      sendJson(response, 200, { ok: true, ...saved });
       return;
     }
     sendJson(response, 405, { error: "method_not_allowed" });
@@ -50,6 +55,63 @@ export default async function handler(request, response) {
     console.error("catalog_specifications_failed", error);
     sendJson(response, 500, { error: "catalog_specifications_failed" });
   }
+}
+
+export async function readCatalogSpecificationSummaries() {
+  if (hasDatabaseStorageCredentials()) {
+    return readDatabaseCatalogSpecificationSummaries();
+  }
+  const catalog = await readBlobCatalog();
+  return new Map(
+    Object.entries(catalog.items || {}).map(([skuKey, attributes]) => [skuKey, String(attributes?.searchSummary || "")]),
+  );
+}
+
+async function readStoredCatalogSpecifications() {
+  if (hasDatabaseStorageCredentials()) {
+    const [items, status] = await Promise.all([readCatalogSpecifications(), getCatalogSpecificationStatus()]);
+    return { storage: "database", ...status, items };
+  }
+  const catalog = await readBlobCatalog();
+  const items = catalog.items || {};
+  return {
+    storage: "blob",
+    count: Object.keys(items).length,
+    updatedAt: catalog.generatedAt || null,
+    items,
+  };
+}
+
+async function saveStoredCatalogSpecifications(catalog) {
+  if (hasDatabaseStorageCredentials()) {
+    const saved = await saveCatalogSpecifications(catalog);
+    return { storage: "database", ...saved, ...(await getCatalogSpecificationStatus()) };
+  }
+  const blob = await put(CATALOG_BLOB_PATH, JSON.stringify(catalog), {
+    access: "private",
+    allowOverwrite: true,
+    addRandomSuffix: false,
+    contentType: "application/json; charset=utf-8",
+    cacheControlMaxAge: 60,
+    ...getBlobAuthOptions(),
+  });
+  return {
+    storage: "blob",
+    count: Object.keys(catalog.items).length,
+    updatedAt: catalog.generatedAt || new Date().toISOString(),
+    pathname: blob.pathname,
+  };
+}
+
+async function readBlobCatalog() {
+  const stored = await get(CATALOG_BLOB_PATH, {
+    access: "private",
+    useCache: false,
+    ...getBlobAuthOptions(),
+  });
+  if (!stored || stored.statusCode !== 200 || !stored.stream) return { items: {} };
+  const value = JSON.parse(await streamToText(stored.stream));
+  return value && typeof value === "object" ? value : { items: {} };
 }
 
 function normalizeCatalog(value) {

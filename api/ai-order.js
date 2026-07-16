@@ -1,6 +1,6 @@
 import { get } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import { hasDatabaseStorageCredentials, readCatalogSpecificationSummaries } from "./_database.js";
+import { readCatalogSpecificationSummaries } from "./catalog-specifications.js";
 
 const STATE_PATH = "price-search/state.json";
 const MAX_INSTRUCTION_LENGTH = 2_000;
@@ -53,14 +53,12 @@ export default async function handler(request, response) {
 
     const state = await readCloudState();
     let catalogSearchBySku = new Map();
-    if (hasDatabaseStorageCredentials()) {
-      try {
-        catalogSearchBySku = await readCatalogSpecificationSummaries();
-      } catch (error) {
-        // The order assistant must remain available while the optional
-        // technical-catalog table is being deployed or repaired.
-        console.warn("catalog_specifications_unavailable", error);
-      }
+    try {
+      catalogSearchBySku = await readCatalogSpecificationSummaries();
+    } catch (error) {
+      // The order assistant must remain available while the optional
+      // technical catalog is being deployed or repaired.
+      console.warn("catalog_specifications_unavailable", error);
     }
     const catalog = normalizeCatalog(state.products, catalogSearchBySku);
     const customers = normalizeCustomers(state.customers);
