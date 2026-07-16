@@ -7,6 +7,7 @@
     "generate:specs": "node scripts/generate-spec-manifest.mjs",
     "test:order-safety": "node scripts/verify-order-safety.mjs",
     "test:order-schedule": "node scripts/verify-order-schedule.mjs",
+    "test:future-stock": "node scripts/verify-future-stock-flow.mjs",
     "predev": "npm run generate:specs",
     "dev": "vite --host 0.0.0.0",
     "prebuild": "npm run generate:specs",
