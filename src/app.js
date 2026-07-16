@@ -3168,16 +3168,16 @@ function renderAdvancedProductCard(product) {
   const actions = document.createElement("div");
   actions.className = "advanced-document-actions";
   if (product.documents.length) {
-    product.documents.forEach((document) => {
+    product.documents.forEach((productDocument) => {
       const link = document.createElement("a");
-      link.className = `advanced-document-link ${document.type}`;
-      link.href = document.url;
+      link.className = `advanced-document-link ${productDocument.type}`;
+      link.href = productDocument.url;
       link.target = "_blank";
       link.rel = "noreferrer";
       const icon = document.createElement("span");
       icon.setAttribute("aria-hidden", "true");
-      icon.textContent = document.type === "installation" ? "⌁" : "▤";
-      link.append(icon, document.label);
+      icon.textContent = productDocument.type === "installation" ? "⌁" : "▤";
+      link.append(icon, productDocument.label);
       actions.append(link);
     });
   } else {

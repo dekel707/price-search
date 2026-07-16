@@ -32,6 +32,7 @@ assert(advancedRendererStart >= 0 && advancedRendererEnd > advancedRendererStart
 ["addToCart", "queueCloudSave", "saveOrders", "saveCart", "saveProducts", "saveCustomers"].forEach((forbidden) => {
   assert(!advancedRegion.includes(forbidden), `החיפוש המתקדם אינו קריאה בלבד: נמצא ${forbidden}`);
 });
+assert(!advancedRegion.includes("product.documents.forEach((document)"), "מסמכי מוצר אינם יכולים להסתיר את רכיב הדפדפן בזמן ציור הכרטיס");
 
 assert(styles.includes(".advanced-search-panel"), "חסר עיצוב מבודד לחיפוש המתקדם");
 assert(styles.includes(".advanced-search-filter-panel"), "חסר אזור הסינון המתקדם");
