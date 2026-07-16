@@ -496,7 +496,7 @@ function createSimpleFilterGroup(group) {
   const details = document.createElement("details");
   details.className = "simple-filter-group";
   const activeValue = getFilterValue(group.key);
-  details.open = Boolean(activeValue) || group.key.startsWith("quick-") || group.key === "color" || group.key === "energy";
+  details.open = Boolean(activeValue);
   const summary = document.createElement("summary");
   summary.textContent = group.label;
   const options = document.createElement("div");

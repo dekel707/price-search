@@ -24,6 +24,7 @@ assert(app.includes('key: "top-freezer"'), "The catalog must include a top-freez
 assert(app.includes('key: "bottom-freezer"'), "The catalog must include a bottom-freezer category tab.");
 assert(app.includes("getCategoryQuickFilterGroups"), "The catalog must provide category-specific quick filters.");
 assert(app.includes('"washKg", "קיבולת כביסה"'), "Washing machines must expose quick capacity choices.");
+assert(app.includes("details.open = Boolean(activeValue);"), "All filter groups must be closed by default on a fresh page load.");
 assert(app.includes("stripBarcodes"), "Barcodes must be removed before dealer catalog rendering.");
 assert(!app.includes('rows.push(["ברקוד"'), "The dealer catalog must not render barcode rows.");
 assert(!app.includes('add("◎", `דירוג ${technical.performance.energyRating}`)'), "Energy ratings must not be shown as prominent product icons.");
