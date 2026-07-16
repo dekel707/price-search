@@ -245,7 +245,7 @@ function render() {
   const hasFilters = Boolean(query || activeCategory || hasActiveSimpleFilters());
   dom.summary.textContent = hasFilters
     ? `${visible.length.toLocaleString("he-IL")} התאמות`
-    : `${products.length.toLocaleString("he-IL")} דגמים זמינים בקטלוג`;
+    : `${products.length.toLocaleString("he-IL")} דגמים בקטלוג`;
 
   if (!visible.length) {
     dom.results.innerHTML = `<div class="empty-state"><strong>לא נמצאו דגמים מתאימים</strong><span>נסה קטגוריה אחרת או נקה אחת מהבחירות.</span></div>`;
