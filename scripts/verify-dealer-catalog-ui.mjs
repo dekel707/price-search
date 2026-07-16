@@ -25,6 +25,8 @@ assert(app.includes('key: "top-freezer"'), "The catalog must include a top-freez
 assert(app.includes('key: "bottom-freezer"'), "The catalog must include a bottom-freezer category tab.");
 assert(app.includes("getCategoryQuickFilterGroups"), "The catalog must provide category-specific quick filters.");
 assert(app.includes('"washKg", "קיבולת כביסה"'), "Washing machines must expose quick capacity choices.");
+assert(app.includes('"zero-line", "↔ קו אפס"'), "The catalog must display the zero-line refrigerator feature.");
+assert(app.includes('"refrigeratorFeature", "מאפיינים חשובים"'), "Refrigerators must expose a quick zero-line filter.");
 assert(app.includes("details.open = Boolean(activeValue);"), "All filter groups must be closed by default on a fresh page load.");
 assert(styles.includes("overflow-y: auto;"), "The desktop filter sidebar must support independent scrolling.");
 assert(styles.includes("overscroll-behavior: contain;"), "The filter sidebar must contain wheel scrolling instead of passing it to the product list.");
@@ -40,6 +42,7 @@ assert.equal(refrigerator.category, "מקרר");
 assert.equal(refrigerator.technical?.dimensionsCm?.widthCm, 92);
 assert.equal(refrigerator.technical?.dimensionsCm?.heightCm, 191);
 assert.equal(refrigerator.technical?.capacities?.totalLiters, 600);
+assert(fallback.products.filter((product) => /קו\s*אפס/.test((product.technical?.facts || []).join(" "))).length >= 3, "Expected zero-line refrigerator data in the public catalog.");
 
 const forbidden = new Set(["price", "stockQuantity", "customers", "orders", "reservations", "collections"]);
 function assertPublicOnly(value, pathLabel = "catalog") {

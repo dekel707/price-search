@@ -29,6 +29,7 @@ const WIDTH_RANGES = [
 ];
 
 const FEATURE_FILTERS = [
+  ["zero-line", "↔ קו אפס", (facts) => /קו\s*(אפס|0)|zero\s*-?\s*line/.test(facts)],
   ["no-frost", "❄ No Frost", (facts) => /no\s*frost|frost\s*no/.test(facts)],
   ["inverter", "ϟ מנוע אינוורטר", (facts) => /inverter|אינוורטר/.test(facts)],
   ["4k", "✦ 4K", (facts) => /\b4k\b|\buhd\b/.test(facts)],
@@ -320,6 +321,7 @@ function getCategoryQuickFilterGroups() {
 
   if (refrigeratorTabs.has(activeCategory)) {
     const groups = [createQuickRangeGroup("volume", "נפח מקרר", sourceProducts, VOLUME_RANGES, (product) => product.technical.capacities.totalLiters)];
+    groups.unshift(createQuickOptionGroup("refrigeratorFeature", "מאפיינים חשובים", sourceProducts, [["zero-line", "קו אפס"]]));
     if (activeCategory === "refrigerators") groups.unshift(createQuickOptionGroup("fridgeStyle", "סוג מקרר", sourceProducts, [
       ["top", "מקפיא עליון"],
       ["bottom", "מקפיא תחתון"],
@@ -401,6 +403,7 @@ function matchesQuickFilter(product, key, value) {
   if (key === "ovenLiters") return Number(product.technical.capacities.ovenLiters) === Number(value);
   if (key === "microwaveLiters") return Number(product.technical.capacities.totalLiters) === Number(value);
   if (key === "volume") return matchesRange(product.technical.capacities.totalLiters, getRange(VOLUME_RANGES, value));
+  if (key === "refrigeratorFeature") return matchesRefrigeratorFeature(product, value);
   if (key === "fridgeStyle") return matchesRefrigeratorStyle(product, value);
   if (key === "freezerStyle") return matchesFreezerStyle(product, value);
   if (key === "dishwasherStyle") return matchesDishwasherStyle(product, value);
@@ -419,6 +422,10 @@ function matchesRefrigeratorStyle(product, style) {
   if (style === "integrated") return /אינטגרלי/.test(facts);
   if (style === "mini") return /משרדי|קוביה|יין|ויטרינה/.test(facts);
   return false;
+}
+
+function matchesRefrigeratorFeature(product, feature) {
+  return product.category === "מקרר" && feature === "zero-line" && /קו\s*(אפס|0)|zero\s*-?\s*line/.test(getProductFacts(product));
 }
 
 function matchesFreezerStyle(product, style) {
@@ -588,6 +595,7 @@ function getProductHighlights(product) {
   if (/inverter|אינוורטר/.test(facts)) add("ϟ", "מנוע אינוורטר");
   if (/heat\s*pump|משאבת חום/.test(facts)) add("♨", "Heat Pump");
   if (/אינדוקציה/.test(facts)) add("◎", "אינדוקציה");
+  if (matchesRefrigeratorFeature(product, "zero-line")) add("↔", "קו אפס");
 
   if (isFiniteNumber(technical.capacities.totalLiters)) add("▣", `נפח ${formatNumber(technical.capacities.totalLiters)} ל׳`);
   else if (isFiniteNumber(technical.capacities.washKg)) add("▣", `קיבולת ${formatNumber(technical.capacities.washKg)} ק״ג`);
