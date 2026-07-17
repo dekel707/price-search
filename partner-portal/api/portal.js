@@ -19,7 +19,9 @@ function getConfig() {
     ownerPin: process.env.TEAM_PORTAL_OWNER_PIN,
     eitanPin: process.env.TEAM_PORTAL_EITAN_PIN,
     authSecret: process.env.TEAM_PORTAL_AUTH_SECRET,
-    cronSecret: process.env.TEAM_PORTAL_CRON_SECRET,
+    // Vercel Cron injects CRON_SECRET into the Authorization header. The
+    // namespaced value remains supported for local verification.
+    cronSecret: process.env.CRON_SECRET || process.env.TEAM_PORTAL_CRON_SECRET,
     catalogUrl: process.env.TEAM_PORTAL_CATALOG_URL || DEFAULT_CATALOG_URL,
   };
   if (!config.databaseUrl || !config.ownerPin || !config.eitanPin || !config.authSecret || !config.cronSecret) {

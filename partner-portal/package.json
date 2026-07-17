@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "test:isolation": "node scripts/verify-isolation.mjs",
-    "test:concurrency": "node scripts/verify-concurrency.mjs"
+    "test:concurrency": "node scripts/verify-concurrency.mjs",
+    "test:live": "node scripts/verify-live-integration.mjs"
   },
   "dependencies": {
     "postgres": "^3.4.7"

@@ -14,7 +14,7 @@
 1. יוצרים ב־Vercel **פרויקט חדש** עם Root Directory `partner-portal`.
 2. יוצרים מסד PostgreSQL חדש לפרויקט החדש בלבד (Neon או Supabase) ולא מחברים שום אינטגרציית Storage קיימת.
 3. מגדירים את כל המשתנים שב־`.env.example` רק בפרויקט החדש.
-4. מגדירים את ה־Cron היומי ב־`vercel.json`; ה־Cron משתמש ב־`TEAM_PORTAL_CRON_SECRET` ויוצר צילום מצב במסד החדש.
+4. מגדירים את ה־Cron היומי ב־`vercel.json`; Vercel משתמש ב־`CRON_SECRET` כדי לחתום על הבקשה, והבקשה יוצרת צילום מצב במסד החדש.
 5. הבעלים נכנס עם `TEAM_PORTAL_OWNER_PIN`; איתן נכנס עם `TEAM_PORTAL_EITAN_PIN`.
 
 ## הגנות נתונים
