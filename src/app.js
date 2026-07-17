@@ -766,13 +766,6 @@ function bindEvents() {
     renderAdvancedSearch();
   });
   dom.advancedSearchResults.addEventListener("click", (event) => {
-    const productPageButton = event.target.closest("[data-send-advanced-product-page]");
-    if (productPageButton) {
-      const product = getAdvancedSearchProducts().find((item) => getModelKey(item.model) === productPageButton.dataset.sendAdvancedProductPage);
-      const productPage = product?.documents.find((document) => document.type === "specification");
-      if (product && productPage?.url) void sendAdvancedProductPageToWhatsApp(product, productPage);
-      return;
-    }
     const button = event.target.closest("[data-send-advanced-spec]");
     if (!button) return;
     const product = getAdvancedSearchProducts().find((item) => getModelKey(item.model) === button.dataset.sendAdvancedSpec);
@@ -3351,16 +3344,6 @@ function renderAdvancedProductCard(product) {
       link.append(icon, productDocument.label);
       actions.append(link);
     });
-    const productPage = product.documents.find((document) => document.type === "specification");
-    if (productPage?.url) {
-      const sendProductPage = document.createElement("button");
-      sendProductPage.type = "button";
-      sendProductPage.className = "advanced-document-whatsapp";
-      sendProductPage.dataset.sendAdvancedProductPage = getModelKey(product.model);
-      sendProductPage.setAttribute("aria-label", `שלח את דף המוצר של ${product.model} כקובץ PDF ב‑WhatsApp`);
-      sendProductPage.innerHTML = '<span aria-hidden="true">◉</span>שלח PDF ב‑WhatsApp';
-      actions.append(sendProductPage);
-    }
   } else {
     const missing = document.createElement("p");
     missing.className = "advanced-no-document";
@@ -3432,91 +3415,6 @@ function sendAdvancedSpecificationToWhatsApp(product) {
   dom.advancedSearchStatus.textContent = `נפתח מפרט מלא של ${product.model} ב‑WhatsApp.`;
   showActionToast("נפתח מפרט מלא ב‑WhatsApp.");
   window.open(url, "_blank", "noopener,noreferrer");
-}
-
-async function sendAdvancedProductPageToWhatsApp(product, productPage) {
-  const message = createAdvancedProductPageMessage(product, productPage);
-  dom.advancedSearchStatus.textContent = `מכין את דף המוצר של ${product.model} כקובץ PDF לשיתוף…`;
-
-  const productPageFile = await downloadAdvancedProductPageFile(product, productPage);
-  if (productPageFile && canShareAdvancedProductPage(productPageFile)) {
-    try {
-      await navigator.share({
-        title: `דף מוצר — ${product.model}`,
-        text: message,
-        files: [productPageFile],
-      });
-      dom.advancedSearchStatus.textContent = `דף המוצר של ${product.model} נשלח כקובץ PDF.`;
-      showActionToast("דף המוצר מוכן לשיתוף כקובץ — בחר WhatsApp.");
-      return;
-    } catch (error) {
-      if (error?.name === "AbortError") {
-        dom.advancedSearchStatus.textContent = "שיתוף דף המוצר בוטל.";
-        return;
-      }
-      console.warn("Could not share product-page PDF", error);
-    }
-  }
-
-  const phone = normalizePhone(settings.whatsappNumber);
-  if (!phone) {
-    const fallbackMessage = "בדפדפן הזה אין אפשרות לצרף PDF ישירות ל‑WhatsApp. בטלפון יש ללחוץ על שלח PDF ולבחור WhatsApp מחלון השיתוף.";
-    dom.advancedSearchStatus.textContent = fallbackMessage;
-    window.alert(fallbackMessage);
-    return;
-  }
-
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-  dom.advancedSearchStatus.textContent = "בדפדפן הזה WhatsApp נפתח עם קישור לדף המוצר. בטלפון דף המוצר נשלח כקובץ PDF.";
-  showActionToast("שיתוף קובץ אינו נתמך כאן — נפתח קישור לדף המוצר.");
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
-function canShareAdvancedProductPage(file) {
-  return Boolean(
-    typeof navigator !== "undefined"
-    && typeof navigator.share === "function"
-    && typeof navigator.canShare === "function"
-    && navigator.canShare({ files: [file] }),
-  );
-}
-
-async function downloadAdvancedProductPageFile(product, productPage) {
-  try {
-    const response = await fetch(productPage.url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`product_page_download_failed:${response.status}`);
-    const source = await response.blob();
-    if (!source.size) throw new Error("product_page_empty");
-    const isPdf = source.type.includes("pdf") || /\.pdf(?:$|[?#])/i.test(productPage.url);
-    const extension = isPdf ? "pdf" : "bin";
-    return new File([source], createAdvancedProductPageFileName(product, extension), {
-      type: isPdf ? "application/pdf" : (source.type || "application/octet-stream"),
-    });
-  } catch (error) {
-    console.warn("Could not prepare product-page PDF", error);
-    return null;
-  }
-}
-
-function createAdvancedProductPageFileName(product, extension = "pdf") {
-  const model = cleanString(product.model)
-    .replace(/[^\p{L}\p{N}._-]+/gu, "-")
-    .replace(/^-+|-+$/g, "");
-  return `${model || "product-page"}-product-page.${extension}`;
-}
-
-function createAdvancedProductPageMessage(product, productPage) {
-  const lines = [
-    "דף מוצר",
-    "",
-    product.name,
-    `דגם: ${product.model}`,
-    `קטגוריה: ${product.category}`,
-    "",
-    "קישור לדף המוצר:",
-    productPage.url,
-  ];
-  return lines.join("\n");
 }
 
 function createAdvancedSpecificationMessage(product) {
