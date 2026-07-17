@@ -5,6 +5,7 @@ const COOKIE_NAME = "price_search_partner_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const DEFAULT_CATALOG_URL = "https://price-search-teal.vercel.app/api/dealer-catalog";
 const DEFAULT_MAIN_SYNC_URL = "https://price-search-teal.vercel.app/api/eitan-live-data";
+const DEFAULT_MAIN_ORDER_URL = "https://price-search-teal.vercel.app/api/eitan-portal-orders";
 let sqlClient;
 let schemaReady;
 
@@ -27,6 +28,8 @@ function getConfig() {
     catalogUrl: process.env.TEAM_PORTAL_CATALOG_URL || DEFAULT_CATALOG_URL,
     mainSyncUrl: process.env.TEAM_PORTAL_MAIN_SYNC_URL || DEFAULT_MAIN_SYNC_URL,
     mainSyncSecret: process.env.TEAM_PORTAL_MAIN_SYNC_SECRET || "",
+    mainOrderUrl: process.env.TEAM_PORTAL_MAIN_ORDER_URL || DEFAULT_MAIN_ORDER_URL,
+    mainOrderSecret: process.env.TEAM_PORTAL_MAIN_ORDER_SECRET || "",
   };
   if (!config.databaseUrl || !config.ownerPin || !config.eitanPin || !config.authSecret || !config.cronSecret) {
     throw new Error("partner_portal_not_configured");
@@ -79,7 +82,7 @@ async function ensureSchema(sql) {
         id UUID PRIMARY KEY,
         customer_id UUID NOT NULL REFERENCES partner_customers(id),
         created_by TEXT NOT NULL CHECK (created_by IN ('owner', 'eitan')),
-        status TEXT NOT NULL DEFAULT 'pending_owner_approval' CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled')),
+        status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed')),
         note TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -127,7 +130,7 @@ async function ensureSchema(sql) {
       // short processing state makes owner approval safe to retry without
       // ever creating the main order twice.
       await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_status_check`;
-      await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_status_check CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled'))`;
+      await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_status_check CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed'))`;
     })().catch((error) => {
       schemaReady = undefined;
       throw error;
@@ -336,8 +339,10 @@ async function listOwnerQueue(sql) {
     COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
     FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
     WHERE o.created_by = 'eitan'
+      AND o.status = 'sent_to_main'
+      AND (o.created_at AT TIME ZONE 'Asia/Jerusalem')::date = (NOW() AT TIME ZONE 'Asia/Jerusalem')::date
     GROUP BY o.id, c.name, c.phone, c.main_customer_id
-    ORDER BY CASE WHEN o.status = 'pending_owner_approval' THEN 0 WHEN o.status = 'processing' THEN 1 ELSE 2 END, o.created_at DESC`;
+    ORDER BY o.created_at DESC`;
 }
 
 async function dashboard(sql, session) {
@@ -383,14 +388,21 @@ async function createOrder(sql, session, body, config) {
     const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
     const beforeBackup = await createBackup(tx, "before-order-create");
     const orderId = crypto.randomUUID();
-    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'pending_owner_approval', '')`;
+    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'processing', '')`;
     for (const item of safeItems) {
       await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, sku_key, quantity, reservation_quantity, unit_price, list_price, from_reservation)
         VALUES (${crypto.randomUUID()}, ${orderId}, ${item.model}, ${item.name}, ${item.skuKey}, ${item.quantity}, ${item.reservationQuantity}, ${item.unitPrice}, ${item.listPrice}, ${item.fromReservation})`;
     }
-    await recordAudit(tx, session.role, "order_created_for_owner_approval", { orderId, customerId, itemCount: safeItems.length });
+    await recordAudit(tx, session.role, "order_created_for_main_import", { orderId, customerId, itemCount: safeItems.length });
     const afterBackup = await createBackup(tx, "after-order-create");
-    return { orderId, customer: mirrorCustomer.name, plannedReservationUnits: safeItems.reduce((sum, item) => sum + item.reservationQuantity, 0), beforeBackup, afterBackup };
+    return {
+      orderId,
+      order: await getOwnerQueueOrder(tx, orderId),
+      customer: mirrorCustomer.name,
+      plannedReservationUnits: safeItems.reduce((sum, item) => sum + item.reservationQuantity, 0),
+      beforeBackup,
+      afterBackup,
+    };
   });
 }
 
@@ -404,6 +416,54 @@ async function ensureMirrorCustomer(tx, customer) {
   const id = crypto.randomUUID();
   await tx`INSERT INTO partner_customers (id, name, phone, main_customer_id) VALUES (${id}, ${cleanText(customer.name, 150)}, ${cleanText(customer.phone, 50)}, ${mainCustomerId})`;
   return { id, name: cleanText(customer.name, 150) };
+}
+
+async function sendOrderToMain(config, order) {
+  if (!config.mainOrderSecret) throw new Error("main_order_sync_not_configured");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(config.mainOrderUrl, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "x-eitan-order": config.mainOrderSecret,
+      },
+      body: JSON.stringify({ order }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "main_order_import_failed");
+    return payload;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function markOrderMainSync(sql, orderId, status, eventType, details = {}) {
+  return sql.begin(async (tx) => {
+    const beforeBackup = await createBackup(tx, `before-main-sync-${status}`);
+    const updated = await tx`UPDATE partner_orders SET status = ${status}, updated_at = now() WHERE id = ${orderId} AND created_by = 'eitan' RETURNING id`;
+    if (!updated.length) throw new Error("order_not_found");
+    await recordAudit(tx, "eitan", eventType, { orderId, ...details });
+    const afterBackup = await createBackup(tx, `after-main-sync-${status}`);
+    return { beforeBackup, afterBackup };
+  });
+}
+
+async function retryPendingMainOrders(sql, config) {
+  const pending = await sql`SELECT id FROM partner_orders WHERE created_by = 'eitan' AND status IN ('processing', 'sync_failed') ORDER BY created_at ASC LIMIT 8`;
+  for (const entry of pending) {
+    try {
+      const order = await getOwnerQueueOrder(sql, entry.id);
+      if (!order) continue;
+      const imported = await sendOrderToMain(config, order);
+      await markOrderMainSync(sql, entry.id, "sent_to_main", "main_order_import_completed", { mainOrderId: imported.orderId, retried: true });
+    } catch (error) {
+      console.warn("partner_main_order_retry_failed", entry.id, error?.message || error);
+    }
+  }
 }
 
 async function saveEntity(sql, session, body) {
@@ -614,7 +674,10 @@ export default async function handler(request, response) {
     if (request.method === "GET" && resource === "customers") return sendJson(response, 200, { items: await listCustomers(sql) });
     if (request.method === "GET" && resource === "reservations") return sendJson(response, 200, { items: await listReservations(sql) });
     if (request.method === "GET" && resource === "aging") return sendJson(response, 200, { items: await listAging(sql) });
-    if (request.method === "GET" && resource === "orders") return sendJson(response, 200, { items: await listOrders(sql, session) });
+    if (request.method === "GET" && resource === "orders") {
+      await retryPendingMainOrders(sql, config);
+      return sendJson(response, 200, { items: await listOrders(sql, session) });
+    }
     if (request.method === "GET" && resource === "owner-orders") {
       requireRole(session, "owner");
       return sendJson(response, 200, { items: await listOrders(sql, session, true) });
@@ -625,7 +688,17 @@ export default async function handler(request, response) {
       return sendJson(response, 200, { items });
     }
     if (request.method === "GET" && resource === "dashboard") return sendJson(response, 200, await dashboard(sql, session));
-    if (request.method === "POST" && action === "create-order") return sendJson(response, 201, { ok: true, ...(await createOrder(sql, session, await readJsonBody(request), config)) });
+    if (request.method === "POST" && action === "create-order") {
+      const created = await createOrder(sql, session, await readJsonBody(request), config);
+      try {
+        const imported = await sendOrderToMain(config, created.order);
+        await markOrderMainSync(sql, created.orderId, "sent_to_main", "main_order_import_completed", { mainOrderId: imported.orderId });
+        return sendJson(response, 201, { ok: true, ...created, imported });
+      } catch (error) {
+        await markOrderMainSync(sql, created.orderId, "sync_failed", "main_order_import_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
+        throw error;
+      }
+    }
     if (request.method === "POST" && action === "save-entity") return sendJson(response, 201, { ok: true, ...(await saveEntity(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "approve-order") return sendJson(response, 200, { ok: true, ...(await approveOrder(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "seed-demo") return sendJson(response, 201, { ok: true, ...(await seedDemo(sql, session)) });

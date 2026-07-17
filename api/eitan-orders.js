@@ -40,7 +40,7 @@ export default async function handler(request, response) {
 
     let mainResult;
     try {
-      mainResult = await saveApprovedPartnerOrder(partnerOrder);
+      mainResult = await savePartnerOrderIntoMain(partnerOrder, { timeBasis: "approval" });
     } catch (error) {
       await partnerRequest(config, "?action=owner-queue-release", {
         method: "POST",
@@ -90,7 +90,7 @@ async function partnerRequest(config, path, options = {}) {
   }
 }
 
-async function saveApprovedPartnerOrder(partnerOrder) {
+export async function savePartnerOrderIntoMain(partnerOrder, { timeBasis = "approval" } = {}) {
   const current = await readPartnerMainState();
   if (!current?.state) throw new Error("main_state_unavailable");
 
@@ -107,7 +107,8 @@ async function saveApprovedPartnerOrder(partnerOrder) {
     throw error;
   }
 
-  const now = new Date();
+  const submittedAt = new Date(partnerOrder.createdAt || partnerOrder.created_at || "");
+  const now = timeBasis === "submitted" && !Number.isNaN(submittedAt.getTime()) ? submittedAt : new Date();
   const createdAt = now.toISOString();
   const products = Array.isArray(state.products) ? state.products : [];
   const reservations = Array.isArray(state.reservations) ? state.reservations : [];
@@ -154,8 +155,8 @@ async function saveApprovedPartnerOrder(partnerOrder) {
     createdAt,
     updatedAt: createdAt,
     completedAt: "",
-    // Classification is deliberately calculated at owner approval time, as
-    // requested: the order joins today's/tomorrow's workflow only once you approve it.
+    // Direct partner orders are classified by their original submitted time,
+    // so the owner sees them in the same daily workflow as locally entered orders.
     reportDate: getOrderReportDateForDraft(createdAt, false, false),
     customerId: customer.id,
     customerName: cleanText(customer.name, 180),
@@ -173,7 +174,7 @@ async function saveApprovedPartnerOrder(partnerOrder) {
   });
   state.updatedAt = createdAt;
 
-  const saved = await savePartnerMainState(current, state, { action: "eitan-order-approval" });
+  const saved = await savePartnerMainState(current, state, { action: timeBasis === "submitted" ? "eitan-direct-order" : "eitan-order-approval" });
   return {
     orderId: order.id,
     reportDate: order.reportDate,
