@@ -34,30 +34,39 @@
         <section id="metrics" class="metrics" aria-label="סיכום עבודה"></section>
 
         <nav class="tabs" aria-label="ניווט">
-          <button class="tab active" data-tab="search">חיפוש מתקדם</button>
-          <button class="tab" data-tab="cart">סל <span id="cartCount">0</span></button>
+          <button class="tab active" data-tab="search">חיפוש</button>
+          <button class="tab" data-tab="advanced-search">חיפוש מתקדם</button>
+          <button class="tab" data-tab="cart">סל / הזמנה <span id="cartCount">0</span></button>
+          <button class="tab" data-tab="orders">ההזמנות שלי</button>
+          <button class="tab" data-tab="customers">לקוחות</button>
           <button class="tab" data-tab="reservations">שריונים</button>
           <button class="tab" data-tab="aging">גיול</button>
-          <button class="tab" data-tab="orders">ההזמנות שלי</button>
           <button class="tab" data-tab="owner" data-owner-only hidden>ניהול פיילוט</button>
         </nav>
 
         <section class="tab-panel active" data-panel="search">
-          <div class="section-head"><div><h2>חיפוש מתקדם</h2><p>חיפוש במפרטים בלבד — ללא מלאי, מחירים או שינוי במערכת הראשית.</p></div></div>
-          <input id="productSearch" class="search-input" placeholder="חיפוש לפי מוצר, דגם, צבע או מאפיין" />
+          <div class="section-head search-workspace-head"><div><p class="eyebrow">בניית הזמנה</p><h2>חיפוש מחירון</h2><p>חפש דגם או מוצר, בחר כמות והוסף ישירות לסל ההזמנה של איתן.</p></div><button id="openCartFromSearch" class="subtle">לסל ההזמנה <span id="searchCartCount">0</span></button></div>
+          <input id="orderSearchInput" class="search-input main-order-search" placeholder="מק״ט, דגם או תיאור מוצר" autofocus />
+          <div id="orderSearchResults" class="product-grid order-product-grid"></div>
+        </section>
+
+        <section class="tab-panel" data-panel="advanced-search">
+          <div class="section-head"><div><p class="eyebrow">התאמת מוצר</p><h2>חיפוש מתקדם</h2><p>קטגוריות, נפח, מידות, קיבולת, דירוג אנרגטי וקו אפס — ללא מלאי או מחירים.</p></div></div>
+          <input id="advancedSearchInput" class="search-input" placeholder="חיפוש לפי מוצר, דגם, צבע או מאפיין" />
           <div id="categoryFilters" class="filter-row" aria-label="קטגוריות"></div>
           <div id="quickFilters" class="filter-row filter-row-secondary" aria-label="סינון מהיר"></div>
           <div id="productResults" class="product-grid"></div>
         </section>
 
         <section class="tab-panel" data-panel="cart">
-          <div class="section-head"><div><h2>סל הזמנה</h2><p>הזמנה תישמר בסטטוס ממתין לאישור בעלים.</p></div></div>
+          <div class="section-head"><div><p class="eyebrow">סל / הזמנה</p><h2>הזמנה חדשה</h2><p>בחר לקוח קיים, בדוק את המוצרים, ושלח לאישור. שריון מתאים יימשך בצורה בטוחה בלבד.</p></div><button id="backToOrderSearch" class="subtle">הוסף מוצרים</button></div>
           <label>לקוח קיים <select id="customerSelect"><option value="">בחירת לקוח</option></select></label>
           <div id="cartItems" class="stack"></div>
           <button id="submitOrder" class="primary">שלח לאישור</button>
           <p id="cartMessage" class="muted"></p>
         </section>
 
+        <section class="tab-panel" data-panel="customers"><div class="section-head"><div><h2>לקוחות</h2><p>קריאה בלבד. פרטי לקוח נשמרים ומנוהלים על ידי דקל בלבד.</p></div></div><div id="customerList" class="stack"></div></section>
         <section class="tab-panel" data-panel="reservations"><div class="section-head"><div><h2>שריונים זמינים</h2><p>קריאה בלבד. בעת הוצאת הזמנה המערכת בודקת יתרה ומפחיתה בצורה בטוחה.</p></div></div><div id="reservationList" class="stack"></div></section>
         <section class="tab-panel" data-panel="aging"><div class="section-head"><div><h2>גיול לקוחות</h2><p>לצפייה בלבד. עדכון על ידי הבעלים יופיע כאן מיידית.</p></div></div><div id="agingList" class="stack"></div></section>
         <section class="tab-panel" data-panel="orders"><div class="section-head"><div><h2>ההזמנות שלי</h2><p>כל הזמנה מתועדת עם שם המשתמש, זמן ופעולות שריון.</p></div></div><div id="orderList" class="stack"></div></section>

@@ -4,10 +4,19 @@ const state = { user: null, products: [], customers: [], reservations: [], aging
 const $ = (selector) => document.querySelector(selector);
 
 async function api(path, options = {}) {
-  const response = await fetch(`/api/portal${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(`/api/portal${path}`, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      signal: controller.signal,
+      ...options,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("הטעינה מתעכבת. נסה לרענן את הדף.");
+    throw error;
+  } finally { clearTimeout(timeout); }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || data.error || "portal_request_failed");
   return data;
@@ -24,14 +33,34 @@ function renderMetrics(dashboard = {}) {
 }
 
 function renderProducts() {
-  const query = $("#productSearch").value.trim().toLowerCase();
+  const query = $("#advancedSearchInput").value.trim().toLowerCase();
   const categories = [...new Set(state.products.map((product) => product.category).filter(Boolean))].sort((left, right) => left.localeCompare(right, "he"));
   $("#categoryFilters").innerHTML = [`<button class="filter-chip ${!state.category ? "active" : ""}" data-category="">הכול · ${state.products.length}</button>`, ...categories.map((category) => `<button class="filter-chip ${state.category === category ? "active" : ""}" data-category="${escapeAttr(category)}">${escapeHtml(category)} · ${state.products.filter((product) => product.category === category).length}</button>`)].join("");
   const categorized = state.category ? state.products.filter((product) => product.category === state.category) : state.products;
   renderQuickFilters(categorized);
-  const visible = categorized.filter((product) => matchesQuickFilters(product) && `${product.name} ${product.model} ${product.category} ${(product.colors || []).join(" ")} ${(product.technical?.facts || []).join(" ")}`.toLowerCase().includes(query)).slice(0, 60);
-  $("#productResults").innerHTML = visible.map((product) => `<article class="product"><span class="muted">${product.category || "מוצר"}</span><h3>${escapeHtml(product.name || product.model)}</h3><p class="muted">דגם: ${escapeHtml(product.model || "—")}</p><div class="tags">${(product.technical?.facts || []).slice(0, 3).map((fact) => `<span class="tag">${escapeHtml(fact)}</span>`).join("")}</div><button data-add="${escapeAttr(product.model)}">הוסף לסל</button></article>`).join("") || `<p class="muted">לא נמצאו מוצרים.</p>`;
+  const visible = categorized.filter((product) => matchesQuickFilters(product) && matchesProductSearch(product, query)).slice(0, 60);
+  $("#productResults").innerHTML = visible.map((product) => productCard(product, { advanced: true })).join("") || `<p class="muted">לא נמצאו מוצרים.</p>`;
 }
+
+function renderOrderSearch() {
+  const query = $("#orderSearchInput").value.trim().toLowerCase();
+  const visible = state.products.filter((product) => matchesProductSearch(product, query)).slice(0, 80);
+  $("#orderSearchResults").innerHTML = visible.map((product) => productCard(product, { picker: true })).join("") || `<p class="muted">לא נמצאו מוצרים במחירון.</p>`;
+}
+
+function matchesProductSearch(product, query) {
+  return `${product.name} ${product.model} ${product.category} ${(product.colors || []).join(" ")} ${(product.technical?.facts || []).join(" ")}`.toLowerCase().includes(query);
+}
+
+function productCard(product, { picker = false, advanced = false } = {}) {
+  const facts = (product.technical?.facts || []).slice(0, 3).map((fact) => `<span class="tag">${escapeHtml(fact)}</span>`).join("");
+  const actions = picker
+    ? `<div class="product-action-row"><label>כמות <select class="quantity-select" data-quantity-for="${escapeAttr(product.model)}">${quantityOptions(1, 20)}</select></label><button data-order-add="${escapeAttr(product.model)}">הוסף להזמנה</button></div>`
+    : `<button data-advanced-add="${escapeAttr(product.model)}">הוסף להזמנה</button>`;
+  return `<article class="product ${picker ? "order-product" : ""}"><span class="muted">${escapeHtml(product.category || "מוצר")}</span><h3>${escapeHtml(product.name || product.model)}</h3><p class="muted">דגם: ${escapeHtml(product.model || "—")}</p><div class="tags">${facts}</div>${actions}</article>`;
+}
+
+function quantityOptions(selected, max = 20) { return Array.from({ length: max }, (_, index) => index + 1).map((value) => `<option value="${value}" ${value === selected ? "selected" : ""}>${value}</option>`).join(""); }
 
 function renderQuickFilters(products) {
   const filterGroups = [];
@@ -65,8 +94,10 @@ function matchesQuickFilters(product) {
 }
 
 function renderCart() {
-  $("#cartCount").textContent = state.cart.reduce((sum, item) => sum + item.quantity, 0);
-  $("#cartItems").innerHTML = state.cart.map((item, index) => `<article class="stack-item line"><div><strong>${escapeHtml(item.name)}</strong><p class="muted">${escapeHtml(item.model)} · ${item.quantity} יח׳</p></div><button class="danger" data-remove="${index}">הסר</button></article>`).join("") || `<p class="muted">הסל ריק.</p>`;
+  const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+  $("#cartCount").textContent = count;
+  $("#searchCartCount").textContent = count ? `${count} פריטים` : "ריק";
+  $("#cartItems").innerHTML = state.cart.map((item, index) => `<article class="stack-item line cart-line"><div><strong>${escapeHtml(item.name)}</strong><p class="muted">${escapeHtml(item.model)}</p></div><div class="cart-line-actions"><label>כמות <select data-cart-quantity="${index}">${quantityOptions(item.quantity, 50)}</select></label><button class="danger" data-remove="${index}">הסר</button></div></article>`).join("") || `<p class="muted">הסל ריק. עבור ללשונית חיפוש כדי להוסיף מוצרים.</p>`;
 }
 
 function renderRows(target, rows, formatter, empty) { $(target).innerHTML = rows.map(formatter).join("") || `<p class="muted">${empty}</p>`; }
@@ -74,6 +105,7 @@ function renderData() {
   const customerOptions = `<option value="">בחירת לקוח</option>${state.customers.map((customer) => `<option value="${escapeAttr(customer.id)}">${escapeHtml(customer.name)}</option>`).join("")}`;
   $("#customerSelect").innerHTML = customerOptions;
   document.querySelectorAll(".owner-customer-select").forEach((select) => { select.innerHTML = customerOptions; });
+  renderRows("#customerList", state.customers, (item) => `<article class="stack-item line"><div><strong>${escapeHtml(item.name)}</strong><p class="muted">${escapeHtml(item.phone || "ללא טלפון")}</p></div><span class="read-only-badge">קריאה בלבד</span></article>`, "אין לקוחות במסד המבודד עדיין.");
   renderRows("#reservationList", state.reservations, (item) => `<article class="stack-item"><strong>${escapeHtml(item.customer_name)}</strong><p class="muted">${escapeHtml(item.product_model)} · נותרו ${item.remaining_quantity} מתוך ${item.initial_quantity}</p></article>`, "אין שריונים במערכת המבודדת עדיין.");
   renderRows("#agingList", state.aging, (item) => `<article class="stack-item line"><strong>${escapeHtml(item.customer_name)}</strong><span>₪ ${Number(item.outstanding_amount || 0).toLocaleString("he-IL")}</span></article>`, "אין נתוני גיול במערכת המבודדת עדיין.");
   renderRows("#orderList", state.orders, orderCard, "עדיין לא יצרת הזמנות.");
@@ -90,7 +122,7 @@ async function refresh() {
   const results = await Promise.all(requests);
   const [dashboard, catalog, customers, reservations, aging, orders, ownerOrders = { items: [] }, backups = { items: [] }] = results;
   Object.assign(state, { products: catalog.products || [], customers: customers.items || [], reservations: reservations.items || [], aging: aging.items || [], orders: orders.items || [], ownerOrders: ownerOrders.items || [], backups: backups.items || [] });
-  renderMetrics(dashboard); renderProducts(); renderData(); renderCart();
+  renderMetrics(dashboard); renderOrderSearch(); renderProducts(); renderData(); renderCart();
 }
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[char]); }
@@ -105,19 +137,32 @@ function applyRole() {
 }
 let refreshTimer;
 function startRefreshTimer() { clearInterval(refreshTimer); refreshTimer = setInterval(() => refresh().catch(() => {}), 30000); }
+function addToCart(product, quantity = 1) {
+  const safeQuantity = Number(quantity) || 1;
+  const existing = state.cart.find((item) => item.model === product.model);
+  if (existing) existing.quantity += safeQuantity; else state.cart.push({ model: product.model, name: product.name || product.model, quantity: safeQuantity });
+  renderCart();
+}
 
 $("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("#loginMessage").textContent = "מתחבר…";
+  const submit = $("#loginForm button");
+  submit.disabled = true;
   try {
     const result = await api("?action=login", { method: "POST", body: JSON.stringify({ pin: $("#pin").value }) });
-    state.user = result.user; applyRole(); $("#loginView").hidden = true; $("#portalView").hidden = false; await refresh(); startRefreshTimer();
+    state.user = result.user; applyRole(); $("#loginView").hidden = true; $("#portalView").hidden = false; $("#loginMessage").textContent = "";
+    try { await refresh(); startRefreshTimer(); } catch (error) { $("#portalSubtitle").textContent = "התחברת בהצלחה. טעינת הנתונים מתעכבת — אפשר לרענן בעוד רגע."; }
   } catch (error) { $("#loginMessage").textContent = `לא ניתן להיכנס: ${error.message}`; }
+  finally { submit.disabled = false; }
 });
 
 $("#logoutButton").addEventListener("click", async () => { await api("?action=logout", { method: "POST" }); location.reload(); });
 document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
-$("#productSearch").addEventListener("input", renderProducts);
+$("#orderSearchInput").addEventListener("input", renderOrderSearch);
+$("#advancedSearchInput").addEventListener("input", renderProducts);
+$("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
+$("#backToOrderSearch").addEventListener("click", () => setTab("search"));
 $("#categoryFilters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]"); if (!button) return;
   state.category = button.dataset.category === state.category ? "" : button.dataset.category;
@@ -129,13 +174,19 @@ $("#quickFilters").addEventListener("click", (event) => {
   state.filters[filter] = state.filters[filter] === value ? "" : value;
   renderProducts();
 });
+$("#orderSearchResults").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-order-add]"); if (!button) return;
+  const product = state.products.find((item) => item.model === button.dataset.orderAdd); if (!product) return;
+  const picker = button.closest(".product-action-row")?.querySelector("[data-quantity-for]");
+  addToCart(product, picker?.value || 1);
+});
 $("#productResults").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-add]"); if (!button) return;
-  const product = state.products.find((item) => item.model === button.dataset.add); if (!product) return;
-  const existing = state.cart.find((item) => item.model === product.model); if (existing) existing.quantity += 1; else state.cart.push({ model: product.model, name: product.name || product.model, quantity: 1 });
-  renderCart(); setTab("cart");
+  const button = event.target.closest("[data-advanced-add]"); if (!button) return;
+  const product = state.products.find((item) => item.model === button.dataset.advancedAdd); if (!product) return;
+  addToCart(product, 1); setTab("cart");
 });
 $("#cartItems").addEventListener("click", (event) => { const button = event.target.closest("[data-remove]"); if (!button) return; state.cart.splice(Number(button.dataset.remove), 1); renderCart(); });
+$("#cartItems").addEventListener("change", (event) => { const select = event.target.closest("[data-cart-quantity]"); if (!select) return; const item = state.cart[Number(select.dataset.cartQuantity)]; if (!item) return; item.quantity = Number(select.value) || 1; renderCart(); });
 $("#submitOrder").addEventListener("click", async () => {
   const customerId = $("#customerSelect").value; if (!customerId || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים."; return; }
   try {

@@ -18,4 +18,7 @@ assert.ok(!api.includes("BLOB_READ_WRITE_TOKEN"), "partner API must never reuse 
 assert.ok(!api.includes("process.env.DATABASE_URL"), "partner API must not read the main database credential");
 assert.match(app, /הזמנות איתן/);
 assert.match(app, /משיכות משריון/);
+assert.match(app, /orderSearchInput/);
+assert.match(app, /advancedSearchInput/);
+assert.match(app, /הטעינה מתעכבת/);
 console.log("Partner portal isolation checks passed.");
