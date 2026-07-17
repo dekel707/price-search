@@ -10533,10 +10533,9 @@ function renderEitanOrdersPanel() {
     dom.eitanOrdersList.replaceChildren();
     return;
   }
-  const pending = eitanPortalOrders.filter((order) => order.status === "pending_owner_approval");
-  dom.eitanOrdersStatus.textContent = pending.length
-    ? `${pending.length.toLocaleString("he-IL")} הזמנות ממתינות לאישור`
-    : "אין כרגע הזמנות איתן שממתינות לאישור.";
+  dom.eitanOrdersStatus.textContent = eitanPortalOrders.length
+    ? `${eitanPortalOrders.length.toLocaleString("he-IL")} הזמנות איתן שנשלחו היום`
+    : "אין הזמנות איתן שנשלחו היום.";
   if (!eitanPortalOrders.length) {
     dom.eitanOrdersList.replaceChildren(emptyState("אין הזמנות בתור של איתן."));
     return;
@@ -10552,20 +10551,19 @@ function renderEitanOrderCard(order) {
   const itemCount = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const summary = items.map((item) => `${item.name || item.model || "מוצר"} × ${item.quantity}`).join(" · ") || "ללא פריטים";
   const reservationUnits = items.reduce((sum, item) => sum + (Number(item.reservationQuantity) || 0), 0);
-  const approved = order.status === "approved";
-  const processing = order.status === "processing";
+  const approved = order.status === "approved" || order.status === "sent_to_main";
   card.innerHTML = `
     <div class="order-body">
       <div class="order-card-heading">
         <span class="order-card-kind-icon receipt" aria-hidden="true">${getOrderActionIcon("receipt")}</span>
         <div class="order-card-heading-copy"><strong>${escapeHtml(order.customer_name || "ללא לקוח")}</strong><span class="order-card-state">איתן · ${escapeHtml(createdAt)}</span></div>
-        <span class="eitan-order-state ${approved ? "approved" : processing ? "processing" : "pending"}">${approved ? "אושרה ונכנסה למערכת" : processing ? "בתהליך אישור" : "ממתין לאישור"}</span>
+        <span class="eitan-order-state ${approved ? "approved" : "pending"}">${approved ? "נשלחה למערכת" : "נשלחה"}</span>
       </div>
       ${reservationUnits ? `<span class="order-reservation-badge full">${getOrderActionIcon("package")}<span>${escapeHtml(reservationUnits.toLocaleString("he-IL"))} יח׳ מהשריון</span></span>` : ""}
       <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>לבדיקה</b></div>
       <small class="order-card-summary">${escapeHtml(summary)}</small>
     </div>
-    <div class="order-actions"><button class="secondary-button" type="button" data-toggle-eitan-details="${escapeHtml(order.id)}">הצג הזמנה</button>${approved ? "" : `<button class="file-button" type="button" data-approve-eitan-order="${escapeHtml(order.id)}">${processing ? "השלם אישור" : "אשר והכנס להזמנות"}</button>`}</div>
+    <div class="order-actions"><button class="secondary-button" type="button" data-toggle-eitan-details="${escapeHtml(order.id)}">הצג הזמנה</button></div>
     <div class="eitan-order-details" data-eitan-details="${escapeHtml(order.id)}" hidden>${items.map((item) => `<div><strong>${escapeHtml(item.model || "—")}</strong><span>${escapeHtml(item.name || "מוצר")} · ${escapeHtml(String(item.quantity || 0))} יח׳${Number(item.reservationQuantity || 0) ? ` · ${escapeHtml(String(item.reservationQuantity))} מהשריון` : ""}</span></div>`).join("")}</div>
   `;
   return card;

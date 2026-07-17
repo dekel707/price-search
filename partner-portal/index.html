@@ -3,73 +3,72 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#07131d" />
-    <title>הזמנות איתן | מחירון</title>
+    <meta name="theme-color" content="#071211" />
+    <title>מחירון והזמנות | איתן</title>
   </head>
   <body>
     <div id="app">
-      <section id="loginView" class="login-shell">
-        <div class="login-card glass-card">
-          <p class="eyebrow">מערכת עבודה נפרדת</p>
-          <h1>הזמנות איתן</h1>
-          <p>מחירון, חיפוש מתקדם, סל הזמנה, שריונים וגיול — סביבת עבודה עצמאית לאיתן.</p>
-          <form id="loginForm">
-            <label>קוד כניסה <input id="pin" inputmode="numeric" autocomplete="current-password" required /></label>
-            <button>כניסה למערכת</button>
-          </form>
-          <p id="loginMessage" class="muted"></p>
-        </div>
+      <section id="loginView" class="auth-gate" aria-label="כניסה למערכת">
+        <form id="loginForm" class="auth-card">
+          <div>
+            <p class="eyebrow">כניסה מאובטחת</p>
+            <h1 class="auth-title">מחירון והזמנות · איתן</h1>
+          </div>
+          <p class="portal-login-copy">מחירון, חיפוש מתקדם, סל הזמנה, שריונים וגיול בסביבת עבודה מחוברת ומאובטחת.</p>
+          <label class="field-wrap"><span>קוד כניסה</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required /></label>
+          <button class="file-button" type="submit">כניסה למערכת</button>
+          <p id="loginMessage" class="auth-error" aria-live="polite"></p>
+        </form>
       </section>
 
-      <main id="portalView" hidden>
-        <header class="portal-header">
-          <div>
-            <p class="eyebrow">מחירון והזמנות</p>
-            <h1 id="portalTitle">הזמנות איתן</h1>
-            <p id="portalSubtitle" class="muted"></p>
+      <main id="portalView" class="app-shell" hidden>
+        <header class="topbar">
+          <div class="brand-block">
+            <img class="brand-logo" src="/fujicom_logo.svg" alt="Fujicom" />
+            <div class="brand-copy">
+              <p class="eyebrow">מחירון</p>
+              <h1 id="portalTitle">מחירון והזמנות · איתן</h1>
+              <p id="portalSubtitle" class="owner-status">מתחבר למערכת…</p>
+            </div>
           </div>
-          <button id="logoutButton" class="subtle">יציאה</button>
+          <div class="topbar-actions"><div id="portalMetadata" class="metadata">טוען מחירון…</div><button id="logoutButton" class="secondary-button" type="button">יציאה</button></div>
         </header>
 
-        <section id="metrics" class="metrics" aria-label="סיכום עבודה"></section>
-
         <nav class="tabs" aria-label="ניווט">
-          <button class="tab active" data-tab="search">חיפוש</button>
-          <button class="tab" data-tab="advanced-search">חיפוש מתקדם</button>
-          <button class="tab" data-tab="cart">סל / הזמנה <span id="cartCount">0</span></button>
-          <button class="tab" data-tab="orders">ההזמנות שלי</button>
-          <button class="tab" data-tab="customers">לקוחות</button>
-          <button class="tab" data-tab="reservations">שריונים</button>
-          <button class="tab" data-tab="aging">גיול</button>
+          <button class="tab-button active" type="button" data-tab="search">חיפוש</button>
+          <button class="tab-button" type="button" data-tab="advanced-search">חיפוש מתקדם</button>
+          <button class="tab-button" type="button" data-tab="cart">סל <span id="cartCount">0</span></button>
+          <button class="tab-button" type="button" data-tab="orders">הזמנות</button>
+          <button class="tab-button" type="button" data-tab="customers">לקוחות</button>
+          <button class="tab-button" type="button" data-tab="reservations">שריונים</button>
+          <button class="tab-button" type="button" data-tab="collections">גיול</button>
         </nav>
 
-        <section class="tab-panel active" data-panel="search">
-          <div class="section-head search-workspace-head"><div><p class="eyebrow">בניית הזמנה</p><h2>חיפוש מחירון</h2><p>חפש דגם או מוצר, בחר כמות והוסף ישירות לסל. המחירים מתעדכנים מהמערכת הראשית.</p></div><button id="openCartFromSearch" class="subtle">לסל ההזמנה <span id="searchCartCount">0</span></button></div>
-          <input id="orderSearchInput" class="search-input main-order-search" placeholder="מק״ט, דגם או תיאור מוצר" autofocus />
-          <div id="orderSearchResults" class="product-grid order-product-grid"></div>
+        <section class="tab-panel active" data-tab-panel="search">
+          <section class="search-panel" aria-label="חיפוש מחירון">
+            <div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">⌕</span><div><p class="eyebrow">מחירון חכם</p><h2>חיפוש מוצרים</h2></div></div><button id="openCartFromSearch" class="secondary-button" type="button">לסל <span id="searchCartCount">0</span></button></div>
+            <label class="search-label" for="orderSearchInput">מק״ט, דגם או תיאור</label>
+            <div class="search-box"><input id="orderSearchInput" type="search" autocomplete="off" placeholder="התחל להקליד…" autofocus /></div>
+            <p class="status" id="orderSearchStatus">המחירים והשריונים מסונכרנים מהמערכת הראשית. עריכה אינה זמינה כאן.</p>
+          </section>
+          <section id="orderSearchResults" class="results" aria-live="polite"></section>
         </section>
 
-        <section class="tab-panel" data-panel="advanced-search">
-          <div class="section-head"><div><p class="eyebrow">התאמת מוצר</p><h2>חיפוש מתקדם</h2><p>קטגוריות, נפח, מידות, קיבולת, דירוג אנרגטי וקו אפס — עם מחירון עדכני.</p></div></div>
-          <input id="advancedSearchInput" class="search-input" placeholder="חיפוש לפי מוצר, דגם, צבע או מאפיין" />
-          <div id="categoryFilters" class="filter-row" aria-label="קטגוריות"></div>
-          <div id="quickFilters" class="filter-row filter-row-secondary" aria-label="סינון מהיר"></div>
-          <div id="productResults" class="product-grid"></div>
+        <section class="tab-panel" data-tab-panel="advanced-search">
+          <section class="advanced-search-panel" aria-label="חיפוש מתקדם במפרטי מוצרים">
+            <div class="panel-header advanced-search-header"><div class="standard-panel-title"><span class="standard-panel-icon advanced-search" aria-hidden="true">⌕</span><div><p class="eyebrow">מפרטים חכמים</p><h2>חיפוש מתקדם</h2></div></div><span class="standard-panel-chip">קריאה בלבד</span></div>
+            <label class="advanced-search-field" for="advancedSearchInput"><span class="advanced-search-field-icon" aria-hidden="true">⌕</span><input id="advancedSearchInput" type="search" autocomplete="off" placeholder="מוצר, דגם, צבע או מאפיין" /></label>
+            <section class="advanced-category-filter-panel" aria-label="קטגוריות"><div class="advanced-filter-heading"><span>קטגוריות</span></div><div id="categoryFilters" class="advanced-category-filters"></div></section>
+            <div class="advanced-search-layout"><aside class="advanced-search-filter-panel"><div class="advanced-simple-filter-heading"><div><span class="advanced-simple-filter-kicker">סינון פשוט</span><strong>מצא את הדגם המתאים</strong></div></div><div id="quickFilters" class="advanced-simple-filters"></div></aside><div class="advanced-search-results-area"><p id="advancedSearchStatus" class="advanced-search-status"></p><section id="productResults" class="advanced-search-results"></section></div></div>
+          </section>
         </section>
 
-        <section class="tab-panel" data-panel="cart">
-          <div class="section-head"><div><p class="eyebrow">סל / הזמנה</p><h2>הזמנה חדשה</h2><p>בחר לקוח קיים, סמן משיכה משריון כשמתאים, ושלח את ההזמנה.</p></div><button id="backToOrderSearch" class="subtle">הוסף מוצרים</button></div>
-          <label>לקוח קיים <select id="customerSelect"><option value="">בחירת לקוח</option></select></label>
-          <div id="cartItems" class="stack"></div>
-          <p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p>
-          <button id="submitOrder" class="primary">שלח הזמנה</button>
-          <p id="cartMessage" class="muted"></p>
-        </section>
+        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2>הזמנה חדשה</h2></div></div><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button></div><label class="field-wrap"><span>לקוח קיים</span><select id="customerSelect"><option value="">בחירת לקוח</option></select></label><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
 
-        <section class="tab-panel" data-panel="customers"><div class="section-head"><div><h2>לקוחות</h2><p>קריאה בלבד. כל שינוי בפרטי לקוח מתבצע אצל דקל ומסתנכרן לכאן.</p></div></div><div id="customerList" class="stack"></div></section>
-        <section class="tab-panel" data-panel="reservations"><div class="section-head"><div><h2>שריונים</h2><p>יתרות עדכניות מהמערכת הראשית. אפשר לשלוח ללקוח את פירוט השריון בוואטסאפ.</p></div></div><div id="reservationList" class="stack"></div></section>
-        <section class="tab-panel" data-panel="aging"><div class="section-head"><div><h2>גיול</h2><p>תצוגה מלאה וקריאה בלבד של הגיול מהמערכת הראשית.</p></div></div><div id="agingList" class="stack"></div></section>
-        <section class="tab-panel" data-panel="orders"><div class="section-head"><div><h2>ההזמנות שלי</h2><p>כל הזמנה מתועדת עם שם המשתמש, זמן ופעולות שריון.</p></div></div><div id="orderList" class="stack"></div></section>
+        <section class="tab-panel" data-tab-panel="customers"><section class="customers-panel"><div class="panel-header"><div><p class="eyebrow">לקוחות</p><h2>לקוחות</h2><p class="panel-subtitle">קריאה בלבד · כל שינוי נשמר רק אצל דקל.</p></div></div><div id="customerList" class="portal-data-list"></div></section></section>
+        <section class="tab-panel" data-tab-panel="reservations"><section class="reservations-panel"><div class="panel-header"><div><p class="eyebrow">שריונים</p><h2>שריונים</h2><p class="panel-subtitle">יתרות עדכניות מהמערכת הראשית.</p></div></div><div id="reservationList" class="reservations-list"></div></section></section>
+        <section class="tab-panel" data-tab-panel="collections"><section class="collections-panel"><div class="panel-header"><div><p class="eyebrow">גיול</p><h2>גיול וגבייה</h2><p class="panel-subtitle">תצוגה מלאה וקריאה בלבד.</p></div></div><div id="agingList" class="collections-list"></div></section></section>
+        <section class="tab-panel" data-tab-panel="orders"><section class="orders-panel"><div class="panel-header"><div><p class="eyebrow">הזמנות</p><h2>ההזמנות של איתן</h2><p class="panel-subtitle">הזמנות שנשלחות נכנסות מיד למערכת הראשית לפי מועד השליחה.</p></div></div><div id="orderList" class="orders-list"></div></section></section>
       </main>
     </div>
     <script type="module" src="/src/app.js"></script>

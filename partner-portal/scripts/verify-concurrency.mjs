@@ -5,8 +5,9 @@ const api = await readFile(new URL("../api/portal.js", import.meta.url), "utf8")
 assert.match(api, /sql\.begin/);
 assert.match(api, /FOR UPDATE/);
 assert.match(api, /status = 'processing'/);
-assert.match(api, /owner-queue-claim/);
-assert.match(api, /owner-queue-complete/);
+assert.match(api, /retryPendingMainOrders/);
+assert.match(api, /sent_to_main/);
+assert.match(api, /sync_failed/);
 
 class ReservationLockModel {
   constructor(quantity) { this.remaining = quantity; this.tail = Promise.resolve(); }

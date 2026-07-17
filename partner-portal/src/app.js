@@ -19,8 +19,8 @@ async function api(path, options = {}) {
 }
 
 function setTab(name) {
-  document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
-  document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === name));
+  document.querySelectorAll(".tab-button").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
+  document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.tabPanel === name));
 }
 
 function formatPrice(value) { return money.format(Number(value) || 0); }
@@ -28,14 +28,6 @@ function modelKey(value) { return String(value || "").trim().toUpperCase().repla
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]); }
 function escapeAttr(value) { return escapeHtml(value).replace(/`/g, ""); }
 function quantityOptions(selected, max = 50) { return Array.from({ length: max }, (_, index) => index + 1).map((value) => `<option value="${value}" ${value === Number(selected) ? "selected" : ""}>${value}</option>`).join(""); }
-
-function renderMetrics() {
-  const sentOrders = state.orders.length;
-  const activeReservations = state.reservations.filter((item) => Number(item.quantity) > 0).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  const openAging = state.aging.filter((item) => !item.paid).reduce((sum, item) => sum + Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0)), 0);
-  const items = [["הזמנות שנשלחו", sentOrders], ["לקוחות", state.customers.length], ["יח׳ בשריונים", activeReservations], ["גיול פתוח", formatPrice(openAging)]];
-  $("#metrics").innerHTML = items.map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`).join("");
-}
 
 function renderOrderSearch() {
   const query = $("#orderSearchInput").value.trim().toLowerCase();
@@ -46,11 +38,12 @@ function renderOrderSearch() {
 function renderProducts() {
   const query = $("#advancedSearchInput").value.trim().toLowerCase();
   const categories = [...new Set(state.products.map((product) => product.category).filter(Boolean))].sort((left, right) => left.localeCompare(right, "he"));
-  $("#categoryFilters").innerHTML = [`<button class="filter-chip ${!state.category ? "active" : ""}" data-category="">הכול · ${state.products.length}</button>`, ...categories.map((category) => `<button class="filter-chip ${state.category === category ? "active" : ""}" data-category="${escapeAttr(category)}">${escapeHtml(category)} · ${state.products.filter((product) => product.category === category).length}</button>`)].join("");
+  $("#categoryFilters").innerHTML = [`<button class="advanced-category-chip ${!state.category ? "active" : ""}" type="button" data-category="">הכול · ${state.products.length}</button>`, ...categories.map((category) => `<button class="advanced-category-chip ${state.category === category ? "active" : ""}" type="button" data-category="${escapeAttr(category)}">${escapeHtml(category)} · ${state.products.filter((product) => product.category === category).length}</button>`)].join("");
   const categorized = state.category ? state.products.filter((product) => product.category === state.category) : state.products;
   renderQuickFilters(categorized);
   const visible = categorized.filter((product) => matchesQuickFilters(product) && matchesProductSearch(product, query)).slice(0, 80);
-  $("#productResults").innerHTML = visible.map((product) => productCard(product)).join("") || `<p class="muted">לא נמצאו מוצרים.</p>`;
+  $("#advancedSearchStatus").textContent = visible.length ? `${visible.length} מוצרים מתאימים` : "לא נמצאו מוצרים";
+  $("#productResults").innerHTML = visible.map((product) => productCard(product)).join("") || `<div class="empty-state">לא נמצאו מוצרים.</div>`;
 }
 
 function matchesProductSearch(product, query) {
@@ -59,11 +52,11 @@ function matchesProductSearch(product, query) {
 }
 
 function productCard(product, { picker = false } = {}) {
-  const facts = (product.technical?.facts || []).slice(0, 3).map((fact) => `<span class="tag">${escapeHtml(fact)}</span>`).join("");
+  const facts = (product.technical?.facts || []).filter((fact) => !/[?？]/.test(String(fact))).slice(0, 3).map((fact) => `<span class="portal-fact-tag">${escapeHtml(fact)}</span>`).join("");
   const action = picker
-    ? `<div class="product-action-row"><label>כמות <select class="quantity-select" data-quantity-for="${escapeAttr(product.model)}">${quantityOptions(1, 20)}</select></label><button data-order-add="${escapeAttr(product.model)}">הוסף לסל</button></div>`
-    : `<button data-advanced-add="${escapeAttr(product.model)}">הוסף לסל</button>`;
-  return `<article class="product ${picker ? "order-product" : ""}"><span class="muted">${escapeHtml(product.category || "מוצר")}</span><h3>${escapeHtml(product.name || product.model)}</h3><p class="muted">דגם: ${escapeHtml(product.model || "—")}</p><strong class="list-price">${formatPrice(product.price)}</strong><div class="tags">${facts}</div>${action}</article>`;
+    ? `<div class="inline-add-fields"><label class="inline-add-field"><span>כמות</span><select data-quantity-for="${escapeAttr(product.model)}">${quantityOptions(1, 20)}</select></label><button class="add-cart-button" type="button" data-order-add="${escapeAttr(product.model)}">הוסף לסל</button></div>`
+    : `<div class="result-actions"><button class="add-cart-button" type="button" data-advanced-add="${escapeAttr(product.model)}">הוסף לסל</button></div>`;
+  return `<article class="result-row"><div class="result-main"><div class="result-content"><div class="sku">${escapeHtml(product.model || "—")}</div><div class="description">${escapeHtml(product.name || product.model)}</div><div class="annotation-meta"><span class="category-label">${escapeHtml(product.category || "מוצר")}</span></div>${facts ? `<div class="portal-fact-tags">${facts}</div>` : ""}</div><strong class="price">${formatPrice(product.price)}</strong></div><div class="item-tools">${action}</div></article>`;
 }
 
 function renderQuickFilters(products) {
@@ -79,10 +72,10 @@ function renderQuickFilters(products) {
   if (widthButtons.length) groups.push(`<span class="filter-label">רוחב</span>${widthButtons.join("")}`);
   if (energy.length) groups.push(`<span class="filter-label">דירוג אנרגטי</span>${energy.map((rating) => quickButton("energy", rating, `דירוג ${rating}`)).join("")}`);
   if (products.some((product) => /קו\s*(אפס|0)|zero\s*-?\s*line/i.test((product.technical?.facts || []).join(" ")))) groups.push(quickButton("zeroLine", "yes", "קו אפס"));
-  $("#quickFilters").innerHTML = groups.join("") || `<span class="muted">בחר קטגוריה כדי לראות סינונים רלוונטיים.</span>`;
+  $("#quickFilters").innerHTML = groups.join("") || `<span class="portal-muted">בחר קטגוריה כדי לראות סינונים רלוונטיים.</span>`;
 }
 
-function quickButton(key, value, label) { return `<button class="filter-chip ${state.filters[key] === value ? "active" : ""}" data-filter="${escapeAttr(key)}" data-value="${escapeAttr(value)}">${escapeHtml(label)}</button>`; }
+function quickButton(key, value, label) { return `<button class="advanced-filter-option ${state.filters[key] === value ? "active" : ""}" type="button" data-filter="${escapeAttr(key)}" data-value="${escapeAttr(value)}">${escapeHtml(label)}</button>`; }
 function inRange(value, min, max) { return Number.isFinite(Number(value)) && Number(value) >= min && Number(value) <= max; }
 function matchesQuickFilters(product) {
   const { volume, width, washKg, energy, zeroLine } = state.filters;
@@ -106,8 +99,8 @@ function renderCart() {
     const reservation = customer ? reservationFor(customer.id, item.model) : null;
     const plannedReservation = item.fromReservation && reservation ? Math.min(item.quantity, Number(reservation.quantity)) : 0;
     const paidQuantity = item.quantity - plannedReservation;
-    return `<article class="stack-item line cart-line"><div><strong>${escapeHtml(item.name)}</strong><p class="muted">${escapeHtml(item.model)} · ${formatPrice(item.price)} ליח׳</p>${reservation ? `<label class="reservation-choice"><input type="checkbox" data-cart-reservation="${index}" ${item.fromReservation ? "checked" : ""} /> מהשריון · זמינות ${Number(reservation.quantity).toLocaleString("he-IL")} יח׳</label>` : ""}<small>${plannedReservation ? `${plannedReservation} יח׳ מהשריון${paidQuantity ? ` · ${paidQuantity} יח׳ במחירון` : ""}` : "מהמחירון"}</small></div><div class="cart-line-actions"><label>כמות <select data-cart-quantity="${index}">${quantityOptions(item.quantity)}</select></label><button class="danger" data-remove="${index}">מחק</button></div></article>`;
-  }).join("") || `<p class="muted">הסל ריק. עבור ללשונית חיפוש כדי להוסיף מוצרים.</p>`;
+    return `<article class="cart-line ${item.fromReservation ? "reservation-cart-line" : ""}"><div class="cart-line-header"><div class="cart-line-title"><strong>${escapeHtml(item.model)}</strong><span>${escapeHtml(item.name)}</span><small>${formatPrice(item.price)} ליח׳ · ${plannedReservation ? `${plannedReservation} יח׳ מהשריון${paidQuantity ? ` · ${paidQuantity} יח׳ במחירון` : ""}` : "מהמחירון"}</small></div>${reservation ? `<label class="reservation-choice"><input type="checkbox" data-cart-reservation="${index}" ${item.fromReservation ? "checked" : ""} /> משיכה משריון · זמינות ${Number(reservation.quantity).toLocaleString("he-IL")} יח׳</label>` : ""}</div><div class="portal-cart-actions"><label class="field-wrap"><span>כמות</span><select data-cart-quantity="${index}">${quantityOptions(item.quantity)}</select></label><button class="danger-button" type="button" data-remove="${index}">מחק</button></div></article>`;
+  }).join("") || `<div class="empty-state">הסל ריק. עבור ללשונית חיפוש כדי להוסיף מוצרים.</div>`;
   const total = state.cart.reduce((sum, item) => {
     const reservation = customer && item.fromReservation ? reservationFor(customer.id, item.model) : null;
     return sum + Math.max(0, item.quantity - Math.min(item.quantity, Number(reservation?.quantity || 0))) * item.price;
@@ -118,28 +111,30 @@ function renderCart() {
 function renderData() {
   const current = $("#customerSelect").value;
   $("#customerSelect").innerHTML = `<option value="">בחירת לקוח</option>${state.customers.map((customer) => `<option value="${escapeAttr(customer.id)}" ${customer.id === current ? "selected" : ""}>${escapeHtml(customer.name)}${customer.code ? ` · ${escapeHtml(customer.code)}` : ""}</option>`).join("")}`;
-  $("#customerList").innerHTML = state.customers.map((item) => `<article class="stack-item line"><div><strong>${escapeHtml(item.name)}</strong><p class="muted">${escapeHtml(item.phone || "ללא טלפון")}</p></div><span class="read-only-badge">קריאה בלבד</span></article>`).join("") || `<p class="muted">אין לקוחות.</p>`;
+  $("#customerList").innerHTML = state.customers.map((item) => `<article class="customer-card portal-customer-card"><div><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.phone || "ללא טלפון")}</p></div><span class="portal-readonly-badge">קריאה בלבד</span></article>`).join("") || `<div class="empty-state">אין לקוחות.</div>`;
   const reservationGroups = state.customers.map((customer) => ({ customer, items: state.reservations.filter((item) => item.customerId === customer.id && Number(item.quantity) > 0) })).filter((group) => group.items.length);
-  $("#reservationList").innerHTML = reservationGroups.map(({ customer, items }) => `<article class="stack-item reservation-card"><div class="line"><div><strong>${escapeHtml(customer.name)}</strong><p class="muted">${items.reduce((sum, item) => sum + Number(item.quantity || 0), 0).toLocaleString("he-IL")} יח׳ בשריון</p></div>${customer.phone ? `<button class="secondary" data-send-reservations="${escapeAttr(customer.id)}">שלח שריון בוואטסאפ</button>` : ""}</div>${items.map((item) => `<p class="reservation-row"><b>${escapeHtml(item.sku || item.skuKey)}</b><span>${escapeHtml(item.description || "")} · נותרו ${Number(item.quantity).toLocaleString("he-IL")}</span></p>`).join("")}</article>`).join("") || `<p class="muted">אין שריונים פעילים.</p>`;
+  $("#reservationList").innerHTML = reservationGroups.map(({ customer, items }) => `<details class="reservation-customer-card"><summary class="reservation-customer-header"><div><strong>${escapeHtml(customer.name)}</strong><span>${items.reduce((sum, item) => sum + Number(item.quantity || 0), 0).toLocaleString("he-IL")} יח׳ בשריון</span></div><b>הצג פירוט</b></summary><div class="portal-reservation-body">${customer.phone ? `<button class="whatsapp-button reservation-export-button" type="button" data-send-reservations="${escapeAttr(customer.id)}">שלח שריון בוואטסאפ</button>` : ""}${items.map((item) => `<div class="reservation-row"><div class="reservation-product"><strong>${escapeHtml(item.sku || item.skuKey)}</strong><span>${escapeHtml(item.description || "")}</span></div><b>${Number(item.quantity).toLocaleString("he-IL")} יח׳</b></div>`).join("")}</div></details>`).join("") || `<div class="empty-state">אין שריונים פעילים.</div>`;
   $("#agingList").innerHTML = state.aging.map((item) => {
     const open = Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0));
     const details = [...(item.months || []), ...(item.invoices || [])].map((value) => typeof value === "string" ? value : value?.label || value?.number || "").filter(Boolean).join(" · ");
-    return `<article class="stack-item aging-card"><div class="line"><strong>${escapeHtml(item.customerName || "לקוח")}</strong><b class="${open ? "aging-open" : ""}">${formatPrice(open)}</b></div><p class="muted">חשבון: ${escapeHtml(item.accountNumber || "—")} · סכום מקורי: ${formatPrice(item.amount)} · שולם: ${formatPrice(item.paidAmount)}</p>${item.dueDate ? `<p class="muted">מועד: ${escapeHtml(item.dueDate)}</p>` : ""}${details ? `<p class="muted">${escapeHtml(details)}</p>` : ""}${item.note ? `<p>${escapeHtml(item.note)}</p>` : ""}</article>`;
-  }).join("") || `<p class="muted">אין נתוני גיול.</p>`;
+    return `<article class="collection-row ${open ? "due" : "paid"}"><div class="collection-check"><span>קריאה בלבד</span></div><div class="collection-body"><strong>${escapeHtml(item.customerName || "לקוח")}</strong><span>חשבון: ${escapeHtml(item.accountNumber || "—")} · סכום מקורי: ${formatPrice(item.amount)} · שולם: ${formatPrice(item.paidAmount)}</span>${item.dueDate ? `<span>מועד: ${escapeHtml(item.dueDate)}</span>` : ""}${details ? `<span>${escapeHtml(details)}</span>` : ""}${item.note ? `<span>${escapeHtml(item.note)}</span>` : ""}</div><div class="collection-values"><b>${formatPrice(open)}</b><span>יתרה פתוחה</span></div></article>`;
+  }).join("") || `<div class="empty-state">אין נתוני גיול.</div>`;
   $("#orderList").innerHTML = state.orders.map(orderCard).join("") || `<p class="muted">עדיין לא יצרת הזמנות.</p>`;
 }
 
 function orderCard(order) {
-  const labels = { pending_owner_approval: "נשלחה", processing: "נשלחה", approved: "נשלחה", cancelled: "בוטלה" };
+  const labels = { pending_owner_approval: "נשלחה", processing: "נשלחה", approved: "נשלחה", sent_to_main: "נכנסה למערכת", sync_failed: "מנסה שוב לשלוח", cancelled: "בוטלה" };
   const items = (order.items || []).map((item) => `${item.name} ×${item.quantity}${Number(item.reservationQuantity || 0) ? ` · שריון ${item.reservationQuantity}` : ""}`).join(" · ");
-  return `<article class="stack-item"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><p class="muted">${escapeHtml(items)}</p><p class="muted">${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</p></article>`;
+  return `<article class="order-card"><div class="order-body"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><span>${escapeHtml(items)}</span><small>${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</small></div><span class="order-report-badge">${order.status === "sent_to_main" ? "נשלחה" : "בטיפול"}</span></article>`;
 }
 
 async function refresh() {
   const [live, orders] = await Promise.all([api("?resource=live"), api("?resource=orders")]);
   Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], aging: live.aging || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
-  renderMetrics(); renderOrderSearch(); renderProducts(); renderData(); renderCart();
-  $("#portalSubtitle").textContent = `מחירון, שריונים וגיול מהמערכת הראשית — קריאה בלבד. עודכן ${state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת"}.`;
+  renderOrderSearch(); renderProducts(); renderData(); renderCart();
+  const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
+  $("#portalSubtitle").textContent = `איתן · מחירון, שריונים וגיול מסונכרנים לקריאה בלבד`;
+  $("#portalMetadata").textContent = `עודכן ${updated}`;
 }
 
 function addToCart(product, quantity = 1) {
@@ -171,7 +166,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
 });
 
 $("#logoutButton").addEventListener("click", async () => { await api("?action=logout", { method: "POST" }); location.reload(); });
-document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
+document.querySelectorAll(".tab-button").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
 $("#orderSearchInput").addEventListener("input", renderOrderSearch);
 $("#advancedSearchInput").addEventListener("input", renderProducts);
 $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
@@ -179,7 +174,7 @@ $("#backToOrderSearch").addEventListener("click", () => setTab("search"));
 $("#customerSelect").addEventListener("change", () => { renderCart(); renderOrderSearch(); });
 $("#categoryFilters").addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (!button) return; state.category = button.dataset.category === state.category ? "" : button.dataset.category; state.filters = {}; renderProducts(); });
 $("#quickFilters").addEventListener("click", (event) => { const button = event.target.closest("[data-filter]"); if (!button) return; const { filter, value } = button.dataset; state.filters[filter] = state.filters[filter] === value ? "" : value; renderProducts(); });
-$("#orderSearchResults").addEventListener("click", (event) => { const button = event.target.closest("[data-order-add]"); if (!button) return; const product = state.products.find((item) => item.model === button.dataset.orderAdd); const picker = button.closest(".product-action-row")?.querySelector("[data-quantity-for]"); if (product) addToCart(product, picker?.value || 1); });
+$("#orderSearchResults").addEventListener("click", (event) => { const button = event.target.closest("[data-order-add]"); if (!button) return; const product = state.products.find((item) => item.model === button.dataset.orderAdd); const picker = button.closest(".item-tools")?.querySelector("[data-quantity-for]"); if (product) addToCart(product, picker?.value || 1); });
 $("#productResults").addEventListener("click", (event) => { const button = event.target.closest("[data-advanced-add]"); if (!button) return; const product = state.products.find((item) => item.model === button.dataset.advancedAdd); if (product) { addToCart(product); setTab("cart"); } });
 $("#cartItems").addEventListener("click", (event) => { const button = event.target.closest("[data-remove]"); if (!button) return; state.cart.splice(Number(button.dataset.remove), 1); renderCart(); });
 $("#cartItems").addEventListener("change", (event) => { const quantity = event.target.closest("[data-cart-quantity]"); if (quantity) { const item = state.cart[Number(quantity.dataset.cartQuantity)]; if (item) item.quantity = Number(quantity.value) || 1; renderCart(); return; } const toggle = event.target.closest("[data-cart-reservation]"); if (toggle) { const item = state.cart[Number(toggle.dataset.cartReservation)]; if (item) item.fromReservation = toggle.checked; renderCart(); } });
