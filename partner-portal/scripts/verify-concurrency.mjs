@@ -4,8 +4,9 @@ import { readFile } from "node:fs/promises";
 const api = await readFile(new URL("../api/portal.js", import.meta.url), "utf8");
 assert.match(api, /sql\.begin/);
 assert.match(api, /FOR UPDATE/);
-assert.match(api, /remaining_quantity >= \$\{take\}/);
-assert.match(api, /reservation_concurrency_conflict/);
+assert.match(api, /status = 'processing'/);
+assert.match(api, /owner-queue-claim/);
+assert.match(api, /owner-queue-complete/);
 
 class ReservationLockModel {
   constructor(quantity) { this.remaining = quantity; this.tail = Promise.resolve(); }
@@ -27,4 +28,4 @@ const reservation = new ReservationLockModel(3);
 const [first, second] = await Promise.all([reservation.take(2), reservation.take(2)]);
 assert.equal(first + second, 3, "two simultaneous withdrawals must not exceed the reserved quantity");
 assert.equal(reservation.remaining, 0, "reserved quantity must never become negative");
-console.log("Partner portal concurrency model and database locking checks passed.");
+console.log("Partner portal approval locking checks passed.");

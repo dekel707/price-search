@@ -6565,6 +6565,12 @@ body {
   background: rgba(44, 146, 99, 0.22);
 }
 
+.eitan-order-state.processing {
+  border-color: rgba(234, 180, 87, 0.55);
+  color: #ffe0a0;
+  background: rgba(159, 108, 33, 0.22);
+}
+
 .eitan-order-details {
   display: grid;
   gap: 7px;

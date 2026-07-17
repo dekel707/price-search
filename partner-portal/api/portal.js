@@ -4,6 +4,7 @@ import postgres from "postgres";
 const COOKIE_NAME = "price_search_partner_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const DEFAULT_CATALOG_URL = "https://price-search-teal.vercel.app/api/dealer-catalog";
+const DEFAULT_MAIN_SYNC_URL = "https://price-search-teal.vercel.app/api/eitan-live-data";
 let sqlClient;
 let schemaReady;
 
@@ -24,6 +25,8 @@ function getConfig() {
     cronSecret: process.env.CRON_SECRET || process.env.TEAM_PORTAL_CRON_SECRET,
     bridgeSecret: process.env.TEAM_PORTAL_OWNER_BRIDGE_SECRET || "",
     catalogUrl: process.env.TEAM_PORTAL_CATALOG_URL || DEFAULT_CATALOG_URL,
+    mainSyncUrl: process.env.TEAM_PORTAL_MAIN_SYNC_URL || DEFAULT_MAIN_SYNC_URL,
+    mainSyncSecret: process.env.TEAM_PORTAL_MAIN_SYNC_SECRET || "",
   };
   if (!config.databaseUrl || !config.ownerPin || !config.eitanPin || !config.authSecret || !config.cronSecret) {
     throw new Error("partner_portal_not_configured");
@@ -50,6 +53,7 @@ async function ensureSchema(sql) {
         id UUID PRIMARY KEY,
         name TEXT NOT NULL,
         phone TEXT NOT NULL DEFAULT '',
+        main_customer_id TEXT UNIQUE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
@@ -75,7 +79,7 @@ async function ensureSchema(sql) {
         id UUID PRIMARY KEY,
         customer_id UUID NOT NULL REFERENCES partner_customers(id),
         created_by TEXT NOT NULL CHECK (created_by IN ('owner', 'eitan')),
-        status TEXT NOT NULL DEFAULT 'pending_owner_approval' CHECK (status IN ('pending_owner_approval', 'approved', 'cancelled')),
+        status TEXT NOT NULL DEFAULT 'pending_owner_approval' CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled')),
         note TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -113,6 +117,17 @@ async function ensureSchema(sql) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
       await sql`CREATE INDEX IF NOT EXISTS partner_backups_created_at ON partner_backups(created_at DESC)`;
+      await sql`ALTER TABLE partner_customers ADD COLUMN IF NOT EXISTS main_customer_id TEXT`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS partner_customers_main_customer_id_key ON partner_customers(main_customer_id) WHERE main_customer_id IS NOT NULL`;
+      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS sku_key TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS unit_price NUMERIC(14, 2) NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS list_price NUMERIC(14, 2) NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS from_reservation BOOLEAN NOT NULL DEFAULT false`;
+      // Earlier pilot databases allowed only pending/approved/cancelled. The
+      // short processing state makes owner approval safe to retry without
+      // ever creating the main order twice.
+      await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_status_check`;
+      await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_status_check CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled'))`;
     })().catch((error) => {
       schemaReady = undefined;
       throw error;
@@ -192,6 +207,15 @@ function asNumber(value) {
   return Number(value || 0);
 }
 
+function asMoney(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number * 100) / 100 : 0;
+}
+
+function modelKey(value) {
+  return cleanText(value, 180).toLocaleUpperCase("en-US").replace(/[^A-Z0-9]/g, "");
+}
+
 async function getSnapshot(sql) {
   const [customers, reservations, aging, orders, orderItems, ledger, audit] = await Promise.all([
     sql`SELECT * FROM partner_customers ORDER BY created_at ASC`,
@@ -239,6 +263,39 @@ async function getCatalog(config) {
   }).filter((product) => product.model || product.name);
 }
 
+async function getLiveWorkspace(config) {
+  if (!config.mainSyncSecret) throw new Error("main_sync_not_configured");
+  const [mainResponse, technicalCatalog] = await Promise.all([
+    fetch(config.mainSyncUrl, {
+      headers: { Accept: "application/json", "x-eitan-sync": config.mainSyncSecret },
+    }),
+    getCatalog(config),
+  ]);
+  if (!mainResponse.ok) throw new Error("main_sync_unavailable");
+  const main = await mainResponse.json();
+  const technicalByModel = new Map(technicalCatalog.map((product) => [modelKey(product.model), product]));
+  const products = (Array.isArray(main.products) ? main.products : []).map((product) => {
+    const sku = cleanText(product.sku, 120);
+    const technical = technicalByModel.get(modelKey(sku));
+    return {
+      model: sku,
+      skuKey: sku,
+      name: cleanText(product.description || sku, 240),
+      category: technical?.category || "",
+      colors: technical?.colors || [],
+      technical: technical?.technical || { facts: [], dimensionsCm: {}, capacities: {}, performance: {} },
+      price: asMoney(product.price),
+    };
+  }).filter((product) => product.model && product.name);
+  return {
+    updatedAt: cleanText(main.updatedAt, 80),
+    products,
+    customers: Array.isArray(main.customers) ? main.customers : [],
+    reservations: Array.isArray(main.reservations) ? main.reservations : [],
+    aging: Array.isArray(main.aging) ? main.aging : [],
+  };
+}
+
 function numericFields(value, allowed) {
   const source = value && typeof value === "object" ? value : {};
   return Object.fromEntries(allowed.map((key) => [key, Number(source[key])]).filter(([, number]) => Number.isFinite(number) && number >= 0));
@@ -262,25 +319,25 @@ async function listAging(sql) {
 
 async function listOrders(sql, session, all = false) {
   if (all) {
-    return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name,
-      COALESCE(json_agg(json_build_object('model', i.product_model, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
+    return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+      COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
       FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
-      GROUP BY o.id, c.name ORDER BY o.created_at DESC`;
+      GROUP BY o.id, c.name, c.phone, c.main_customer_id ORDER BY o.created_at DESC`;
   }
-  return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name,
-    COALESCE(json_agg(json_build_object('model', i.product_model, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
+  return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+    COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
     FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
     WHERE o.created_by = ${session.role}
-    GROUP BY o.id, c.name ORDER BY o.created_at DESC`;
+    GROUP BY o.id, c.name, c.phone, c.main_customer_id ORDER BY o.created_at DESC`;
 }
 
 async function listOwnerQueue(sql) {
-  return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name,
-    COALESCE(json_agg(json_build_object('model', i.product_model, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
+  return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+    COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
     FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
     WHERE o.created_by = 'eitan'
-    GROUP BY o.id, c.name
-    ORDER BY CASE WHEN o.status = 'pending_owner_approval' THEN 0 ELSE 1 END, o.created_at DESC`;
+    GROUP BY o.id, c.name, c.phone, c.main_customer_id
+    ORDER BY CASE WHEN o.status = 'pending_owner_approval' THEN 0 WHEN o.status = 'processing' THEN 1 ELSE 2 END, o.created_at DESC`;
 }
 
 async function dashboard(sql, session) {
@@ -293,57 +350,60 @@ async function dashboard(sql, session) {
   return { pendingOrders: pending[0].count, customers: customerCount[0].count, reservationWithdrawals: withdrawalCount[0].count, myOrders: mine[0].count };
 }
 
-async function createOrder(sql, session, body) {
+async function createOrder(sql, session, body, config) {
   const customerId = cleanText(body.customerId, 100);
   const items = Array.isArray(body.items) ? body.items : [];
   if (!customerId || !items.length || items.length > 100) throw new Error("invalid_order");
-  const safeItems = items.map((item) => ({
-    model: cleanText(item.model, 100),
-    name: cleanText(item.name || item.model, 180),
-    quantity: normaliseQuantity(item.quantity),
-    reservationId: cleanText(item.reservationId, 100) || null,
-  }));
-  if (safeItems.some((item) => !item.model)) throw new Error("invalid_order_item");
+  const live = await getLiveWorkspace(config);
+  const customer = live.customers.find((item) => cleanText(item.id, 100) === customerId);
+  if (!customer) throw new Error("main_customer_not_found");
+  const safeItems = items.map((item) => {
+    const model = cleanText(item.skuKey || item.model, 100);
+    const product = live.products.find((candidate) => modelKey(candidate.skuKey || candidate.model) === modelKey(model));
+    if (!product) throw new Error("main_product_not_found");
+    const quantity = normaliseQuantity(item.quantity);
+    const plannedReservation = Boolean(item.fromReservation)
+      ? Math.min(quantity, live.reservations
+        .filter((reservation) => cleanText(reservation.customerId, 100) === customerId && modelKey(reservation.skuKey || reservation.sku) === modelKey(product.skuKey || product.model))
+        .reduce((sum, reservation) => sum + Math.max(0, asNumber(reservation.quantity)), 0))
+      : 0;
+    return {
+      model: cleanText(product.model, 100),
+      skuKey: cleanText(product.skuKey || product.model, 100),
+      name: cleanText(product.name || product.model, 180),
+      quantity,
+      reservationQuantity: plannedReservation,
+      fromReservation: plannedReservation > 0,
+      unitPrice: asMoney(product.price),
+      listPrice: asMoney(product.price),
+    };
+  });
 
   return sql.begin(async (tx) => {
-    const customer = await tx`SELECT id, name FROM partner_customers WHERE id = ${customerId}`;
-    if (!customer.length) throw new Error("customer_not_found");
+    const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
     const beforeBackup = await createBackup(tx, "before-order-create");
     const orderId = crypto.randomUUID();
-    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, note) VALUES (${orderId}, ${customerId}, ${session.role}, 'pending_owner_approval', '')`;
-    const withdrawals = [];
+    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'pending_owner_approval', '')`;
     for (const item of safeItems) {
-      let reservationQuantity = 0;
-      let lockedRows;
-      if (item.reservationId) {
-        lockedRows = await tx`SELECT id, remaining_quantity FROM partner_reservations
-          WHERE id = ${item.reservationId} AND customer_id = ${customerId} AND product_model = ${item.model} AND remaining_quantity > 0 FOR UPDATE`;
-      } else {
-        lockedRows = await tx`SELECT id, remaining_quantity FROM partner_reservations
-          WHERE customer_id = ${customerId} AND product_model = ${item.model} AND remaining_quantity > 0
-          ORDER BY created_at ASC FOR UPDATE`;
-      }
-      let remainingToAllocate = item.quantity;
-      for (const reservation of lockedRows) {
-        if (remainingToAllocate <= 0) break;
-        const take = Math.min(remainingToAllocate, asNumber(reservation.remaining_quantity));
-        if (take <= 0) continue;
-        const updated = await tx`UPDATE partner_reservations SET remaining_quantity = remaining_quantity - ${take}, updated_at = now()
-          WHERE id = ${reservation.id} AND remaining_quantity >= ${take} RETURNING remaining_quantity`;
-        if (!updated.length) throw new Error("reservation_concurrency_conflict");
-        await tx`INSERT INTO partner_reservation_ledger (id, reservation_id, order_id, quantity_delta, action, actor)
-          VALUES (${crypto.randomUUID()}, ${reservation.id}, ${orderId}, ${-take}, 'withdrawal', ${session.role})`;
-        withdrawals.push({ reservationId: reservation.id, model: item.model, quantity: take, remaining: asNumber(updated[0].remaining_quantity) });
-        reservationQuantity += take;
-        remainingToAllocate -= take;
-      }
-      await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, quantity, reservation_quantity)
-        VALUES (${crypto.randomUUID()}, ${orderId}, ${item.model}, ${item.name}, ${item.quantity}, ${reservationQuantity})`;
+      await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, sku_key, quantity, reservation_quantity, unit_price, list_price, from_reservation)
+        VALUES (${crypto.randomUUID()}, ${orderId}, ${item.model}, ${item.name}, ${item.skuKey}, ${item.quantity}, ${item.reservationQuantity}, ${item.unitPrice}, ${item.listPrice}, ${item.fromReservation})`;
     }
-    await recordAudit(tx, session.role, "order_created", { orderId, customerId, itemCount: safeItems.length, reservationWithdrawals: withdrawals.length });
+    await recordAudit(tx, session.role, "order_created_for_owner_approval", { orderId, customerId, itemCount: safeItems.length });
     const afterBackup = await createBackup(tx, "after-order-create");
-    return { orderId, customer: customer[0].name, reservationWithdrawals: withdrawals, beforeBackup, afterBackup };
+    return { orderId, customer: mirrorCustomer.name, plannedReservationUnits: safeItems.reduce((sum, item) => sum + item.reservationQuantity, 0), beforeBackup, afterBackup };
   });
+}
+
+async function ensureMirrorCustomer(tx, customer) {
+  const mainCustomerId = cleanText(customer.id, 100);
+  const existing = await tx`SELECT id FROM partner_customers WHERE main_customer_id = ${mainCustomerId} LIMIT 1`;
+  if (existing.length) {
+    await tx`UPDATE partner_customers SET name = ${cleanText(customer.name, 150)}, phone = ${cleanText(customer.phone, 50)}, updated_at = now() WHERE id = ${existing[0].id}`;
+    return { id: existing[0].id, name: cleanText(customer.name, 150) };
+  }
+  const id = crypto.randomUUID();
+  await tx`INSERT INTO partner_customers (id, name, phone, main_customer_id) VALUES (${id}, ${cleanText(customer.name, 150)}, ${cleanText(customer.phone, 50)}, ${mainCustomerId})`;
+  return { id, name: cleanText(customer.name, 150) };
 }
 
 async function saveEntity(sql, session, body) {
@@ -400,6 +460,52 @@ async function approveOrderByOwner(sql, orderId) {
   });
 }
 
+async function getOwnerQueueOrder(sql, orderId) {
+  const rows = await sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+    COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
+    FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
+    WHERE o.id = ${orderId} AND o.created_by = 'eitan'
+    GROUP BY o.id, c.name, c.phone, c.main_customer_id`;
+  return rows[0] || null;
+}
+
+async function claimOrderForMainApproval(sql, orderId) {
+  return sql.begin(async (tx) => {
+    const beforeBackup = await createBackup(tx, "before-main-order-approval");
+    const current = await tx`SELECT id, status FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' FOR UPDATE`;
+    if (!current.length) throw new Error("order_not_found");
+    if (!['pending_owner_approval', 'processing'].includes(current[0].status)) throw new Error("order_not_pending");
+    if (current[0].status === 'pending_owner_approval') {
+      await tx`UPDATE partner_orders SET status = 'processing', updated_at = now() WHERE id = ${orderId}`;
+      await recordAudit(tx, "owner", "main_order_approval_claimed", { orderId });
+    }
+    const order = await getOwnerQueueOrder(tx, orderId);
+    const afterBackup = await createBackup(tx, "after-main-order-approval-claim");
+    return { order, beforeBackup, afterBackup };
+  });
+}
+
+async function completeMainApproval(sql, orderId) {
+  return sql.begin(async (tx) => {
+    const beforeBackup = await createBackup(tx, "before-main-order-approval-complete");
+    const updated = await tx`UPDATE partner_orders SET status = 'approved', updated_at = now() WHERE id = ${orderId} AND created_by = 'eitan' AND status = 'processing' RETURNING id`;
+    if (!updated.length) throw new Error("order_not_processing");
+    await recordAudit(tx, "owner", "main_order_approval_completed", { orderId });
+    const afterBackup = await createBackup(tx, "after-main-order-approval-complete");
+    return { orderId, beforeBackup, afterBackup };
+  });
+}
+
+async function releaseMainApproval(sql, orderId) {
+  return sql.begin(async (tx) => {
+    const beforeBackup = await createBackup(tx, "before-main-order-approval-release");
+    const updated = await tx`UPDATE partner_orders SET status = 'pending_owner_approval', updated_at = now() WHERE id = ${orderId} AND created_by = 'eitan' AND status = 'processing' RETURNING id`;
+    if (updated.length) await recordAudit(tx, "owner", "main_order_approval_released", { orderId });
+    const afterBackup = await createBackup(tx, "after-main-order-approval-release");
+    return { orderId, released: Boolean(updated.length), beforeBackup, afterBackup };
+  });
+}
+
 async function seedDemo(sql, session) {
   requireRole(session, "owner");
   const existing = await sql`SELECT count(*)::int AS count FROM partner_customers`;
@@ -432,7 +538,7 @@ function isBridgeAuthorized(request, config) {
 
 export default async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store, max-age=0");
-  response.setHeader("X-Portal-Isolation", "partner-database-only");
+  response.setHeader("X-Portal-Isolation", "partner-database-with-read-only-main-bridge");
   if (request.method === "OPTIONS") {
     response.statusCode = 204;
     response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -478,10 +584,32 @@ export default async function handler(request, response) {
       if (!orderId) throw new Error("invalid_order_id");
       return sendJson(response, 200, { ok: true, ...(await approveOrderByOwner(sql, orderId)) });
     }
+    if (request.method === "POST" && action === "owner-queue-claim") {
+      if (!isBridgeAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_bridge" });
+      const body = await readJsonBody(request);
+      const orderId = cleanText(body.orderId, 100);
+      if (!orderId) throw new Error("invalid_order_id");
+      return sendJson(response, 200, { ok: true, ...(await claimOrderForMainApproval(sql, orderId)) });
+    }
+    if (request.method === "POST" && action === "owner-queue-complete") {
+      if (!isBridgeAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_bridge" });
+      const body = await readJsonBody(request);
+      const orderId = cleanText(body.orderId, 100);
+      if (!orderId) throw new Error("invalid_order_id");
+      return sendJson(response, 200, { ok: true, ...(await completeMainApproval(sql, orderId)) });
+    }
+    if (request.method === "POST" && action === "owner-queue-release") {
+      if (!isBridgeAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_bridge" });
+      const body = await readJsonBody(request);
+      const orderId = cleanText(body.orderId, 100);
+      if (!orderId) throw new Error("invalid_order_id");
+      return sendJson(response, 200, { ok: true, ...(await releaseMainApproval(sql, orderId)) });
+    }
     const session = readSession(request, config);
     if (request.method === "GET" && resource === "session") return sendJson(response, 200, { user: session ? { role: session.role } : null });
     requireRole(session, "owner", "eitan");
 
+    if (request.method === "GET" && resource === "live") return sendJson(response, 200, await getLiveWorkspace(config));
     if (request.method === "GET" && resource === "catalog") return sendJson(response, 200, { products: await getCatalog(config) });
     if (request.method === "GET" && resource === "customers") return sendJson(response, 200, { items: await listCustomers(sql) });
     if (request.method === "GET" && resource === "reservations") return sendJson(response, 200, { items: await listReservations(sql) });
@@ -497,7 +625,7 @@ export default async function handler(request, response) {
       return sendJson(response, 200, { items });
     }
     if (request.method === "GET" && resource === "dashboard") return sendJson(response, 200, await dashboard(sql, session));
-    if (request.method === "POST" && action === "create-order") return sendJson(response, 201, { ok: true, ...(await createOrder(sql, session, await readJsonBody(request))) });
+    if (request.method === "POST" && action === "create-order") return sendJson(response, 201, { ok: true, ...(await createOrder(sql, session, await readJsonBody(request), config)) });
     if (request.method === "POST" && action === "save-entity") return sendJson(response, 201, { ok: true, ...(await saveEntity(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "approve-order") return sendJson(response, 200, { ok: true, ...(await approveOrder(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "seed-demo") return sendJson(response, 201, { ok: true, ...(await seedDemo(sql, session)) });
