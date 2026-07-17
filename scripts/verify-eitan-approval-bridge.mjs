@@ -13,7 +13,7 @@ assert.match(mainApi, /isAuthorized/);
 assert.match(mainApi, /EITAN_PORTAL_BRIDGE_SECRET/);
 assert.match(mainApi, /owner-queue/);
 assert.ok(!mainApi.includes("/api/state"), "approval queue must not write to the main state API");
-assert.match(mainApi, /saveDatabaseState/);
+assert.match(mainApi, /savePartnerMainState/);
 assert.match(mainApi, /eitan-order-approval/);
 assert.match(mainApi, /getOrderReportDateForDraft/);
 assert.match(liveDataApi, /EITAN_PORTAL_SYNC_SECRET/);

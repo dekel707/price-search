@@ -1,5 +1,5 @@
 import { isAuthorized } from "./_auth.js";
-import { hasDatabaseStorageCredentials, readDatabaseState, saveDatabaseState } from "./_database.js";
+import { readPartnerMainState, savePartnerMainState } from "./_partner-main-state.js";
 import { getOrderReportDateForDraft } from "../src/order-schedule.js";
 
 const DEFAULT_PORTAL_URL = "https://price-search-eitan-portal.vercel.app";
@@ -91,12 +91,7 @@ async function partnerRequest(config, path, options = {}) {
 }
 
 async function saveApprovedPartnerOrder(partnerOrder) {
-  if (!hasDatabaseStorageCredentials()) {
-    const error = new Error("main_database_not_configured");
-    error.statusCode = 503;
-    throw error;
-  }
-  const current = await readDatabaseState();
+  const current = await readPartnerMainState();
   if (!current?.state) throw new Error("main_state_unavailable");
 
   const sourceId = `eitan-${cleanText(partnerOrder.id, 100)}`;
@@ -178,12 +173,7 @@ async function saveApprovedPartnerOrder(partnerOrder) {
   });
   state.updatedAt = createdAt;
 
-  const saved = await saveDatabaseState(state, current.version, { action: "eitan-order-approval" });
-  if (saved.conflict || saved.missing || saved.blockedOrderRemovals) {
-    const error = new Error("main_state_changed_retry_approval");
-    error.statusCode = 409;
-    throw error;
-  }
+  const saved = await savePartnerMainState(current, state, { action: "eitan-order-approval" });
   return {
     orderId: order.id,
     reportDate: order.reportDate,

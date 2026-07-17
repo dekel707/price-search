@@ -1,15 +1,13 @@
 import crypto from "node:crypto";
-import { hasDatabaseStorageCredentials, readDatabaseState } from "./_database.js";
+import { readPartnerMainState } from "./_partner-main-state.js";
 
 export default async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store, max-age=0");
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   if (request.method !== "GET") return sendJson(response, 405, { error: "method_not_allowed" });
   if (!isPortalAuthorized(request)) return sendJson(response, 401, { error: "unauthorized_portal_sync" });
-  if (!hasDatabaseStorageCredentials()) return sendJson(response, 503, { error: "main_database_not_configured" });
-
   try {
-    const current = await readDatabaseState();
+    const current = await readPartnerMainState();
     if (!current?.state) return sendJson(response, 503, { error: "main_state_unavailable" });
     const state = current.state;
     // This is intentionally a narrow, read-only projection. It never sends
