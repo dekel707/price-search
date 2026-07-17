@@ -22,6 +22,7 @@ function getConfig() {
     // Vercel Cron injects CRON_SECRET into the Authorization header. The
     // namespaced value remains supported for local verification.
     cronSecret: process.env.CRON_SECRET || process.env.TEAM_PORTAL_CRON_SECRET,
+    bridgeSecret: process.env.TEAM_PORTAL_OWNER_BRIDGE_SECRET || "",
     catalogUrl: process.env.TEAM_PORTAL_CATALOG_URL || DEFAULT_CATALOG_URL,
   };
   if (!config.databaseUrl || !config.ownerPin || !config.eitanPin || !config.authSecret || !config.cronSecret) {
@@ -273,6 +274,15 @@ async function listOrders(sql, session, all = false) {
     GROUP BY o.id, c.name ORDER BY o.created_at DESC`;
 }
 
+async function listOwnerQueue(sql) {
+  return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name,
+    COALESCE(json_agg(json_build_object('model', i.product_model, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
+    FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
+    WHERE o.created_by = 'eitan'
+    GROUP BY o.id, c.name
+    ORDER BY CASE WHEN o.status = 'pending_owner_approval' THEN 0 ELSE 1 END, o.created_at DESC`;
+}
+
 async function dashboard(sql, session) {
   const [pending, customerCount, withdrawalCount, mine] = await Promise.all([
     sql`SELECT count(*)::int AS count FROM partner_orders WHERE status = 'pending_owner_approval'`,
@@ -376,6 +386,10 @@ async function approveOrder(sql, session, body) {
   requireRole(session, "owner");
   const orderId = cleanText(body.orderId, 100);
   if (!orderId) throw new Error("invalid_order_id");
+  return approveOrderByOwner(sql, orderId);
+}
+
+async function approveOrderByOwner(sql, orderId) {
   return sql.begin(async (tx) => {
     const beforeBackup = await createBackup(tx, "before-owner-order-approval");
     const updated = await tx`UPDATE partner_orders SET status = 'approved', updated_at = now() WHERE id = ${orderId} AND status = 'pending_owner_approval' RETURNING id`;
@@ -408,6 +422,12 @@ function isCronAuthorized(request, config) {
   const expected = `Bearer ${config.cronSecret}`;
   const actual = request.headers.authorization || "";
   return actual.length === expected.length && crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+}
+
+function isBridgeAuthorized(request, config) {
+  if (!config.bridgeSecret) return false;
+  const actual = request.headers["x-owner-bridge"] || "";
+  return actual.length === config.bridgeSecret.length && crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(config.bridgeSecret));
 }
 
 export default async function handler(request, response) {
@@ -444,6 +464,19 @@ export default async function handler(request, response) {
     if (request.method === "POST" && action === "logout") {
       clearSessionCookie(response);
       return sendJson(response, 200, { ok: true });
+    }
+    // The main application can only reach this endpoint through its own
+    // authenticated server route. The browser never receives the bridge secret.
+    if (request.method === "GET" && resource === "owner-queue") {
+      if (!isBridgeAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_bridge" });
+      return sendJson(response, 200, { items: await listOwnerQueue(sql) });
+    }
+    if (request.method === "POST" && action === "owner-queue-approve") {
+      if (!isBridgeAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_bridge" });
+      const body = await readJsonBody(request);
+      const orderId = cleanText(body.orderId, 100);
+      if (!orderId) throw new Error("invalid_order_id");
+      return sendJson(response, 200, { ok: true, ...(await approveOrderByOwner(sql, orderId)) });
     }
     const session = readSession(request, config);
     if (request.method === "GET" && resource === "session") return sendJson(response, 200, { user: session ? { role: session.role } : null });

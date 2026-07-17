@@ -4630,6 +4630,7 @@ h2 {
 .tab-button[data-tab="categories"]::before { content: "▱"; }
 .tab-button[data-tab="drafts"]::before { content: "✎"; }
 .tab-button[data-tab="future-stock-orders"]::before { content: "◫"; }
+.tab-button[data-tab="eitan-orders"]::before { content: "✓"; }
 .tab-button[data-tab="orders"]::before { content: "≡"; }
 .tab-button[data-tab="tomorrow-orders"]::before { content: "→"; }
 
@@ -6516,6 +6517,77 @@ body {
     justify-items: start;
     justify-content: start;
   }
+}
+
+/* Owner-only queue for orders created in the isolated Eitan portal. */
+.orders-panel.eitan-orders-panel {
+  --workspace-tone: #9d83e8;
+  border-color: rgba(157, 131, 232, 0.42);
+  background:
+    radial-gradient(circle at 100% 0, rgba(132, 99, 222, 0.15), transparent 34%),
+    linear-gradient(145deg, rgba(21, 24, 44, 0.98), rgba(10, 20, 33, 0.99));
+}
+
+.eitan-orders-intro {
+  margin: -4px 0 14px;
+  color: #b8b5cd;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.eitan-order-card {
+  border-color: rgba(151, 125, 226, 0.44) !important;
+  background:
+    radial-gradient(circle at 100% 0, rgba(129, 100, 211, 0.11), transparent 38%),
+    linear-gradient(145deg, rgba(31, 27, 51, 0.98), rgba(13, 23, 36, 0.99)) !important;
+}
+
+.eitan-order-card::before {
+  background: #997ee0 !important;
+  box-shadow: 0 0 12px rgba(153, 126, 224, 0.34) !important;
+}
+
+.eitan-order-state {
+  margin-inline-start: auto;
+  border: 1px solid rgba(190, 171, 250, 0.52);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #e4dbff;
+  background: rgba(121, 93, 194, 0.22);
+  font-size: 0.71rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.eitan-order-state.approved {
+  border-color: rgba(96, 205, 158, 0.55);
+  color: #bdf3d4;
+  background: rgba(44, 146, 99, 0.22);
+}
+
+.eitan-order-details {
+  display: grid;
+  gap: 7px;
+  margin: 0 14px 14px;
+  padding: 10px;
+  border: 1px solid rgba(145, 124, 208, 0.28);
+  border-radius: 11px;
+  background: rgba(4, 12, 23, 0.44);
+}
+
+.eitan-order-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #dcd8ee;
+  font-size: 0.82rem;
+}
+
+.eitan-order-details span { color: #aeb2c8; }
+
+@media (max-width: 620px) {
+  .eitan-order-details > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .eitan-order-state { margin-inline-start: 0; }
 }
 
 /* Advanced search is intentionally a self-contained, read-only workspace.

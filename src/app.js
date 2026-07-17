@@ -400,6 +400,9 @@ const dom = {
   futureStockOrdersSearch: document.querySelector("#futureStockOrdersSearch"),
   futureStockOrdersSummary: document.querySelector("#futureStockOrdersSummary"),
   futureStockOrdersList: document.querySelector("#futureStockOrdersList"),
+  eitanOrdersList: document.querySelector("#eitanOrdersList"),
+  eitanOrdersStatus: document.querySelector("#eitanOrdersStatus"),
+  refreshEitanOrders: document.querySelector("#refreshEitanOrders"),
   orderSearch: document.querySelector("#orderSearch"),
   ordersList: document.querySelector("#ordersList"),
   completedOrderSearch: document.querySelector("#completedOrderSearch"),
@@ -483,6 +486,8 @@ let advancedSearchCategory = "";
 const advancedSearchFacets = { color: "", energy: "", volume: "", height: "", width: "", feature: "" };
 const advancedSearchQuickFilters = {};
 let advancedSearchProximityOverride = null;
+let eitanPortalOrders = [];
+let eitanOrdersLoadState = "idle";
 
 init();
 
@@ -697,6 +702,7 @@ function bindEvents() {
         renderTomorrowOrders();
       }
       if (button.dataset.tab === "reminders") remindersDateFilter = "";
+      if (button.dataset.tab === "eitan-orders") loadEitanOrders();
       setActiveTab(button.dataset.tab);
     });
   });
@@ -1332,6 +1338,8 @@ function bindEvents() {
   dom.futureStockOrdersSearch.addEventListener("input", renderFutureStockOrders);
   dom.futureStockOrdersList.addEventListener("click", handleFutureStockOrderActionClick);
   dom.orderSearch.addEventListener("input", renderOrders);
+  dom.refreshEitanOrders.addEventListener("click", () => loadEitanOrders());
+  dom.eitanOrdersList.addEventListener("click", handleEitanOrderAction);
   dom.completedOrderSearch.addEventListener("input", renderCompletedOrders);
   dom.tomorrowOrderSearch.addEventListener("input", renderTomorrowOrders);
   dom.soldProductsSearch.addEventListener("input", renderSoldProductsPanel);
@@ -2506,6 +2514,7 @@ function render() {
   renderCart();
   renderDrafts();
   renderFutureStockOrders();
+  renderEitanOrdersPanel();
   renderOrders();
   renderCompletedOrders();
   renderTomorrowOrders();
@@ -10489,6 +10498,105 @@ function renderOrders() {
   dom.ordersList.replaceChildren(
     ...visibleOrders.slice(0, query ? 60 : 80).map((order) => renderOrderCard(order, { tone: "orders-history-card" })),
   );
+}
+
+async function loadEitanOrders() {
+  if (!dom.eitanOrdersList || eitanOrdersLoadState === "loading") return;
+  eitanOrdersLoadState = "loading";
+  renderEitanOrdersPanel();
+  try {
+    const response = await fetch("/api/eitan-orders", { cache: "no-store", credentials: "same-origin" });
+    if (response.status === 401) {
+      lockApp("יש להתחבר מחדש כדי לראות הזמנות איתן.");
+      return;
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "eitan_portal_unavailable");
+    eitanPortalOrders = Array.isArray(payload.items) ? payload.items : [];
+    eitanOrdersLoadState = "ready";
+  } catch (error) {
+    console.warn("Eitan orders load failed", error);
+    eitanOrdersLoadState = "error";
+  }
+  renderEitanOrdersPanel();
+}
+
+function renderEitanOrdersPanel() {
+  if (!dom.eitanOrdersList || !dom.eitanOrdersStatus) return;
+  if (eitanOrdersLoadState === "loading") {
+    dom.eitanOrdersStatus.textContent = "טוען הזמנות איתן מהמערכת הנפרדת…";
+    dom.eitanOrdersList.replaceChildren();
+    return;
+  }
+  if (eitanOrdersLoadState === "error") {
+    dom.eitanOrdersStatus.textContent = "לא ניתן לקרוא כרגע את תור ההזמנות של איתן. לחץ רענן.";
+    dom.eitanOrdersList.replaceChildren();
+    return;
+  }
+  const pending = eitanPortalOrders.filter((order) => order.status === "pending_owner_approval");
+  dom.eitanOrdersStatus.textContent = pending.length
+    ? `${pending.length.toLocaleString("he-IL")} הזמנות ממתינות לאישור`
+    : "אין כרגע הזמנות איתן שממתינות לאישור.";
+  if (!eitanPortalOrders.length) {
+    dom.eitanOrdersList.replaceChildren(emptyState("אין הזמנות בתור של איתן."));
+    return;
+  }
+  dom.eitanOrdersList.replaceChildren(...eitanPortalOrders.map(renderEitanOrderCard));
+}
+
+function renderEitanOrderCard(order) {
+  const card = document.createElement("article");
+  card.className = "order-card eitan-order-card";
+  const createdAt = formatShortDateTime(order.created_at) || "ללא תאריך";
+  const items = Array.isArray(order.items) ? order.items : [];
+  const itemCount = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  const summary = items.map((item) => `${item.name || item.model || "מוצר"} × ${item.quantity}`).join(" · ") || "ללא פריטים";
+  const reservationUnits = items.reduce((sum, item) => sum + (Number(item.reservationQuantity) || 0), 0);
+  const approved = order.status === "approved";
+  card.innerHTML = `
+    <div class="order-body">
+      <div class="order-card-heading">
+        <span class="order-card-kind-icon receipt" aria-hidden="true">${getOrderActionIcon("receipt")}</span>
+        <div class="order-card-heading-copy"><strong>${escapeHtml(order.customer_name || "ללא לקוח")}</strong><span class="order-card-state">איתן · ${escapeHtml(createdAt)}</span></div>
+        <span class="eitan-order-state ${approved ? "approved" : "pending"}">${approved ? "אושר בפיילוט" : "ממתין לאישור"}</span>
+      </div>
+      ${reservationUnits ? `<span class="order-reservation-badge full">${getOrderActionIcon("package")}<span>${escapeHtml(reservationUnits.toLocaleString("he-IL"))} יח׳ מהשריון</span></span>` : ""}
+      <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>לבדיקה</b></div>
+      <small class="order-card-summary">${escapeHtml(summary)}</small>
+    </div>
+    <div class="order-actions"><button class="secondary-button" type="button" data-toggle-eitan-details="${escapeHtml(order.id)}">הצג הזמנה</button>${approved ? "" : `<button class="file-button" type="button" data-approve-eitan-order="${escapeHtml(order.id)}">אשר בפיילוט</button>`}</div>
+    <div class="eitan-order-details" data-eitan-details="${escapeHtml(order.id)}" hidden>${items.map((item) => `<div><strong>${escapeHtml(item.model || "—")}</strong><span>${escapeHtml(item.name || "מוצר")} · ${escapeHtml(String(item.quantity || 0))} יח׳${Number(item.reservationQuantity || 0) ? ` · ${escapeHtml(String(item.reservationQuantity))} מהשריון` : ""}</span></div>`).join("")}</div>
+  `;
+  return card;
+}
+
+async function handleEitanOrderAction(event) {
+  const detailsButton = event.target.closest("[data-toggle-eitan-details]");
+  if (detailsButton) {
+    const details = detailsButton.closest(".eitan-order-card")?.querySelector("[data-eitan-details]");
+    if (details) details.hidden = !details.hidden;
+    detailsButton.textContent = details?.hidden ? "הצג הזמנה" : "הסתר הזמנה";
+    return;
+  }
+  const approveButton = event.target.closest("[data-approve-eitan-order]");
+  if (!approveButton) return;
+  approveButton.disabled = true;
+  try {
+    const response = await fetch("/api/eitan-orders", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "approve", orderId: approveButton.dataset.approveEitanOrder }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "approval_failed");
+    showActionToast("הזמנת איתן אושרה בפיילוט ונשמרה בגיבוי.");
+    await loadEitanOrders();
+  } catch (error) {
+    console.warn("Eitan order approval failed", error);
+    showActionToast("לא ניתן לאשר כרגע את הזמנת איתן.");
+    approveButton.disabled = false;
+  }
 }
 
 function renderCompletedOrders() {
