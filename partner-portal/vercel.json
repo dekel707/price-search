@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/portal?action=daily-backup",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

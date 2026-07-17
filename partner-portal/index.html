@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07131d" />
+    <title>הזמנות איתן | מחירון</title>
+  </head>
+  <body>
+    <div id="app">
+      <section id="loginView" class="login-shell">
+        <div class="login-card glass-card">
+          <p class="eyebrow">מערכת עבודה נפרדת</p>
+          <h1>הזמנות איתן</h1>
+          <p>חיפוש מתקדם, לקוחות, שריונים וגיול — עם הרשאות מוגבלות ובסיס נתונים עצמאי.</p>
+          <form id="loginForm">
+            <label>קוד כניסה <input id="pin" inputmode="numeric" autocomplete="current-password" required /></label>
+            <button>כניסה למערכת</button>
+          </form>
+          <p id="loginMessage" class="muted"></p>
+        </div>
+      </section>
+
+      <main id="portalView" hidden>
+        <header class="portal-header">
+          <div>
+            <p class="eyebrow">מחירון והזמנות</p>
+            <h1 id="portalTitle">הזמנות איתן</h1>
+            <p id="portalSubtitle" class="muted"></p>
+          </div>
+          <button id="logoutButton" class="subtle">יציאה</button>
+        </header>
+
+        <section id="metrics" class="metrics" aria-label="סיכום עבודה"></section>
+
+        <nav class="tabs" aria-label="ניווט">
+          <button class="tab active" data-tab="search">חיפוש מתקדם</button>
+          <button class="tab" data-tab="cart">סל <span id="cartCount">0</span></button>
+          <button class="tab" data-tab="reservations">שריונים</button>
+          <button class="tab" data-tab="aging">גיול</button>
+          <button class="tab" data-tab="orders">ההזמנות שלי</button>
+          <button class="tab" data-tab="owner" data-owner-only hidden>ניהול פיילוט</button>
+        </nav>
+
+        <section class="tab-panel active" data-panel="search">
+          <div class="section-head"><div><h2>חיפוש מתקדם</h2><p>חיפוש במפרטים בלבד — ללא מלאי, מחירים או שינוי במערכת הראשית.</p></div></div>
+          <input id="productSearch" class="search-input" placeholder="חיפוש לפי מוצר, דגם, צבע או מאפיין" />
+          <div id="categoryFilters" class="filter-row" aria-label="קטגוריות"></div>
+          <div id="quickFilters" class="filter-row filter-row-secondary" aria-label="סינון מהיר"></div>
+          <div id="productResults" class="product-grid"></div>
+        </section>
+
+        <section class="tab-panel" data-panel="cart">
+          <div class="section-head"><div><h2>סל הזמנה</h2><p>הזמנה תישמר בסטטוס ממתין לאישור בעלים.</p></div></div>
+          <label>לקוח קיים <select id="customerSelect"><option value="">בחירת לקוח</option></select></label>
+          <div id="cartItems" class="stack"></div>
+          <button id="submitOrder" class="primary">שלח לאישור</button>
+          <p id="cartMessage" class="muted"></p>
+        </section>
+
+        <section class="tab-panel" data-panel="reservations"><div class="section-head"><div><h2>שריונים זמינים</h2><p>קריאה בלבד. בעת הוצאת הזמנה המערכת בודקת יתרה ומפחיתה בצורה בטוחה.</p></div></div><div id="reservationList" class="stack"></div></section>
+        <section class="tab-panel" data-panel="aging"><div class="section-head"><div><h2>גיול לקוחות</h2><p>לצפייה בלבד. עדכון על ידי הבעלים יופיע כאן מיידית.</p></div></div><div id="agingList" class="stack"></div></section>
+        <section class="tab-panel" data-panel="orders"><div class="section-head"><div><h2>ההזמנות שלי</h2><p>כל הזמנה מתועדת עם שם המשתמש, זמן ופעולות שריון.</p></div></div><div id="orderList" class="stack"></div></section>
+        <section class="tab-panel" data-panel="owner" data-owner-only hidden>
+          <div class="section-head"><div><h2>ניהול פיילוט מבודד</h2><p>פעולות כאן משפיעות רק על מסד הנתונים החדש של איתן. הן אינן מחוברות למערכת הראשית.</p></div></div>
+          <div class="owner-grid">
+            <form id="customerForm" class="owner-form"><h3>לקוח חדש</h3><label>שם לקוח <input name="name" required /></label><label>טלפון <input name="phone" inputmode="tel" /></label><button>שמור לקוח</button></form>
+            <form id="reservationForm" class="owner-form"><h3>שריון חדש</h3><label>לקוח <select name="customerId" class="owner-customer-select" required></select></label><label>דגם <input name="productModel" required /></label><label>כמות <input name="quantity" type="number" min="0.01" step="0.01" required /></label><button>שמור שריון</button></form>
+            <form id="agingForm" class="owner-form"><h3>גיול חדש</h3><label>לקוח <select name="customerId" class="owner-customer-select" required></select></label><label>סכום <input name="amount" type="number" step="0.01" required /></label><label>הערה <input name="notes" /></label><button>שמור גיול</button></form>
+          </div>
+          <div class="section-head owner-orders-head"><div><h3>הזמנות ממתינות של איתן</h3><p id="ownerBackupInfo" class="muted"></p></div><button id="seedDemo" class="subtle">צור נתוני בדיקה בלבד</button></div>
+          <div id="ownerOrderList" class="stack"></div>
+          <p id="ownerMessage" class="muted"></p>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
