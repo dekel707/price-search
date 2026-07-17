@@ -30,10 +30,10 @@ function escapeAttr(value) { return escapeHtml(value).replace(/`/g, ""); }
 function quantityOptions(selected, max = 50) { return Array.from({ length: max }, (_, index) => index + 1).map((value) => `<option value="${value}" ${value === Number(selected) ? "selected" : ""}>${value}</option>`).join(""); }
 
 function renderMetrics() {
-  const pending = state.orders.filter((order) => order.status === "pending_owner_approval" || order.status === "processing").length;
+  const sentOrders = state.orders.length;
   const activeReservations = state.reservations.filter((item) => Number(item.quantity) > 0).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const openAging = state.aging.filter((item) => !item.paid).reduce((sum, item) => sum + Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0)), 0);
-  const items = [["הזמנות ממתינות", pending], ["לקוחות", state.customers.length], ["יח׳ בשריונים", activeReservations], ["גיול פתוח", formatPrice(openAging)]];
+  const items = [["הזמנות שנשלחו", sentOrders], ["לקוחות", state.customers.length], ["יח׳ בשריונים", activeReservations], ["גיול פתוח", formatPrice(openAging)]];
   $("#metrics").innerHTML = items.map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`).join("");
 }
 
@@ -130,7 +130,7 @@ function renderData() {
 }
 
 function orderCard(order) {
-  const labels = { pending_owner_approval: "ממתינה לאישור דקל", processing: "בתהליך אישור", approved: "אושרה ונכנסה למערכת", cancelled: "בוטלה" };
+  const labels = { pending_owner_approval: "נשלחה", processing: "נשלחה", approved: "נשלחה", cancelled: "בוטלה" };
   const items = (order.items || []).map((item) => `${item.name} ×${item.quantity}${Number(item.reservationQuantity || 0) ? ` · שריון ${item.reservationQuantity}` : ""}`).join(" · ");
   return `<article class="stack-item"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><p class="muted">${escapeHtml(items)}</p><p class="muted">${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</p></article>`;
 }
@@ -191,7 +191,7 @@ $("#submitOrder").addEventListener("click", async () => {
   try {
     const result = await api("?action=create-order", { method: "POST", body: JSON.stringify({ customerId, items: state.cart }) });
     state.cart = [];
-    $("#cartMessage").textContent = result.plannedReservationUnits ? `ההזמנה נשלחה לאישור. ${Number(result.plannedReservationUnits).toLocaleString("he-IL")} יח׳ מסומנות לשריון בכפוף ליתרה בעת האישור.` : "ההזמנה נשלחה לאישור דקל.";
+    $("#cartMessage").textContent = result.plannedReservationUnits ? `ההזמנה נשלחה. ${Number(result.plannedReservationUnits).toLocaleString("he-IL")} יח׳ מסומנות לשריון בכפוף ליתרה העדכנית.` : "ההזמנה נשלחה.";
     await refresh();
   } catch (error) { $("#cartMessage").textContent = `ההזמנה לא נשמרה: ${error.message}`; }
   finally { submit.disabled = false; }
