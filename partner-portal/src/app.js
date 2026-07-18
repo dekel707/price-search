@@ -24,6 +24,7 @@ function setTab(name) {
   state.activeTab = name;
   document.querySelectorAll(".tab-button").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.tabPanel === name));
+  renderFloatingCart();
 }
 
 function formatPrice(value) { return money.format(Number(value) || 0); }
@@ -40,9 +41,75 @@ function findCustomer(value = state.customerId) {
 
 function resolveCustomerInput(input) {
   const customer = findCustomer(input.value);
-  state.customerId = customer?.id || "";
   if (customer) input.value = customerLabel(customer);
   return customer;
+}
+
+function cartItemCount() {
+  return state.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+}
+
+function cartTotal(customer = findCustomer(state.customerId)) {
+  return state.cart.reduce((sum, item) => {
+    const reservation = customer && item.fromReservation ? reservationFor(customer.id, item.model) : null;
+    return sum + Math.max(0, item.quantity - Math.min(item.quantity, Number(reservation?.quantity || 0))) * Number(item.price || 0);
+  }, 0);
+}
+
+function syncActiveCustomerInputs() {
+  const customer = findCustomer(state.customerId);
+  const label = customer ? customerLabel(customer) : "";
+  ["#searchCustomerSelect", "#customerSelect"].forEach((selector) => {
+    const input = $(selector);
+    if (input) input.value = label;
+  });
+  const status = $("#activeOrderCustomer");
+  if (status) {
+    status.textContent = customer
+      ? `לקוח פעיל להזמנה: ${customerLabel(customer)} · כל מוצר שתוסיף ישויך אליו עד ניקוי או שליחת ההזמנה.`
+      : "בחר לקוח לפני הוספת מוצרים לסל.";
+    status.classList.toggle("selected", Boolean(customer));
+  }
+}
+
+function selectActiveCustomer(input) {
+  const typed = String(input.value || "").trim();
+  const selected = findCustomer(typed);
+  const active = findCustomer(state.customerId);
+  if (!selected) {
+    if (!typed && !state.cart.length) {
+      state.customerId = "";
+      syncActiveCustomerInputs();
+      return null;
+    }
+    input.value = active ? customerLabel(active) : "";
+    if (typed) $("#cartMessage").textContent = "בחר לקוח קיים מהרשימה.";
+    return active;
+  }
+  if (active && active.id !== selected.id && state.cart.length) {
+    input.value = customerLabel(active);
+    $("#cartMessage").textContent = "כדי להחליף לקוח יש לנקות או לשלוח את ההזמנה הנוכחית.";
+    return active;
+  }
+  state.customerId = selected.id;
+  syncActiveCustomerInputs();
+  return selected;
+}
+
+function clearActiveCustomer() {
+  state.customerId = "";
+  syncActiveCustomerInputs();
+}
+
+function renderFloatingCart(total = cartTotal(), count = cartItemCount()) {
+  const bubble = $("#portalFloatingCart");
+  if (!bubble) return;
+  const customer = findCustomer(state.customerId);
+  bubble.hidden = !count || state.activeTab === "cart";
+  $("#portalFloatingCartCount").textContent = count.toLocaleString("he-IL");
+  $("#portalFloatingCartCustomer").textContent = customer ? customer.name : "סל הזמנה";
+  $("#portalFloatingCartSummary").textContent = `${count.toLocaleString("he-IL")} פריטים · ${formatPrice(total)}`;
+  bubble.setAttribute("aria-label", `פתח סל הזמנה: ${count.toLocaleString("he-IL")} פריטים עבור ${customer?.name || "לקוח"}`);
 }
 
 function renderCustomerOptions() {
@@ -148,19 +215,27 @@ function reservationFor(customerId, model) {
 }
 
 function openAddDialog(product, quantity = 1) {
+  const customer = findCustomer(state.customerId);
   state.pendingProduct = product;
   $("#cartCustomerTitle").textContent = `הוספת ${product.model} לסל`;
   $("#pendingProductSummary").innerHTML = `<strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.model)} · ${formatPrice(product.price)}</span>`;
   $("#cartProductQuantity").innerHTML = quantityOptions(quantity, 50);
   $("#cartProductPrice").value = Number(product.price || 0);
-  $("#cartCustomerInput").value = state.customerId ? customerLabel(findCustomer(state.customerId) || {}) : "";
+  $("#cartCustomerInput").value = customer ? customerLabel(customer) : "";
+  $("#cartCustomerInput").readOnly = Boolean(customer);
+  $("#cartCustomerLockHint").hidden = !customer;
   $("#cartCustomerFeedback").textContent = "";
   updateDialogReservation();
   $("#cartCustomerDialog").hidden = false;
-  window.setTimeout(() => $("#cartCustomerInput").focus(), 0);
+  window.setTimeout(() => (customer ? $("#cartProductQuantity") : $("#cartCustomerInput")).focus(), 0);
 }
 
-function closeAddDialog() { state.pendingProduct = null; $("#cartCustomerDialog").hidden = true; }
+function closeAddDialog() {
+  state.pendingProduct = null;
+  $("#cartCustomerInput").readOnly = false;
+  $("#cartCustomerLockHint").hidden = true;
+  $("#cartCustomerDialog").hidden = true;
+}
 
 function updateDialogReservation() {
   const customer = resolveCustomerInput($("#cartCustomerInput"));
@@ -174,24 +249,26 @@ function updateDialogReservation() {
 function addPendingToCart() {
   const product = state.pendingProduct;
   const customer = resolveCustomerInput($("#cartCustomerInput"));
+  const activeCustomer = findCustomer(state.customerId);
   const quantity = Number($("#cartProductQuantity").value) || 1;
   const price = Number($("#cartProductPrice").value);
   if (!product || !customer) { $("#cartCustomerFeedback").textContent = "בחר לקוח מהרשימה."; return; }
+  if (activeCustomer && activeCustomer.id !== customer.id) { $("#cartCustomerFeedback").textContent = "הסל כבר משויך ללקוח אחר. נקה או שלח את ההזמנה לפני החלפת לקוח."; return; }
   if (!Number.isFinite(price) || price < 0) { $("#cartCustomerFeedback").textContent = "הזן מחיר תקין."; return; }
   state.customerId = customer.id;
-  $("#customerSelect").value = customerLabel(customer);
+  syncActiveCustomerInputs();
   const fromReservation = $("#cartProductReservation").checked && Boolean(reservationFor(customer.id, product.model));
   const existing = state.cart.find((item) => modelKey(item.model) === modelKey(product.model) && Number(item.price) === price && item.fromReservation === fromReservation);
   if (existing) existing.quantity += quantity;
   else state.cart.push({ model: product.model, skuKey: product.skuKey || product.model, name: product.name || product.model, price, unitPrice: price, quantity, fromReservation });
   closeAddDialog();
   renderCart();
-  setTab("cart");
+  $("#orderSearchStatus").textContent = `${product.model} נוסף לסל עבור ${customer.name}. אפשר להמשיך להוסיף מוצרים או לפתוח את בועת הסל.`;
 }
 
 function renderCart() {
   const customer = findCustomer(state.customerId);
-  const count = state.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const count = cartItemCount();
   $("#cartCount").textContent = count;
   $("#searchCartCount").textContent = count ? `${count} פריטים` : "ריק";
   $("#cartItems").innerHTML = state.cart.map((item, index) => {
@@ -200,19 +277,19 @@ function renderCart() {
     const paidQuantity = item.quantity - plannedReservation;
     return `<article class="cart-line ${item.fromReservation ? "reservation-cart-line" : ""}"><div class="cart-line-header"><div class="cart-line-title"><strong>${escapeHtml(item.model)}</strong><span>${escapeHtml(item.name)}</span><small>${formatPrice(item.price)} ליח׳ · ${plannedReservation ? `${plannedReservation} יח׳ מהשריון${paidQuantity ? ` · ${paidQuantity} יח׳ במחיר` : ""}` : "מהמחירון"}</small></div>${customer && reservationFor(customer.id, item.model) ? `<label class="reservation-choice"><input type="checkbox" data-cart-reservation="${index}" ${item.fromReservation ? "checked" : ""} /> משיכה משריון · זמינות ${Number(reservationFor(customer.id, item.model).quantity).toLocaleString("he-IL")} יח׳</label>` : ""}</div><div class="portal-cart-actions"><label class="field-wrap"><span>כמות</span><select data-cart-quantity="${index}">${quantityOptions(item.quantity)}</select></label><label class="field-wrap"><span>מחיר</span><input type="number" min="0" step="0.01" inputmode="decimal" value="${escapeAttr(item.price)}" data-cart-price="${index}" /></label><button class="danger-button" type="button" data-remove="${index}">מחק</button></div></article>`;
   }).join("") || `<div class="empty-state">הסל ריק. עבור ללשונית חיפוש כדי להוסיף מוצרים.</div>`;
-  const total = state.cart.reduce((sum, item) => {
-    const reservation = customer && item.fromReservation ? reservationFor(customer.id, item.model) : null;
-    return sum + Math.max(0, item.quantity - Math.min(item.quantity, Number(reservation?.quantity || 0))) * Number(item.price || 0);
-  }, 0);
+  const total = cartTotal(customer);
   $("#cartTotal").textContent = `סה״כ לתשלום לפי מחירון: ${formatPrice(total)}`;
   $("#cartTitle").textContent = state.editingOrderId ? "עריכת הזמנה" : "הזמנה חדשה";
   $("#submitOrder").textContent = state.editingOrderId ? "שמור שינויים בהזמנה" : "שלח הזמנה";
   $("#cancelEditOrder").hidden = !state.editingOrderId;
+  syncActiveCustomerInputs();
+  renderFloatingCart(total, count);
 }
 
 function renderData() {
   renderCustomerOptions();
-  if (state.customerId) { const customer = findCustomer(state.customerId); if (customer) $("#customerSelect").value = customerLabel(customer); }
+  if (state.customerId && !findCustomer(state.customerId)) state.customerId = "";
+  syncActiveCustomerInputs();
   $("#customerList").innerHTML = state.customers.map((item) => `<article class="customer-card portal-customer-card"><div><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.phone || "ללא טלפון")}</p></div><span class="portal-readonly-badge">קריאה בלבד</span></article>`).join("") || `<div class="empty-state">אין לקוחות.</div>`;
   const reservationGroups = state.customers.map((customer) => ({ customer, items: state.reservations.filter((item) => item.customerId === customer.id && Number(item.quantity) > 0) })).filter((group) => group.items.length);
   $("#reservationList").innerHTML = reservationGroups.map(({ customer, items }) => `<details class="reservation-customer-card" data-reservation-customer="${escapeAttr(customer.id)}" ${state.openReservationCustomers.has(customer.id) ? "open" : ""}><summary class="reservation-customer-header"><div><strong>${escapeHtml(customer.name)}</strong><span>${items.reduce((sum, item) => sum + Number(item.quantity || 0), 0).toLocaleString("he-IL")} יח׳ בשריון</span></div><b>הצג פירוט</b></summary><div class="portal-reservation-body">${customer.phone ? `<button class="whatsapp-button reservation-export-button" type="button" data-send-reservations="${escapeAttr(customer.id)}">שלח שריון בוואטסאפ</button>` : ""}${items.map((item) => `<div class="reservation-row"><div class="reservation-product"><strong>${escapeHtml(item.sku || item.skuKey)}</strong><span>${escapeHtml(item.description || "")}</span></div><b>${Number(item.quantity).toLocaleString("he-IL")} יח׳</b></div>`).join("")}</div></details>`).join("") || `<div class="empty-state">אין שריונים פעילים.</div>`;
@@ -236,7 +313,6 @@ function editOrder(order) {
   state.editingOrderId = order.id;
   state.customerId = customer.id;
   state.cart = (order.items || []).map((item) => ({ model: item.model, skuKey: item.skuKey || item.model, name: item.name || item.model, quantity: Number(item.quantity) || 1, price: Number(item.unitPrice ?? item.listPrice) || 0, unitPrice: Number(item.unitPrice ?? item.listPrice) || 0, fromReservation: Boolean(item.fromReservation) }));
-  $("#customerSelect").value = customerLabel(customer);
   $("#cartMessage").textContent = "ערוך את הכמויות והמחירים ולאחר מכן שמור. השינוי יעודכן גם בהזמנה המקבילה אצל דקל.";
   renderCart(); setTab("cart");
 }
@@ -261,7 +337,15 @@ async function deleteOrder(orderId) {
   } catch (error) { $("#orderActionMessage").textContent = `המחיקה לא הושלמה: ${error.message}`; }
 }
 
-function cancelEdit() { state.editingOrderId = ""; state.cart = []; $("#cartMessage").textContent = ""; renderCart(); }
+function clearCart(message = "") {
+  state.editingOrderId = "";
+  state.cart = [];
+  clearActiveCustomer();
+  $("#cartMessage").textContent = message;
+  renderCart();
+}
+
+function cancelEdit() { clearCart("עריכת ההזמנה בוטלה והסל נוקה."); }
 
 async function refresh() {
   document.querySelectorAll(".reservation-customer-card[open]").forEach((item) => state.openReservationCustomers.add(item.dataset.reservationCustomer));
@@ -322,7 +406,11 @@ $("#orderSearchInput").addEventListener("input", renderOrderSearch);
 $("#advancedSearchInput").addEventListener("input", renderProducts);
 $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
 $("#backToOrderSearch").addEventListener("click", () => setTab("search"));
-$("#customerSelect").addEventListener("change", () => { resolveCustomerInput($("#customerSelect")); renderCart(); renderOrderSearch(); });
+$("#portalFloatingCart").addEventListener("click", () => setTab("cart"));
+$("#searchCustomerSelect").addEventListener("input", () => { if (findCustomer($("#searchCustomerSelect").value)) { selectActiveCustomer($("#searchCustomerSelect")); renderCart(); renderOrderSearch(); } });
+$("#searchCustomerSelect").addEventListener("change", () => { selectActiveCustomer($("#searchCustomerSelect")); renderCart(); renderOrderSearch(); });
+$("#customerSelect").addEventListener("change", () => { selectActiveCustomer($("#customerSelect")); renderCart(); renderOrderSearch(); });
+$("#clearCart").addEventListener("click", () => clearCart("ההזמנה נוקתה והלקוח שוחרר."));
 $("#categoryFilters").addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (!button) return; state.category = button.dataset.category === state.category ? "" : button.dataset.category; state.filters = {}; renderProducts(); });
 function togglePortalQuickFilter(filter, value) {
   if (!filter || !value) return;
@@ -347,13 +435,15 @@ $("#deleteOrderDialog").addEventListener("click", (event) => { if (event.target 
 $("#cancelEditOrder").addEventListener("click", cancelEdit);
 $("#sendCartWhatsApp").addEventListener("click", sendCartToWhatsApp);
 $("#submitOrder").addEventListener("click", async () => {
-  const customer = resolveCustomerInput($("#customerSelect"));
+  const customer = findCustomer(state.customerId);
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים."; return; }
+  const displayedCustomer = resolveCustomerInput($("#customerSelect"));
+  if (!displayedCustomer || displayedCustomer.id !== customer.id) { syncActiveCustomerInputs(); $("#cartMessage").textContent = "הסל משויך ללקוח הפעיל. נקה את ההזמנה כדי לבחור לקוח אחר."; return; }
   const submit = $("#submitOrder"); submit.disabled = true;
   const editing = state.editingOrderId;
   try {
     const result = await api(`?action=${editing ? "update-order" : "create-order"}`, { method: "POST", body: JSON.stringify({ ...(editing ? { orderId: editing } : {}), customerId: customer.id, items: state.cart.map((item) => ({ ...item, unitPrice: item.price })) }) });
-    state.cart = []; state.editingOrderId = "";
+    state.cart = []; state.editingOrderId = ""; clearActiveCustomer();
     $("#cartMessage").textContent = result.plannedReservationUnits ? `ההזמנה נשמרה. ${Number(result.plannedReservationUnits).toLocaleString("he-IL")} יח׳ מסומנות לשריון בכפוף ליתרה העדכנית.` : "ההזמנה נשמרה במערכת הראשית.";
     await refresh();
   } catch (error) { $("#cartMessage").textContent = `ההזמנה לא נשמרה: ${error.message}`; }

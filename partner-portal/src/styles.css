@@ -40,6 +40,10 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
 .panel-header { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(143,177,209,.13); }
 .standard-panel-title { display: flex; min-width: 0; align-items: center; gap: 10px; }.standard-panel-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(67,213,193,.3); border-radius: 10px; background: rgba(67,213,193,.08); color: #5ce3d0; font-size: 1.2rem; }
 .search-box { position: relative; }.search-box input { padding-inline: 14px; }
+.order-customer-picker { padding: 12px; border: 1px solid rgba(67,213,193,.22); border-radius: 12px; background: rgba(67,213,193,.055); }
+.active-order-customer { min-height: 22px; margin: -8px 0 0; color: #9bb4cb; font-size: .78rem; font-weight: 750; line-height: 1.45; }
+.active-order-customer.selected { color: #a7eee4; }
+.dialog-customer-lock { margin: -4px 0 0; padding: 8px 10px; border: 1px solid rgba(67,213,193,.2); border-radius: 9px; background: rgba(67,213,193,.07); }
 .status { min-height: 22px; margin: 0; color: #91a8c0; font-size: .86rem; }.results,.cart-items,.orders-list,.portal-data-list,.reservations-list,.collections-list { display: grid; gap: 10px; }
 .result-row,.cart-line,.order-card,.customer-card,.reservation-customer-card,.collection-row { border: 1px solid rgba(132,169,203,.17); border-radius: 13px; background: linear-gradient(145deg,rgba(13,32,52,.84),rgba(8,24,40,.72)); box-shadow: none; }
 .result-row { display: grid; gap: 12px; padding: 14px; }.result-row:hover,.order-card:hover,.customer-card:hover { border-color: rgba(90,191,223,.34); }
@@ -104,6 +108,11 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
 .pending-product strong { color: #f7fffb; }.pending-product span { direction: ltr; color: #5ce3d0; font-size: .82rem; text-align: right; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .cart-submit-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 9px; }
+.cart-header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.portal-floating-cart { position: fixed; z-index: 45; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: auto minmax(0,1fr) auto; min-width: 218px; max-width: min(360px, calc(100vw - 36px)); align-items: center; gap: 9px; padding: 9px 12px 9px 10px; border: 1px solid rgba(116,255,210,.7); border-radius: 15px; background: linear-gradient(135deg,rgba(15,92,76,.98),rgba(8,47,46,.98)); box-shadow: 0 18px 36px rgba(0,0,0,.42), 0 0 0 4px rgba(67,213,193,.08); color: #efffff; text-align: right; }
+.portal-floating-cart:hover { border-color: #a7eee4; background: linear-gradient(135deg,rgba(20,111,90,.99),rgba(11,58,56,.99)); transform: translateY(-2px); }
+.portal-floating-cart-count { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #d7fff7; color: #073d37; font-size: .92rem; font-weight: 950; }
+.portal-floating-cart-copy { display: grid; min-width: 0; gap: 2px; }.portal-floating-cart-copy strong { overflow: hidden; color: #f3fffc; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }.portal-floating-cart-copy small { overflow: hidden; color: #c0eee5; font-size: .71rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }.portal-floating-cart-arrow { color: #8ff5e2; font-size: 1.2rem; font-weight: 900; }
 
 .inline-add-field { display: grid; gap: 5px; }
 .inline-add-field span { color: #b9c9d9; font-size: .78rem; font-weight: 800; }
@@ -185,4 +194,8 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
   .customer-dialog { width: min(100%, 480px); padding: 18px 15px; }
   .product-spec-grid { grid-template-columns: 1fr; }
   .cart-submit-actions { grid-template-columns: 1fr; }
+  .cart-header-actions { width: 100%; justify-content: stretch; }
+  .cart-header-actions button { flex: 1; }
+  .portal-floating-cart { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); min-width: 182px; padding: 8px 10px 8px 8px; }
+  .portal-floating-cart-count { width: 31px; height: 31px; font-size: .84rem; }
 }

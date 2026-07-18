@@ -46,6 +46,8 @@
         <section class="tab-panel active" data-tab-panel="search">
           <section class="search-panel" aria-label="חיפוש מחירון">
             <div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">⌕</span><div><p class="eyebrow">מחירון חכם</p><h2>חיפוש מוצרים</h2></div></div><button id="openCartFromSearch" class="secondary-button" type="button">לסל <span id="searchCartCount">0</span></button></div>
+            <label class="field-wrap order-customer-picker"><span>לקוח להזמנה</span><input id="searchCustomerSelect" list="customerOptions" autocomplete="off" placeholder="הקלד ובחר לקוח לפני הוספת מוצר" /></label>
+            <p id="activeOrderCustomer" class="active-order-customer" aria-live="polite">בחר לקוח לפני הוספת מוצרים לסל.</p>
             <label class="search-label" for="orderSearchInput">מק״ט, דגם או תיאור</label>
             <div class="search-box"><input id="orderSearchInput" type="search" autocomplete="off" placeholder="התחל להקליד…" autofocus /></div>
             <p class="status" id="orderSearchStatus">המחירים והשריונים מסונכרנים מהמערכת הראשית. עריכה אינה זמינה כאן.</p>
@@ -62,7 +64,7 @@
           </section>
         </section>
 
-        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2 id="cartTitle">הזמנה חדשה</h2></div></div><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button></div><label class="field-wrap"><span>לקוח קיים</span><input id="customerSelect" list="customerOptions" autocomplete="off" placeholder="הקלד שם לקוח" /></label><datalist id="customerOptions"></datalist><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><div class="cart-submit-actions"><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><button id="sendCartWhatsApp" class="whatsapp-button" type="button">שלח הזמנה בוואטסאפ</button></div><button id="cancelEditOrder" class="secondary-button" type="button" hidden>ביטול עריכת הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
+        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2 id="cartTitle">הזמנה חדשה</h2></div></div><div class="cart-header-actions"><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button><button id="clearCart" class="danger-button" type="button">נקה הזמנה</button></div></div><label class="field-wrap"><span>לקוח קיים</span><input id="customerSelect" list="customerOptions" autocomplete="off" placeholder="הקלד שם לקוח" /></label><datalist id="customerOptions"></datalist><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><div class="cart-submit-actions"><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><button id="sendCartWhatsApp" class="whatsapp-button" type="button">שלח הזמנה בוואטסאפ</button></div><button id="cancelEditOrder" class="secondary-button" type="button" hidden>ביטול עריכת הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
 
         <section class="tab-panel" data-tab-panel="customers"><section class="customers-panel"><div class="panel-header"><div><p class="eyebrow">לקוחות</p><h2>לקוחות</h2><p class="panel-subtitle">קריאה בלבד · כל שינוי נשמר רק אצל דקל.</p></div></div><div id="customerList" class="portal-data-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="reservations"><section class="reservations-panel"><div class="panel-header"><div><p class="eyebrow">שריונים</p><h2>שריונים</h2><p class="panel-subtitle">יתרות עדכניות מהמערכת הראשית.</p></div></div><div id="reservationList" class="reservations-list"></div></section></section>
@@ -76,6 +78,7 @@
           <div id="pendingProductSummary" class="pending-product"></div>
           <label class="field-wrap"><span>לקוח</span><input id="cartCustomerInput" list="cartCustomerOptions" autocomplete="off" placeholder="הקלד שם לקוח" required /></label>
           <datalist id="cartCustomerOptions"></datalist>
+          <p id="cartCustomerLockHint" class="active-order-customer dialog-customer-lock" hidden>הלקוח נשמר לכל המוצרים בסל עד ניקוי או שליחת ההזמנה.</p>
           <label class="field-wrap"><span>כמות</span><select id="cartProductQuantity"></select></label>
           <label class="field-wrap"><span>מחיר ליחידה</span><input id="cartProductPrice" type="number" min="0" step="0.01" inputmode="decimal" required /></label>
           <label id="cartProductReservationWrap" class="reservation-choice" hidden><input id="cartProductReservation" type="checkbox" /> משיכה משריון הלקוח</label>
@@ -93,6 +96,11 @@
           <div class="dialog-actions"><button id="cancelDeleteOrder" class="secondary-button" type="button">ביטול</button><button id="confirmDeleteOrder" class="danger-button" type="button">מחק הזמנה</button></div>
         </section>
       </div>
+      <button id="portalFloatingCart" class="portal-floating-cart" type="button" hidden>
+        <span id="portalFloatingCartCount" class="portal-floating-cart-count">0</span>
+        <span class="portal-floating-cart-copy"><strong id="portalFloatingCartCustomer">סל הזמנה</strong><small id="portalFloatingCartSummary">0 פריטים</small></span>
+        <span class="portal-floating-cart-arrow" aria-hidden="true">←</span>
+      </button>
     </div>
     <script type="module" src="/src/app.js"></script>
   </body>
