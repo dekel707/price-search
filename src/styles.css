@@ -6882,8 +6882,10 @@ body {
 }
 
 .advanced-simple-filter-group[open] summary::before { transform: rotate(135deg) translateY(-2px); }
-.advanced-simple-filter-options { display: grid; gap: 5px; padding: 0 11px 12px; }
+.advanced-simple-filter-options { position: relative; z-index: 1; display: grid; gap: 5px; padding: 0 11px 12px; pointer-events: auto; }
 .advanced-simple-filter-option {
+  position: relative;
+  z-index: 1;
   display: flex;
   min-height: 33px;
   align-items: center;
@@ -6896,6 +6898,9 @@ body {
   font-size: 0.74rem;
   font-weight: 760;
   text-align: right;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .advanced-simple-filter-option::before {

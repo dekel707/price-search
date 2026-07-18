@@ -116,23 +116,6 @@ function bindEvents() {
     renderSimpleFilters();
     render();
   });
-  dom.simpleFilters.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-filter-group]");
-    if (!button) return;
-    const group = button.dataset.filterGroup || "";
-    const value = button.dataset.filterValue || "";
-    if (!value) return;
-    if (group.startsWith("quick-")) {
-      const quickGroup = group.slice("quick-".length);
-      if (!quickGroup) return;
-      activeQuickFilters[quickGroup] = activeQuickFilters[quickGroup] === value ? "" : value;
-    } else {
-      if (!(group in activeFacets)) return;
-      activeFacets[group] = activeFacets[group] === value ? "" : value;
-    }
-    renderSimpleFilters();
-    render();
-  });
   dom.clearFilters.addEventListener("click", () => {
     activeCategory = "";
     clearSimpleFacets();
@@ -500,10 +483,29 @@ function createSimpleFilterGroup(group) {
     button.dataset.filterValue = option.value;
     button.setAttribute("aria-pressed", String(activeValue === option.value));
     button.textContent = `${option.label} (${option.count})`;
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleSimpleFilter(group.key, option.value);
+    });
     options.append(button);
   });
   details.append(summary, options);
   return details;
+}
+
+function toggleSimpleFilter(group, value) {
+  if (!value) return;
+  if (group.startsWith("quick-")) {
+    const quickGroup = group.slice("quick-".length);
+    if (!quickGroup) return;
+    activeQuickFilters[quickGroup] = activeQuickFilters[quickGroup] === value ? "" : value;
+  } else {
+    if (!(group in activeFacets)) return;
+    activeFacets[group] = activeFacets[group] === value ? "" : value;
+  }
+  renderSimpleFilters();
+  render();
 }
 
 function createRangeOptions(ranges, getValue, sourceProducts = products) {

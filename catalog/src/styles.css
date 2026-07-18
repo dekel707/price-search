@@ -131,8 +131,8 @@ h1 { margin-bottom: 7px; color: #f4f9fd; font-size: clamp(1.45rem, 4vw, 2.15rem)
 .simple-filter-group summary::-webkit-details-marker { display: none; }
 .simple-filter-group summary::before { width: 8px; height: 8px; margin-left: 9px; border-bottom: 2px solid #78ded0; border-left: 2px solid #78ded0; content: ""; transform: rotate(-45deg) translateY(-2px); transition: transform 160ms ease; }
 .simple-filter-group[open] summary::before { transform: rotate(135deg) translateY(-2px); }
-.simple-filter-options { display: grid; gap: 5px; padding: 0 11px 12px; }
-.simple-filter-option { display: flex; min-height: 33px; align-items: center; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: #afc0cc; font-size: 0.74rem; font-weight: 760; text-align: right; }
+.simple-filter-options { position: relative; z-index: 1; display: grid; gap: 5px; padding: 0 11px 12px; pointer-events: auto; }
+.simple-filter-option { position: relative; z-index: 1; display: flex; min-height: 33px; align-items: center; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: #afc0cc; font-size: 0.74rem; font-weight: 760; text-align: right; cursor: pointer; pointer-events: auto; touch-action: manipulation; }
 .simple-filter-option::before { display: inline-grid; width: 16px; height: 16px; flex: 0 0 16px; place-items: center; margin-left: 8px; border: 1px solid rgba(163, 185, 201, 0.46); border-radius: 5px; color: #051019; content: ""; }
 .simple-filter-option:hover { background: rgba(71, 107, 128, 0.2); color: #e2eef5; }
 .simple-filter-option[aria-pressed="true"] { background: rgba(31, 151, 134, 0.22); color: #dbfff7; }

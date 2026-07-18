@@ -740,22 +740,6 @@ function bindEvents() {
     clearAdvancedQuickFilters();
     renderAdvancedSearch();
   });
-  dom.advancedSimpleFilters.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-advanced-filter-group]");
-    if (!button) return;
-    const group = button.dataset.advancedFilterGroup || "";
-    const value = button.dataset.advancedFilterValue || "";
-    if (!value) return;
-    if (group.startsWith("quick-")) {
-      const quickGroup = group.slice("quick-".length);
-      advancedSearchQuickFilters[quickGroup] = advancedSearchQuickFilters[quickGroup] === value ? "" : value;
-    } else if (group in advancedSearchFacets) {
-      advancedSearchFacets[group] = advancedSearchFacets[group] === value ? "" : value;
-    } else {
-      return;
-    }
-    renderAdvancedSearch();
-  });
   dom.advancedClearFilters.addEventListener("click", () => {
     advancedSearchCategory = "";
     clearAdvancedSimpleFacets();
@@ -3146,10 +3130,29 @@ function createAdvancedSimpleFilterGroup(group) {
     button.dataset.advancedFilterValue = option.value;
     button.setAttribute("aria-pressed", String(activeValue === option.value));
     button.textContent = `${option.label} (${option.count})`;
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleAdvancedFilter(group.key, option.value);
+    });
     options.append(button);
   });
   details.append(summary, options);
   return details;
+}
+
+function toggleAdvancedFilter(group, value) {
+  if (!value) return;
+  if (group.startsWith("quick-")) {
+    const quickGroup = group.slice("quick-".length);
+    if (!quickGroup) return;
+    advancedSearchQuickFilters[quickGroup] = advancedSearchQuickFilters[quickGroup] === value ? "" : value;
+  } else if (group in advancedSearchFacets) {
+    advancedSearchFacets[group] = advancedSearchFacets[group] === value ? "" : value;
+  } else {
+    return;
+  }
+  renderAdvancedSearch();
 }
 
 function advancedGetFilterValue(key) {

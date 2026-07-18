@@ -120,7 +120,15 @@ function renderQuickFilters(products) {
   if (widthButtons.length) groups.push(`<span class="filter-label">רוחב</span>${widthButtons.join("")}`);
   if (energy.length) groups.push(`<span class="filter-label">דירוג אנרגטי</span>${energy.map((rating) => quickButton("energy", rating, `דירוג ${rating}`)).join("")}`);
   if (products.some((product) => /קו\s*(אפס|0)|zero\s*-?\s*line/i.test((product.technical?.facts || []).join(" ")))) groups.push(quickButton("zeroLine", "yes", "קו אפס"));
-  $("#quickFilters").innerHTML = groups.join("") || `<span class="portal-muted">בחר קטגוריה כדי לראות סינונים רלוונטיים.</span>`;
+  const quickFilters = $("#quickFilters");
+  quickFilters.innerHTML = groups.join("") || `<span class="portal-muted">בחר קטגוריה כדי לראות סינונים רלוונטיים.</span>`;
+  quickFilters.querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      togglePortalQuickFilter(button.dataset.filter || "", button.dataset.value || "");
+    });
+  });
 }
 
 function quickButton(key, value, label) { return `<button class="advanced-filter-option ${state.filters[key] === value ? "active" : ""}" type="button" data-filter="${escapeAttr(key)}" data-value="${escapeAttr(value)}">${escapeHtml(label)}</button>`; }
@@ -316,7 +324,11 @@ $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
 $("#backToOrderSearch").addEventListener("click", () => setTab("search"));
 $("#customerSelect").addEventListener("change", () => { resolveCustomerInput($("#customerSelect")); renderCart(); renderOrderSearch(); });
 $("#categoryFilters").addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (!button) return; state.category = button.dataset.category === state.category ? "" : button.dataset.category; state.filters = {}; renderProducts(); });
-$("#quickFilters").addEventListener("click", (event) => { const button = event.target.closest("[data-filter]"); if (!button) return; const { filter, value } = button.dataset; state.filters[filter] = state.filters[filter] === value ? "" : value; renderProducts(); });
+function togglePortalQuickFilter(filter, value) {
+  if (!filter || !value) return;
+  state.filters[filter] = state.filters[filter] === value ? "" : value;
+  renderProducts();
+}
 $("#orderSearchResults").addEventListener("click", (event) => { const button = event.target.closest("[data-order-add]"); if (!button) return; const product = state.products.find((item) => item.model === button.dataset.orderAdd); const picker = button.closest(".item-tools")?.querySelector("[data-quantity-for]"); if (product) openAddDialog(product, picker?.value || 1); });
 $("#cartCustomerForm").addEventListener("submit", (event) => { event.preventDefault(); addPendingToCart(); });
 $("#closeCartCustomerDialog").addEventListener("click", closeAddDialog);
