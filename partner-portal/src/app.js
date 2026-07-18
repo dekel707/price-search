@@ -40,7 +40,7 @@ async function startDemoMode() {
   }
   clearInterval(refreshTimer);
   demoInitialized = false;
-  state.user = { id: "eitan-demo", role: "demo", name: "איתן · הדגמה" };
+  state.user = { id: "eitan-demo", role: "demo", name: "איתן" };
   state.cart = [];
   state.customerId = "";
   state.editingOrderId = "";
@@ -549,7 +549,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
   finally { submit.disabled = false; }
 });
 
-$("#demoLogin").addEventListener("click", () => startDemoMode().catch((error) => { $("#loginMessage").textContent = `לא ניתן לפתוח את ההדגמה: ${error.message}`; }));
+$("#demoLogin").addEventListener("click", () => startDemoMode().catch((error) => { $("#loginMessage").textContent = `לא ניתן לפתוח את הגישה הזמנית: ${error.message}`; }));
 $("#logoutButton").addEventListener("click", async () => {
   if (isDemoMode()) { location.href = location.pathname; return; }
   await api("?action=logout", { method: "POST" }); location.reload();
@@ -609,7 +609,7 @@ function startRefreshTimer() { clearInterval(refreshTimer); refreshTimer = setIn
 configureDemoEntry();
 const demoRequested = new URLSearchParams(window.location.search).get("demo") === "1";
 if (demoRequested && demoIsAvailable()) {
-  startDemoMode().catch((error) => { $("#loginMessage").textContent = `לא ניתן לפתוח את ההדגמה: ${error.message}`; });
+  startDemoMode().catch((error) => { $("#loginMessage").textContent = `לא ניתן לפתוח את הגישה הזמנית: ${error.message}`; });
 } else {
   api("?resource=session").then(async ({ user }) => { if (!user) return; state.user = user; $("#loginView").hidden = true; $("#portalView").hidden = false; await refresh(); startRefreshTimer(); }).catch(() => {});
 }
