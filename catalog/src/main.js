@@ -27,6 +27,13 @@ const WIDTH_RANGES = [
   ["over-90", "מעל 90 ס״מ", 91, Infinity],
 ];
 
+const DEPTH_RANGES = [
+  ["up-to-50", "עד 50 ס״מ", 0, 50],
+  ["51-to-60", "51–60 ס״מ", 51, 60],
+  ["61-to-70", "61–70 ס״מ", 61, 70],
+  ["over-70", "מעל 70 ס״מ", 71, Infinity],
+];
+
 const FEATURE_FILTERS = [
   ["zero-line", "↔ קו אפס", (facts) => /קו\s*(אפס|0)|zero\s*-?\s*line/.test(facts)],
   ["no-frost", "❄ No Frost", (facts) => /no\s*frost|frost\s*no/.test(facts)],
@@ -75,7 +82,7 @@ const dom = {
 
 let products = [];
 let activeCategory = "";
-const activeFacets = { color: "", energy: "", volume: "", height: "", width: "", feature: "" };
+const activeFacets = { color: "", energy: "", volume: "", height: "", width: "", depth: "", feature: "" };
 const activeQuickFilters = {};
 
 boot();
@@ -438,6 +445,7 @@ function matchesSimpleFilters(product) {
     && (!activeFacets.volume || matchesRange(product.technical.capacities.totalLiters, getRange(VOLUME_RANGES, activeFacets.volume)))
     && (!activeFacets.height || matchesRange(product.technical.dimensionsCm.heightCm, getRange(HEIGHT_RANGES, activeFacets.height)))
     && (!activeFacets.width || matchesRange(product.technical.dimensionsCm.widthCm, getRange(WIDTH_RANGES, activeFacets.width)))
+    && (!activeFacets.depth || matchesRange(product.technical.dimensionsCm.depthCm, getRange(DEPTH_RANGES, activeFacets.depth)))
     && (!activeFacets.feature || matchesFeature(product, activeFacets.feature))
     && matchesQuickFilters(product);
 }
@@ -463,6 +471,7 @@ function getSimpleFilterGroups() {
     ...(!categoryWithQuickVolume ? [{ key: "volume", label: "נפח", options: createRangeOptions(VOLUME_RANGES, (product) => product.technical.capacities.totalLiters, sourceProducts) }] : []),
     { key: "height", label: "גובה", options: createRangeOptions(HEIGHT_RANGES, (product) => product.technical.dimensionsCm.heightCm, sourceProducts) },
     { key: "width", label: "רוחב", options: createRangeOptions(WIDTH_RANGES, (product) => product.technical.dimensionsCm.widthCm, sourceProducts) },
+    { key: "depth", label: "עומק", options: createRangeOptions(DEPTH_RANGES, (product) => product.technical.dimensionsCm.depthCm, sourceProducts) },
   ].filter((group) => group.options.length);
 }
 
@@ -470,7 +479,9 @@ function createSimpleFilterGroup(group) {
   const details = document.createElement("details");
   details.className = "simple-filter-group";
   const activeValue = getFilterValue(group.key);
-  details.open = Boolean(activeValue);
+  // On a fresh entry every group remains closed. Once a category is chosen,
+  // its quick filters open immediately so the relevant choice bubbles are not hidden.
+  details.open = Boolean(activeValue) || Boolean(activeCategory && group.key.startsWith("quick-"));
   const summary = document.createElement("summary");
   summary.textContent = group.label;
   const options = document.createElement("div");
