@@ -384,6 +384,9 @@ const dom = {
   customerOrders: document.querySelector("#customerOrders"),
   customerHistoryTitle: document.querySelector("#customerHistoryTitle"),
   customerHistory: document.querySelector(".customer-history"),
+  customerAlertsSummary: document.querySelector("#customerAlertsSummary"),
+  customerAlertsList: document.querySelector("#customerAlertsList"),
+  customerIntelligence: document.querySelector("#customerIntelligence"),
   cartItems: document.querySelector("#cartItems"),
   cartSummary: document.querySelector("#cartSummary"),
   cartTotal: document.querySelector("#cartTotal"),
@@ -894,6 +897,13 @@ function bindEvents() {
       activeCustomerId = card.dataset.viewCustomer;
       renderCustomersPanel();
     }
+  });
+  dom.customerAlertsList.addEventListener("click", (event) => {
+    const alert = event.target.closest("[data-open-customer-intelligence]");
+    if (!alert) return;
+    activeCustomerId = alert.dataset.openCustomerIntelligence;
+    renderCustomersPanel();
+    dom.customerIntelligence.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   dom.reservationCustomerFilter.addEventListener("change", renderReservationsPanel);
   dom.reservationSearch.addEventListener("input", renderReservationsPanel);
@@ -4037,6 +4047,230 @@ function renderCustomerHint() {
   dom.customerHint.textContent = details ? `משויך: ${details}` : "משויך ללקוח קיים.";
 }
 
+function customerMatchesRecord(record, customer) {
+  return (
+    record?.customerId === customer.id ||
+    normalizeSearch(record?.customerName) === normalizeSearch(customer.name)
+  );
+}
+
+function getCustomerTopProduct(customerOrders) {
+  const productsBySku = new Map();
+  customerOrders.forEach((order) => {
+    order.items.forEach((item) => {
+      if (isReservationOrderItem(item)) return;
+      const key = item.skuKey || getSkuKey(item.sku || item.description) || item.description;
+      if (!key) return;
+      const current = productsBySku.get(key) || {
+        sku: item.sku || "ללא מק״ט",
+        description: item.description || item.sku || "מוצר",
+        quantity: 0,
+        total: 0,
+      };
+      current.quantity += parseQuantity(item.quantity);
+      current.total = roundMoney(current.total + getOrderItemLineTotal(item));
+      productsBySku.set(key, current);
+    });
+  });
+  return [...productsBySku.values()].sort((left, right) => right.quantity - left.quantity || right.total - left.total)[0] || null;
+}
+
+function getCustomerDaysSinceLastOrder(lastOrder, reference = new Date()) {
+  if (!lastOrder) return null;
+  const lastDate = getDateFromLocalKey(getOrderReportDateKey(lastOrder));
+  const todayDate = getDateFromLocalKey(getIsraelDateKey(reference));
+  if (Number.isNaN(lastDate.getTime()) || Number.isNaN(todayDate.getTime())) return null;
+  return Math.max(0, Math.floor((todayDate.getTime() - lastDate.getTime()) / 86_400_000));
+}
+
+function getCustomerSmartData(customer, reference = new Date()) {
+  const customerOrders = getOrdersForCustomer(customer).sort(
+    (left, right) =>
+      getOrderReportDateKey(right).localeCompare(getOrderReportDateKey(left)) ||
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
+  const customerReservations = reservations.filter(
+    (reservation) => customerMatchesRecord(reservation, customer) && parseQuantity(reservation.quantity) > 0,
+  );
+  const customerCollections = collections.filter((collection) => customerMatchesRecord(collection, customer));
+  const collectionAlerts = customerCollections
+    .map((collection) => ({ collection, alert: getCollectionPaymentAlert(collection, reference) }))
+    .filter((entry) => entry.alert)
+    .sort((left, right) => customerAlertPriority(right.alert.level) - customerAlertPriority(left.alert.level));
+  const openReminders = reminders
+    .filter((reminder) => !reminder.completed && customerMatchesRecord(reminder, customer))
+    .sort(compareReminders);
+  const lastOrder = customerOrders[0] || null;
+  const stats = getOrderStats(customerOrders);
+  return {
+    customerOrders,
+    customerReservations,
+    customerCollections,
+    collectionAlerts,
+    openReminders,
+    lastOrder,
+    daysSinceLastOrder: getCustomerDaysSinceLastOrder(lastOrder, reference),
+    stats,
+    reservationUnits: customerReservations.reduce((sum, reservation) => sum + parseQuantity(reservation.quantity), 0),
+    openCollectionAmount: roundMoney(
+      customerCollections.reduce((sum, collection) => sum + getCollectionOpenAmount(collection), 0),
+    ),
+    topProduct: getCustomerTopProduct(customerOrders),
+  };
+}
+
+function customerAlertPriority(level) {
+  return { red: 4, orange: 3, teal: 2, muted: 1 }[level] || 0;
+}
+
+function getCustomerRecommendation(data, reference = new Date()) {
+  const todayKey = getIsraelDateKey(reference);
+  const overdueReminder = data.openReminders.find((reminder) => reminder.dueDate && reminder.dueDate < todayKey);
+  const todayReminder = data.openReminders.find((reminder) => reminder.dueDate === todayKey);
+  const collectionAlert = data.collectionAlerts[0]?.alert;
+  const lowReservations = data.customerReservations.filter((reservation) => parseQuantity(reservation.quantity) <= 2);
+
+  if (collectionAlert) {
+    return {
+      tone: collectionAlert.level,
+      title: "פעולת גבייה מומלצת",
+      detail: `${collectionAlert.label} · פתוח ${formatPrice(data.openCollectionAmount)}`,
+    };
+  }
+  if (overdueReminder) return { tone: "red", title: "תזכורת באיחור", detail: overdueReminder.title || "נדרש טיפול מול הלקוח." };
+  if (todayReminder) return { tone: "orange", title: "תזכורת להיום", detail: todayReminder.title || "נדרש טיפול היום." };
+  if (lowReservations.length) {
+    return {
+      tone: "teal",
+      title: "שריון נמוך",
+      detail: `${lowReservations.length.toLocaleString("he-IL")} דגמים עם 2 יח׳ או פחות — כדאי לבדוק השלמה.`,
+    };
+  }
+  if (data.daysSinceLastOrder !== null && data.daysSinceLastOrder >= 60 && data.stats.orderCount >= 3) {
+    return {
+      tone: "orange",
+      title: "לקוח שנחלש",
+      detail: `לא נרשמה הזמנה ${data.daysSinceLastOrder.toLocaleString("he-IL")} ימים — אפשר ליצור קשר יזום.`,
+    };
+  }
+  if (data.reservationUnits) {
+    return {
+      tone: "teal",
+      title: "הזדמנות להמשך אספקה",
+      detail: `ללקוח נותרו ${data.reservationUnits.toLocaleString("he-IL")} יח׳ בשריון.`,
+    };
+  }
+  if (data.topProduct) {
+    return {
+      tone: "teal",
+      title: "מוצר מוביל ללקוח",
+      detail: `${data.topProduct.description} · ${data.topProduct.quantity.toLocaleString("he-IL")} יח׳ בהיסטוריה.`,
+    };
+  }
+  return { tone: "muted", title: "התחלת היכרות", detail: "עדיין אין מספיק היסטוריה כדי להציע פעולה חכמה." };
+}
+
+function getCustomerAlerts(reference = new Date()) {
+  const todayKey = getIsraelDateKey(reference);
+  const alerts = [];
+  customers.forEach((customer) => {
+    const data = getCustomerSmartData(customer, reference);
+    const collectionAlert = data.collectionAlerts[0]?.alert;
+    if (collectionAlert) {
+      alerts.push({
+        customer,
+        tone: collectionAlert.level,
+        title: "גבייה דורשת טיפול",
+        detail: `${collectionAlert.label} · פתוח ${formatPrice(data.openCollectionAmount)}`,
+      });
+    }
+    const overdueReminder = data.openReminders.find((reminder) => reminder.dueDate && reminder.dueDate < todayKey);
+    if (overdueReminder) {
+      alerts.push({ customer, tone: "red", title: "תזכורת באיחור", detail: overdueReminder.title || "נדרשת פעולה מול הלקוח." });
+    } else {
+      const todayReminder = data.openReminders.find((reminder) => reminder.dueDate === todayKey);
+      if (todayReminder) alerts.push({ customer, tone: "orange", title: "תזכורת להיום", detail: todayReminder.title || "נדרשת פעולה היום." });
+    }
+    const lowReservations = data.customerReservations.filter((reservation) => parseQuantity(reservation.quantity) <= 2);
+    if (lowReservations.length) {
+      alerts.push({
+        customer,
+        tone: "teal",
+        title: "שריון נמוך",
+        detail: `${lowReservations.length.toLocaleString("he-IL")} דגמים עם 2 יח׳ או פחות.`,
+      });
+    }
+    if (data.daysSinceLastOrder !== null && data.daysSinceLastOrder >= 60 && data.stats.orderCount >= 3) {
+      alerts.push({
+        customer,
+        tone: "muted",
+        title: "לקוח ללא רכישה זמן רב",
+        detail: `${data.daysSinceLastOrder.toLocaleString("he-IL")} ימים ללא הזמנה חדשה.`,
+      });
+    }
+  });
+  return alerts.sort(
+    (left, right) =>
+      customerAlertPriority(right.tone) - customerAlertPriority(left.tone) ||
+      left.customer.name.localeCompare(right.customer.name, "he"),
+  );
+}
+
+function renderCustomerAlertCenter() {
+  const alerts = getCustomerAlerts();
+  dom.customerAlertsSummary.textContent = alerts.length === 1 ? "התראה אחת" : `${alerts.length.toLocaleString("he-IL")} התראות`;
+  if (!alerts.length) {
+    dom.customerAlertsList.replaceChildren(emptyState("אין כרגע פעולות דחופות מול לקוחות."));
+    return;
+  }
+  dom.customerAlertsList.replaceChildren(
+    ...alerts.slice(0, 8).map((alert) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = `customer-alert-row ${alert.tone}`;
+      item.dataset.openCustomerIntelligence = alert.customer.id;
+      item.innerHTML = `<span class="customer-alert-tone" aria-hidden="true">●</span><span><strong>${escapeHtml(alert.customer.name)} · ${escapeHtml(alert.title)}</strong><small>${escapeHtml(alert.detail)}</small></span><b aria-hidden="true">←</b>`;
+      return item;
+    }),
+  );
+}
+
+function renderCustomerSmartCard() {
+  const customer = customers.find((item) => item.id === activeCustomerId) || null;
+  if (!customer) {
+    dom.customerIntelligence.innerHTML = `<div class="customer-intelligence-header"><div><p class="eyebrow">תמונה עסקית</p><h3>כרטיס לקוח חכם</h3></div></div><div class="customer-smart-empty">בחר לקוח מהרשימה כדי לראות רכישות, שריונים, גיול, תזכורות והמלצת פעולה.</div>`;
+    return;
+  }
+  const data = getCustomerSmartData(customer);
+  const recommendation = getCustomerRecommendation(data);
+  const lastOrderDate = data.lastOrder ? getOrderReportDateKey(data.lastOrder) : "";
+  const lastOrderLabel = !data.lastOrder
+    ? "אין הזמנות עדיין"
+    : data.daysSinceLastOrder === 0
+      ? "היום"
+      : `לפני ${data.daysSinceLastOrder.toLocaleString("he-IL")} ימים · ${formatReminderDate(lastOrderDate)}`;
+  const details = [customer.code ? `קוד ${customer.code}` : "", customer.phone || ""].filter(Boolean).join(" · ");
+  const upcomingReminders = data.openReminders.slice(0, 2);
+  dom.customerIntelligence.innerHTML = `
+    <div class="customer-intelligence-header">
+      <div><p class="eyebrow">תמונה עסקית</p><h3>כרטיס לקוח חכם</h3></div>
+      <span class="customer-smart-status ${escapeHtml(recommendation.tone)}">${escapeHtml(recommendation.title)}</span>
+    </div>
+    <div class="customer-smart-name"><strong>${escapeHtml(customer.name)}</strong><span>${escapeHtml(details || "ללא קוד או טלפון")}</span></div>
+    <div class="customer-smart-metrics">
+      <div><span>מכירות השנה</span><strong>${escapeHtml(formatPrice(data.stats.periods.year.paidTotal))}</strong></div>
+      <div><span>הזמנה אחרונה</span><strong>${escapeHtml(lastOrderLabel)}</strong></div>
+      <div><span>שריון פעיל</span><strong>${data.reservationUnits.toLocaleString("he-IL")} יח׳</strong></div>
+      <div><span>גיול פתוח</span><strong>${escapeHtml(formatPrice(data.openCollectionAmount))}</strong></div>
+    </div>
+    <div class="customer-smart-recommendation ${escapeHtml(recommendation.tone)}"><span>המלצה</span><strong>${escapeHtml(recommendation.detail)}</strong></div>
+    <div class="customer-smart-details">
+      <div><span>מוצר מוביל</span><strong>${escapeHtml(data.topProduct ? `${data.topProduct.description} · ${data.topProduct.quantity.toLocaleString("he-IL")} יח׳` : "אין עדיין")}</strong></div>
+      <div><span>תזכורות פתוחות</span><strong>${escapeHtml(upcomingReminders.length ? upcomingReminders.map((reminder) => reminder.title || "תזכורת").join(" · ") : "אין")}</strong></div>
+    </div>
+  `;
+}
+
 function renderCustomersPanel() {
   const query = normalizeSearch(dom.customerSearch.value);
   const visibleCustomers = customers
@@ -4055,6 +4289,8 @@ function renderCustomersPanel() {
     dom.customersList.replaceChildren(...visibleCustomers.map(renderCustomerCard));
   }
 
+  renderCustomerAlertCenter();
+  renderCustomerSmartCard();
   renderCustomerOrders();
 }
 

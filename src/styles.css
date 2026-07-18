@@ -6535,6 +6535,217 @@ body {
   }
 }
 
+/* Customer workspace: read-only decision support based on the existing orders,
+   reservations, collections, and reminders. */
+.customer-intelligence-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.25fr);
+  gap: 12px;
+}
+
+.customer-alert-center,
+.customer-smart-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid rgba(139, 188, 220, 0.22);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(98, 188, 220, 0.08), transparent 42%),
+    linear-gradient(145deg, rgba(13, 31, 47, 0.88), rgba(10, 24, 38, 0.82));
+  box-shadow: 0 14px 32px rgba(2, 10, 18, 0.16);
+}
+
+.customer-intelligence-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(151, 193, 220, 0.14);
+}
+
+.customer-intelligence-header h3 {
+  margin: 0;
+  color: #eff9ff;
+  font-size: 1rem;
+}
+
+.customer-alert-summary,
+.customer-smart-status {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border: 1px solid rgba(139, 188, 220, 0.24);
+  border-radius: 999px;
+  background: rgba(96, 163, 205, 0.1);
+  color: #bce9ff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.customer-alert-list {
+  display: grid;
+  gap: 7px;
+  max-height: 330px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 2px;
+}
+
+.customer-alert-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid rgba(151, 193, 220, 0.16);
+  border-radius: 10px;
+  background: rgba(8, 22, 35, 0.62);
+  color: #d9ebf5;
+  text-align: right;
+}
+
+.customer-alert-row:hover,
+.customer-alert-row:focus-visible {
+  border-color: rgba(142, 220, 237, 0.64);
+  background: rgba(24, 57, 74, 0.72);
+  outline: none;
+}
+
+.customer-alert-row > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.customer-alert-row strong,
+.customer-alert-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-alert-row strong { color: #eff9ff; font-size: 0.79rem; }
+.customer-alert-row small { color: #a9c1d0; font-size: 0.7rem; line-height: 1.35; }
+.customer-alert-row > b { color: #86cee5; font-size: 1rem; }
+.customer-alert-tone { font-size: 0.72rem; color: #6ecde0; }
+.customer-alert-row.red .customer-alert-tone { color: #ff707d; }
+.customer-alert-row.orange .customer-alert-tone { color: #f7bb6f; }
+.customer-alert-row.teal .customer-alert-tone { color: #54dfc5; }
+.customer-alert-row.muted .customer-alert-tone { color: #aebdcc; }
+
+.customer-smart-name {
+  display: grid;
+  gap: 3px;
+}
+
+.customer-smart-name strong { color: #f4fcff; font-size: 1.08rem; overflow-wrap: anywhere; }
+.customer-smart-name span { color: #a9c1d0; font-size: 0.77rem; overflow-wrap: anywhere; }
+
+.customer-smart-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.customer-smart-metrics > div,
+.customer-smart-details > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(151, 193, 220, 0.14);
+  border-radius: 10px;
+  background: rgba(8, 22, 35, 0.54);
+}
+
+.customer-smart-metrics span,
+.customer-smart-details span,
+.customer-smart-recommendation > span {
+  color: #8eabbc;
+  font-size: 0.69rem;
+  font-weight: 800;
+}
+
+.customer-smart-metrics strong {
+  overflow: hidden;
+  color: #f4fcff;
+  font-size: 0.78rem;
+  line-height: 1.32;
+  text-overflow: ellipsis;
+}
+
+.customer-smart-recommendation {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid rgba(105, 207, 189, 0.32);
+  border-radius: 10px;
+  background: rgba(34, 145, 128, 0.1);
+}
+
+.customer-smart-recommendation strong { color: #d9fff7; font-size: 0.8rem; line-height: 1.4; }
+.customer-smart-recommendation.red { border-color: rgba(255, 112, 125, 0.44); background: rgba(153, 39, 55, 0.15); }
+.customer-smart-recommendation.red strong { color: #ffd7dc; }
+.customer-smart-recommendation.orange { border-color: rgba(247, 187, 111, 0.46); background: rgba(130, 83, 35, 0.15); }
+.customer-smart-recommendation.orange strong { color: #ffe2b6; }
+.customer-smart-recommendation.muted { border-color: rgba(151, 193, 220, 0.24); background: rgba(95, 128, 153, 0.1); }
+.customer-smart-recommendation.muted strong { color: #d3e2eb; }
+
+.customer-smart-status.red { border-color: rgba(255, 112, 125, 0.44); background: rgba(153, 39, 55, 0.15); color: #ffd7dc; }
+.customer-smart-status.orange { border-color: rgba(247, 187, 111, 0.46); background: rgba(130, 83, 35, 0.15); color: #ffe2b6; }
+.customer-smart-status.teal { border-color: rgba(105, 207, 189, 0.35); background: rgba(34, 145, 128, 0.1); color: #b8fff1; }
+.customer-smart-status.muted { color: #d3e2eb; }
+
+.customer-smart-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.customer-smart-details strong {
+  overflow: hidden;
+  color: #d9ebf5;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-smart-empty {
+  display: grid;
+  min-height: 112px;
+  place-items: center;
+  padding: 14px;
+  border: 1px dashed rgba(139, 188, 220, 0.28);
+  border-radius: 11px;
+  color: #a9c1d0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 880px) {
+  .customer-intelligence-grid { grid-template-columns: 1fr; }
+  .customer-smart-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .customer-alert-center,
+  .customer-smart-card { gap: 10px; padding: 12px; border-radius: 13px; }
+  .customer-alert-list { max-height: 280px; }
+  .customer-smart-metrics,
+  .customer-smart-details { grid-template-columns: 1fr; }
+  .customer-intelligence-header { align-items: center; }
+}
+
 /* Owner-only queue for orders created in the isolated Eitan portal. */
 .orders-panel.eitan-orders-panel {
   --workspace-tone: #9d83e8;

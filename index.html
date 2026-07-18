@@ -497,6 +497,17 @@
             <input id="customerSearch" type="search" autocomplete="off" placeholder="שם, קוד או טלפון" />
           </label>
 
+          <div class="customer-intelligence-grid">
+            <section class="customer-alert-center" aria-label="מרכז התראות לקוחות">
+              <div class="customer-intelligence-header">
+                <div><p class="eyebrow">פעולות שדורשות טיפול</p><h3>מרכז התראות</h3></div>
+                <span class="customer-alert-summary" id="customerAlertsSummary">0 התראות</span>
+              </div>
+              <div class="customer-alert-list" id="customerAlertsList"></div>
+            </section>
+            <section class="customer-smart-card" id="customerIntelligence" aria-label="כרטיס לקוח חכם"></section>
+          </div>
+
           <form class="customer-form" id="customerForm">
             <input id="customerId" type="hidden" />
             <label class="field-wrap">
