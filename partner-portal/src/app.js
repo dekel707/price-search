@@ -7,23 +7,23 @@ const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS
 const DEMO_EXPIRES_AT = "2026-07-20T22:00:00.000Z";
 const DEMO_DATA = {
   products: [
-    { model: "DEMO-RF488", skuKey: "DEMO-RF488", name: "מקרר 4 דלתות 488 ל׳ · הדגמה", category: "מקררים", colors: ["נירוסטה"], price: 3490, stockQuantity: 6, technical: { facts: ["No Frost", "קו אפס", "מנוע אינוורטר"], dimensionsCm: { widthCm: 83, heightCm: 178, depthCm: 70 }, capacities: { totalLiters: 488, freezerLiters: 160 }, performance: { energyRating: "E" } }, documents: [] },
-    { model: "DEMO-WM8", skuKey: "DEMO-WM8", name: "מכונת כביסה 8 ק״ג · הדגמה", category: "מכונות כביסה", colors: ["לבן"], price: 1890, stockQuantity: 9, technical: { facts: ["מנוע אינוורטר", "1,400 סל״ד", "תכנית מהירה"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 56 }, capacities: { washKg: 8 }, performance: { energyRating: "A" } }, documents: [] },
-    { model: "DEMO-DR9", skuKey: "DEMO-DR9", name: "מייבש כביסה 9 ק״ג · הדגמה", category: "מייבשים", colors: ["לבן"], price: 2190, stockQuantity: 4, technical: { facts: ["משאבת חום", "חיישני לחות", "תוף גדול"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 63 }, capacities: { washKg: 9 }, performance: { energyRating: "A" } }, documents: [] },
-    { model: "DEMO-OV60", skuKey: "DEMO-OV60", name: "תנור בילד־אין 60 ס״מ · הדגמה", category: "תנורים", colors: ["שחור"], price: 2390, stockQuantity: 3, technical: { facts: ["טורבו", "ניקוי קל", "תא אפייה גדול"], dimensionsCm: { widthCm: 60, heightCm: 60, depthCm: 56 }, capacities: { ovenLiters: 72 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "RF488", skuKey: "RF488", name: "מקרר 4 דלתות 488 ל׳", category: "מקררים", colors: ["נירוסטה"], price: 3490, stockQuantity: 6, technical: { facts: ["No Frost", "קו אפס", "מנוע אינוורטר"], dimensionsCm: { widthCm: 83, heightCm: 178, depthCm: 70 }, capacities: { totalLiters: 488, freezerLiters: 160 }, performance: { energyRating: "E" } }, documents: [] },
+    { model: "WM8", skuKey: "WM8", name: "מכונת כביסה 8 ק״ג", category: "מכונות כביסה", colors: ["לבן"], price: 1890, stockQuantity: 9, technical: { facts: ["מנוע אינוורטר", "1,400 סל״ד", "תכנית מהירה"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 56 }, capacities: { washKg: 8 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "DR9", skuKey: "DR9", name: "מייבש כביסה 9 ק״ג", category: "מייבשים", colors: ["לבן"], price: 2190, stockQuantity: 4, technical: { facts: ["משאבת חום", "חיישני לחות", "תוף גדול"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 63 }, capacities: { washKg: 9 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "OV60", skuKey: "OV60", name: "תנור בילד־אין 60 ס״מ", category: "תנורים", colors: ["שחור"], price: 2390, stockQuantity: 3, technical: { facts: ["טורבו", "ניקוי קל", "תא אפייה גדול"], dimensionsCm: { widthCm: 60, heightCm: 60, depthCm: 56 }, capacities: { ovenLiters: 72 }, performance: { energyRating: "A" } }, documents: [] },
   ],
   customers: [
-    { id: "demo-customer-sap", name: "סאפ הדגמה בע״מ", code: "D-1001", phone: "0500000001" },
-    { id: "demo-customer-north", name: "חשמל הצפון · הדגמה", code: "D-1002", phone: "0500000002" },
-    { id: "demo-customer-direct", name: "לקוח לדוגמה", code: "D-1003", phone: "0500000003" },
+    { id: "demo-customer-sap", name: "לקוח א׳", code: "D-1001", phone: "0500000001" },
+    { id: "demo-customer-north", name: "לקוח ב׳", code: "D-1002", phone: "0500000002" },
+    { id: "demo-customer-direct", name: "לקוח ג׳", code: "D-1003", phone: "0500000003" },
   ],
   reservations: [
-    { id: "demo-res-1", customerId: "demo-customer-sap", sku: "DEMO-RF488", skuKey: "DEMO-RF488", description: "מקרר 4 דלתות 488 ל׳ · הדגמה", quantity: 2 },
-    { id: "demo-res-2", customerId: "demo-customer-sap", sku: "DEMO-WM8", skuKey: "DEMO-WM8", description: "מכונת כביסה 8 ק״ג · הדגמה", quantity: 3 },
-    { id: "demo-res-3", customerId: "demo-customer-north", sku: "DEMO-DR9", skuKey: "DEMO-DR9", description: "מייבש כביסה 9 ק״ג · הדגמה", quantity: 1 },
+    { id: "demo-res-1", customerId: "demo-customer-sap", sku: "RF488", skuKey: "RF488", description: "מקרר 4 דלתות 488 ל׳", quantity: 2 },
+    { id: "demo-res-2", customerId: "demo-customer-sap", sku: "WM8", skuKey: "WM8", description: "מכונת כביסה 8 ק״ג", quantity: 3 },
+    { id: "demo-res-3", customerId: "demo-customer-north", sku: "DR9", skuKey: "DR9", description: "מייבש כביסה 9 ק״ג", quantity: 1 },
   ],
   orders: [
-    { id: "demo-order-1", status: "demo", customer_name: "סאפ הדגמה בע״מ", mainCustomerId: "demo-customer-sap", created_at: "2026-07-18T08:30:00.000Z", items: [{ model: "DEMO-RF488", skuKey: "DEMO-RF488", name: "מקרר 4 דלתות 488 ל׳ · הדגמה", quantity: 1, price: 3490, unitPrice: 3490, listPrice: 3490, fromReservation: true, reservationQuantity: 1 }] },
+    { id: "demo-order-1", status: "demo", customer_name: "לקוח א׳", mainCustomerId: "demo-customer-sap", created_at: "2026-07-18T08:30:00.000Z", items: [{ model: "RF488", skuKey: "RF488", name: "מקרר 4 דלתות 488 ל׳", quantity: 1, price: 3490, unitPrice: 3490, listPrice: 3490, fromReservation: true, reservationQuantity: 1 }] },
   ],
 };
 let demoInitialized = false;
@@ -35,7 +35,7 @@ function demoExpiryLabel() { return new Date(DEMO_EXPIRES_AT).toLocaleString("he
 
 async function startDemoMode() {
   if (!demoIsAvailable()) {
-    $("#loginMessage").textContent = "תקופת ההדגמה הסתיימה.";
+    $("#loginMessage").textContent = "הגישה הזמנית הסתיימה.";
     return;
   }
   clearInterval(refreshTimer);
@@ -230,15 +230,40 @@ function renderQuickFilters(products) {
   const groups = [];
   const volumeRanges = [[0, 300, "עד 300 ליטר"], [301, 450, "301–450 ליטר"], [451, 650, "451–650 ליטר"], [651, Infinity, "מעל 650 ליטר"]];
   const widthRanges = [[0, 60, "רוחב עד 60 ס״מ"], [61, 70, "רוחב 61–70 ס״מ"], [71, Infinity, "רוחב 71+ ס״מ"]];
-  const capacityButtons = volumeRanges.filter(([min, max]) => products.some((product) => inRange(product.technical?.capacities?.totalLiters, min, max))).map(([min, max, label]) => quickButton("volume", `${min}:${max}`, label));
-  const widthButtons = widthRanges.filter(([min, max]) => products.some((product) => inRange(product.technical?.dimensionsCm?.widthCm, min, max))).map(([min, max, label]) => quickButton("width", `${min}:${max}`, label));
-  const washSizes = [...new Set(products.map((product) => product.technical?.capacities?.washKg).filter((value) => Number.isFinite(Number(value))))].sort((a, b) => a - b).slice(0, 10);
+  const heightRanges = [[0, 120, "עד 120 ס״מ"], [121, 160, "121–160 ס״מ"], [161, 180, "161–180 ס״מ"], [181, Infinity, "מעל 180 ס״מ"]];
+  const depthRanges = [[0, 55, "עד 55 ס״מ"], [56, 65, "56–65 ס״מ"], [66, Infinity, "מעל 65 ס״מ"]];
+  const rangeButtons = (key, ranges, getValue) => ranges
+    .map(([min, max, label]) => ({ min, max, label, count: products.filter((product) => inRange(getValue(product), min, max)).length }))
+    .filter((option) => option.count)
+    .map((option) => quickButton(key, `${option.min}:${option.max}`, option.label, option.count));
+  const numericButtons = (key, getValue, format) => [...new Set(products.map(getValue).filter((value) => Number.isFinite(Number(value))))]
+    .sort((left, right) => Number(left) - Number(right))
+    .slice(0, 12)
+    .map((value) => quickButton(key, String(value), format(value), products.filter((product) => Number(getValue(product)) === Number(value)).length));
+  const capacityButtons = rangeButtons("volume", volumeRanges, (product) => product.technical?.capacities?.totalLiters);
+  const widthButtons = rangeButtons("width", widthRanges, (product) => product.technical?.dimensionsCm?.widthCm);
+  const heightButtons = rangeButtons("height", heightRanges, (product) => product.technical?.dimensionsCm?.heightCm);
+  const depthButtons = rangeButtons("depth", depthRanges, (product) => product.technical?.dimensionsCm?.depthCm);
+  const washButtons = numericButtons("washKg", (product) => product.technical?.capacities?.washKg, (value) => `${value} ק״ג`);
+  const screenButtons = numericButtons("screenSize", (product) => product.technical?.performance?.screenSizeInches, (value) => `${value} אינץ׳`);
+  const spinButtons = numericButtons("spinRpm", (product) => product.technical?.performance?.spinRpm, (value) => `${Number(value).toLocaleString("he-IL")} סל״ד`);
+  const colors = [...new Set(products.flatMap((product) => product.colors || []).filter(Boolean))].sort((left, right) => String(left).localeCompare(String(right), "he"));
   const energy = [...new Set(products.map((product) => product.technical?.performance?.energyRating).filter(Boolean))].sort();
-  if (capacityButtons.length) groups.push(`<span class="filter-label">נפח</span>${capacityButtons.join("")}`);
-  if (washSizes.length) groups.push(`<span class="filter-label">קיבולת</span>${washSizes.map((size) => quickButton("washKg", String(size), `${size} ק״ג`)).join("")}`);
-  if (widthButtons.length) groups.push(`<span class="filter-label">רוחב</span>${widthButtons.join("")}`);
-  if (energy.length) groups.push(`<span class="filter-label">דירוג אנרגטי</span>${energy.map((rating) => quickButton("energy", rating, `דירוג ${rating}`)).join("")}`);
-  if (products.some((product) => /קו\s*(אפס|0)|zero\s*-?\s*line/i.test((product.technical?.facts || []).join(" ")))) groups.push(quickButton("zeroLine", "yes", "קו אפס"));
+  const featureDefinitions = [["zeroLine", "קו אפס"], ["noFrost", "No Frost"], ["inverter", "מנוע אינוורטר"], ["heatPump", "משאבת חום"], ["turbo", "טורבו"]];
+  const featureButtons = featureDefinitions
+    .map(([value, label]) => ({ value, label, count: products.filter((product) => productMatchesFeature(product, value)).length }))
+    .filter((option) => option.count)
+    .map((option) => quickButton("feature", option.value, option.label, option.count));
+  if (capacityButtons.length) groups.push(portalFilterGroup("נפח", capacityButtons));
+  if (washButtons.length) groups.push(portalFilterGroup("קיבולת", washButtons));
+  if (screenButtons.length) groups.push(portalFilterGroup("גודל מסך", screenButtons));
+  if (spinButtons.length) groups.push(portalFilterGroup("מהירות סחיטה", spinButtons));
+  if (widthButtons.length) groups.push(portalFilterGroup("רוחב", widthButtons));
+  if (heightButtons.length) groups.push(portalFilterGroup("גובה", heightButtons));
+  if (depthButtons.length) groups.push(portalFilterGroup("עומק", depthButtons));
+  if (colors.length) groups.push(portalFilterGroup("צבע", colors.map((color) => quickButton("color", color, color, products.filter((product) => (product.colors || []).includes(color)).length))));
+  if (energy.length) groups.push(portalFilterGroup("דירוג אנרגטי", energy.map((rating) => quickButton("energy", rating, `דירוג ${rating}`, products.filter((product) => product.technical?.performance?.energyRating === rating).length))));
+  if (featureButtons.length) groups.push(portalFilterGroup("תכונות בולטות", featureButtons));
   const quickFilters = $("#quickFilters");
   quickFilters.innerHTML = groups.join("") || `<span class="portal-muted">בחר קטגוריה כדי לראות סינונים רלוונטיים.</span>`;
   quickFilters.querySelectorAll("[data-filter]").forEach((button) => {
@@ -250,15 +275,35 @@ function renderQuickFilters(products) {
   });
 }
 
-function quickButton(key, value, label) { return `<button class="advanced-filter-option ${state.filters[key] === value ? "active" : ""}" type="button" data-filter="${escapeAttr(key)}" data-value="${escapeAttr(value)}">${escapeHtml(label)}</button>`; }
+function portalFilterGroup(label, buttons) {
+  const active = buttons.some((button) => /\bactive\b/.test(button));
+  return `<details class="portal-filter-group" ${active ? "open" : ""}><summary>${escapeHtml(label)}</summary><div class="portal-filter-options">${buttons.join("")}</div></details>`;
+}
+function quickButton(key, value, label, count = 0) { return `<button class="advanced-filter-option ${state.filters[key] === value ? "active" : ""}" type="button" data-filter="${escapeAttr(key)}" data-value="${escapeAttr(value)}">${escapeHtml(label)}${count ? ` <small>(${Number(count).toLocaleString("he-IL")})</small>` : ""}</button>`; }
 function inRange(value, min, max) { return Number.isFinite(Number(value)) && Number(value) >= min && Number(value) <= max; }
+function productMatchesFeature(product, feature) {
+  const facts = `${product.name || ""} ${(product.technical?.facts || []).join(" ")}`;
+  const matchers = {
+    zeroLine: /קו\s*(אפס|0)|zero\s*-?\s*line/i,
+    noFrost: /no\s*-?\s*frost/i,
+    inverter: /אינוורטר|inverter/i,
+    heatPump: /משאבת\s*חום|heat\s*pump/i,
+    turbo: /טורבו|turbo/i,
+  };
+  return Boolean(matchers[feature]?.test(facts));
+}
 function matchesQuickFilters(product) {
-  const { volume, width, washKg, energy, zeroLine } = state.filters;
+  const { volume, width, height, depth, washKg, screenSize, spinRpm, color, energy, feature } = state.filters;
   if (volume) { const [min, max] = volume.split(":").map(Number); if (!inRange(product.technical?.capacities?.totalLiters, min, max)) return false; }
   if (width) { const [min, max] = width.split(":").map(Number); if (!inRange(product.technical?.dimensionsCm?.widthCm, min, max)) return false; }
+  if (height) { const [min, max] = height.split(":").map(Number); if (!inRange(product.technical?.dimensionsCm?.heightCm, min, max)) return false; }
+  if (depth) { const [min, max] = depth.split(":").map(Number); if (!inRange(product.technical?.dimensionsCm?.depthCm, min, max)) return false; }
   if (washKg && Number(product.technical?.capacities?.washKg) !== Number(washKg)) return false;
+  if (screenSize && Number(product.technical?.performance?.screenSizeInches) !== Number(screenSize)) return false;
+  if (spinRpm && Number(product.technical?.performance?.spinRpm) !== Number(spinRpm)) return false;
+  if (color && !(product.colors || []).includes(color)) return false;
   if (energy && product.technical?.performance?.energyRating !== energy) return false;
-  if (zeroLine && !/קו\s*(אפס|0)|zero\s*-?\s*line/i.test((product.technical?.facts || []).join(" "))) return false;
+  if (feature && !productMatchesFeature(product, feature)) return false;
   return true;
 }
 
@@ -349,7 +394,7 @@ function renderData() {
 }
 
 function orderCard(order) {
-  const labels = { processing: "מסנכרן", sent_to_main: "נכנסה למערכת", sync_failed: "מנסה שוב לשלוח", demo: "הדגמה בלבד" };
+  const labels = { processing: "מסנכרן", sent_to_main: "נכנסה למערכת", sync_failed: "מנסה שוב לשלוח", demo: "נשמרה" };
   const items = (order.items || []).map((item) => `${item.name} ×${item.quantity}${Number(item.reservationQuantity || 0) ? ` · שריון ${item.reservationQuantity}` : ""}`).join(" · ");
   return `<article class="order-card"><div class="order-body"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><span>${escapeHtml(items)}</span><small>${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</small></div><div class="order-card-actions"><button class="secondary-button" type="button" data-show-order="${escapeAttr(order.id)}">הצג הזמנה</button><button class="whatsapp-button" type="button" data-send-order="${escapeAttr(order.id)}">WhatsApp</button><button class="secondary-button" type="button" data-edit-order="${escapeAttr(order.id)}">ערוך</button><button class="danger-button" type="button" data-delete-order="${escapeAttr(order.id)}">מחק</button></div></article>`;
 }
@@ -386,7 +431,7 @@ async function deleteOrder(orderId) {
     state.orders = state.orders.filter((item) => item.id !== orderId);
     if (state.editingOrderId === orderId) cancelEdit();
     renderData();
-    $("#orderActionMessage").textContent = "ההזמנה נמחקה מההדגמה בלבד — לא בוצע שינוי במערכת האמיתית.";
+    $("#orderActionMessage").textContent = "ההזמנה נמחקה מהתצוגה הנוכחית.";
     return;
   }
   try {
@@ -428,7 +473,7 @@ function refreshDemo() {
     document.body.classList.remove("portal-demo");
     $("#portalView").hidden = true;
     $("#loginView").hidden = false;
-    $("#loginMessage").textContent = "תקופת ההדגמה הסתיימה.";
+    $("#loginMessage").textContent = "הגישה הזמנית הסתיימה.";
     configureDemoEntry();
     return;
   }
@@ -438,10 +483,10 @@ function refreshDemo() {
     demoInitialized = true;
   }
   document.body.classList.add("portal-demo");
-  $("#portalTitle").textContent = "מחירון והזמנות · הדגמה";
-  $("#portalSubtitle").textContent = "סביבת הדגמה מבודדת · שום פעולה אינה נשמרת או נשלחת";
-  $("#portalMetadata").textContent = `דמו פעיל עד ${demoExpiryLabel()}`;
-  $("#orderSearchStatus").textContent = "נתוני הדגמה בלבד: אפשר לחפש, להוסיף לסל, ליצור, לערוך ולמחוק הזמנות בלי להשפיע על שום מערכת. WhatsApp נפתח כטיוטת בדיקה בלבד.";
+  $("#portalTitle").textContent = "מחירון והזמנות";
+  $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, לקוחות ושריונים זמינים לעבודה";
+  $("#portalMetadata").textContent = `${state.products.length.toLocaleString("he-IL")} דגמים זמינים`;
+  $("#orderSearchStatus").textContent = "אפשר לחפש, להוסיף לסל, ליצור, לערוך ולמחוק הזמנות. WhatsApp נפתח כטיוטה לפני שליחה.";
   renderOrderSearch(); renderProducts(); renderData(); renderCart();
   setTab(state.activeTab);
 }
@@ -451,7 +496,7 @@ function sendReservationsToWhatsApp(customerId) {
   const entries = state.reservations.filter((item) => item.customerId === customerId && Number(item.quantity) > 0);
   const phone = isDemoMode() ? ORDER_WHATSAPP_PHONE : String(customer?.phone || "").replace(/\D/g, "").replace(/^0/, "972");
   if (!customer || !phone || !entries.length) return;
-  const text = [isDemoMode() ? "הודעת בדיקה · הדגמה בלבד" : `שריון עבור ${customer.name}`, isDemoMode() ? `שריון עבור ${customer.name}` : "", "", ...entries.map((item) => `${item.sku || item.skuKey} · ${item.description || ""} — ${Number(item.quantity).toLocaleString("he-IL")} יח׳`)].filter(Boolean).join("\n");
+  const text = [isDemoMode() ? "שריון עבור " + customer.name : `שריון עבור ${customer.name}`, "", ...entries.map((item) => `${item.sku || item.skuKey} · ${item.description || ""} — ${Number(item.quantity).toLocaleString("he-IL")} יח׳`)].filter(Boolean).join("\n");
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. הנתונים הם דמיוניים ולא נשמרו במערכת.";
 }
@@ -460,7 +505,7 @@ function whatsappText({ customerName, items, createdAt }) {
   const normalizedItems = Array.isArray(items) ? items : [];
   const total = normalizedItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.price ?? item.unitPrice ?? 0), 0);
   return [
-    isDemoMode() ? "הודעת בדיקה · הדגמה בלבד" : "הזמנה חדשה",
+    "הזמנה חדשה",
     customerName ? `לקוח: ${customerName}` : "",
     createdAt ? `תאריך: ${new Date(createdAt).toLocaleString("he-IL")}` : "",
     "",
@@ -493,7 +538,7 @@ function saveDemoOrder(customer) {
   clearActiveCustomer();
   renderData();
   renderCart();
-  $("#cartMessage").textContent = editing ? "הדגמה: השינויים נשמרו בהדגמה בלבד." : "הדגמה: ההזמנה נוצרה בהדגמה בלבד ולא נשלחה למערכת האמיתית.";
+  $("#cartMessage").textContent = editing ? "השינויים נשמרו לתצוגה הנוכחית." : "ההזמנה נוצרה לתצוגה הנוכחית.";
 }
 
 $("#loginForm").addEventListener("submit", async (event) => {
