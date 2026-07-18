@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/portal?action=live-sync",
+      "schedule": "0 0,8,16 * * *"
+    },
+    {
       "path": "/api/portal?action=daily-backup",
       "schedule": "0 0 * * *"
     }

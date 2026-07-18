@@ -148,7 +148,7 @@ function productSpecification(product) {
 }
 
 function stockLabel(product) {
-  return Number.isFinite(Number(product.stockQuantity)) ? `<span class="stock-label ${Number(product.stockQuantity) > 0 ? "in-stock" : "out-stock"}">מלאי: ${Number(product.stockQuantity).toLocaleString("he-IL")}</span>` : `<span class="stock-label">ללא עדכון מלאי</span>`;
+  return `<span class="stock-label in-stock">במלאי: ${Number(product.stockQuantity).toLocaleString("he-IL")}</span>`;
 }
 
 function renderOrderSearch() {
@@ -353,8 +353,11 @@ async function refresh() {
   Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
   renderOrderSearch(); renderProducts(); renderData(); renderCart();
   const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
-  $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, שריונים וגיול מסונכרנים לקריאה בלבד";
-  $("#portalMetadata").textContent = `עודכן ${updated}`;
+  $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, לקוחות ושריונים מסונכרנים לקריאה בלבד";
+  $("#portalMetadata").textContent = `${live.syncMode === "cached" ? "גיבוי עדכני" : "עודכן"} ${updated} · ${state.products.length.toLocaleString("he-IL")} דגמים במלאי`;
+  $("#orderSearchStatus").textContent = live.syncMode === "cached"
+    ? "הגשר למערכת הראשית אינו זמין כרגע. מוצג הסנכרון האחרון שנשמר בפורטל."
+    : "מוצגים רק דגמים בעלי מלאי חיובי. מלאי, מחירון, לקוחות ושריונים מתעדכנים מהמערכת הראשית.";
   setTab(state.activeTab);
 }
 

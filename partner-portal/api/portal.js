@@ -121,6 +121,16 @@ async function ensureSchema(sql) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
       await sql`CREATE INDEX IF NOT EXISTS partner_backups_created_at ON partner_backups(created_at DESC)`;
+      // A read-only cache of the narrow main-system projection. It keeps the
+      // partner portal responsive during a temporary bridge outage, while all
+      // writes still stay inside this separate partner database.
+      await sql`CREATE TABLE IF NOT EXISTS partner_live_cache (
+        cache_key TEXT PRIMARY KEY CHECK (cache_key = 'current'),
+        snapshot JSONB NOT NULL,
+        source_updated_at TEXT NOT NULL DEFAULT '',
+        source_version TEXT NOT NULL DEFAULT '',
+        synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
       await sql`ALTER TABLE partner_customers ADD COLUMN IF NOT EXISTS main_customer_id TEXT`;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS partner_customers_main_customer_id_key ON partner_customers(main_customer_id) WHERE main_customer_id IS NOT NULL`;
       await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS sku_key TEXT NOT NULL DEFAULT ''`;
@@ -135,6 +145,8 @@ async function ensureSchema(sql) {
       await sql`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS sync_action TEXT NOT NULL DEFAULT 'create'`;
       await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_sync_action_check`;
       await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_sync_action_check CHECK (sync_action IN ('create', 'update', 'delete'))`;
+      await sql`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_updated_at TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_version TEXT NOT NULL DEFAULT ''`;
     })().catch((error) => {
       schemaReady = undefined;
       throw error;
@@ -224,7 +236,7 @@ function modelKey(value) {
 }
 
 async function getSnapshot(sql) {
-  const [customers, reservations, aging, orders, orderItems, ledger, audit] = await Promise.all([
+  const [customers, reservations, aging, orders, orderItems, ledger, audit, liveCache] = await Promise.all([
     sql`SELECT * FROM partner_customers ORDER BY created_at ASC`,
     sql`SELECT * FROM partner_reservations ORDER BY created_at ASC`,
     sql`SELECT * FROM partner_aging ORDER BY created_at ASC`,
@@ -232,8 +244,9 @@ async function getSnapshot(sql) {
     sql`SELECT * FROM partner_order_items ORDER BY created_at ASC`,
     sql`SELECT * FROM partner_reservation_ledger ORDER BY created_at ASC`,
     sql`SELECT * FROM partner_audit_events ORDER BY created_at ASC`,
+    sql`SELECT cache_key, source_updated_at, source_version, synced_at FROM partner_live_cache ORDER BY synced_at DESC`,
   ]);
-  return { version: 1, createdAt: new Date().toISOString(), customers, reservations, aging, orders, orderItems, ledger, audit };
+  return { version: 1, createdAt: new Date().toISOString(), customers, reservations, aging, orders, orderItems, ledger, audit, liveCache };
 }
 
 async function createBackup(sql, reason) {
@@ -295,13 +308,65 @@ async function getLiveWorkspace(config) {
       price: asMoney(product.price),
       stockQuantity: Number.isFinite(Number(product.stockQuantity)) ? Number(product.stockQuantity) : null,
     };
-  }).filter((product) => product.model && product.name);
+  }).filter((product) => product.model && product.name && Number.isFinite(product.stockQuantity) && product.stockQuantity > 0);
   return {
     updatedAt: cleanText(main.updatedAt, 80),
     products,
     customers: Array.isArray(main.customers) ? main.customers : [],
     reservations: Array.isArray(main.reservations) ? main.reservations : [],
   };
+}
+
+function liveWorkspaceVersion(workspace) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    updatedAt: workspace.updatedAt,
+    products: workspace.products,
+    customers: workspace.customers,
+    reservations: workspace.reservations,
+  })).digest("hex");
+}
+
+async function cacheLiveWorkspace(sql, workspace) {
+  const sourceUpdatedAt = cleanText(workspace.updatedAt, 80);
+  const sourceVersion = liveWorkspaceVersion(workspace);
+  const existing = await sql`SELECT source_version, synced_at FROM partner_live_cache WHERE cache_key = 'current' LIMIT 1`;
+  if (!existing[0] || existing[0].source_version !== sourceVersion) {
+    const [saved] = await sql`INSERT INTO partner_live_cache (cache_key, snapshot, source_updated_at, source_version, synced_at)
+      VALUES ('current', ${JSON.stringify(workspace)}::jsonb, ${sourceUpdatedAt}, ${sourceVersion}, now())
+      ON CONFLICT (cache_key) DO UPDATE SET snapshot = EXCLUDED.snapshot, source_updated_at = EXCLUDED.source_updated_at, source_version = EXCLUDED.source_version, synced_at = now()
+      RETURNING synced_at`;
+    return saved?.synced_at || new Date().toISOString();
+  }
+  return existing[0].synced_at || new Date().toISOString();
+}
+
+async function readCachedLiveWorkspace(sql) {
+  const [cached] = await sql`SELECT snapshot, source_updated_at, synced_at FROM partner_live_cache WHERE cache_key = 'current' LIMIT 1`;
+  if (!cached?.snapshot || typeof cached.snapshot !== "object") return null;
+  const snapshot = cached.snapshot;
+  if (!Array.isArray(snapshot.products) || !Array.isArray(snapshot.customers) || !Array.isArray(snapshot.reservations)) return null;
+  return {
+    ...snapshot,
+    updatedAt: cleanText(snapshot.updatedAt || cached.source_updated_at, 80),
+    syncMode: "cached",
+    syncedAt: cached.synced_at || "",
+  };
+}
+
+async function synchronizeLiveWorkspace(sql, config) {
+  const workspace = await getLiveWorkspace(config);
+  const syncedAt = await cacheLiveWorkspace(sql, workspace);
+  return { ...workspace, syncMode: "live", syncedAt };
+}
+
+async function getPortalLiveWorkspace(sql, config) {
+  try {
+    return await synchronizeLiveWorkspace(sql, config);
+  } catch (error) {
+    const cached = await readCachedLiveWorkspace(sql);
+    if (cached) return cached;
+    throw error;
+  }
 }
 
 function numericFields(value, allowed) {
@@ -672,6 +737,16 @@ export default async function handler(request, response) {
       const backup = await sql.begin((tx) => createBackup(tx, "daily-scheduled"));
       return sendJson(response, 200, { ok: true, backup });
     }
+    if (action === "live-sync") {
+      if (!isCronAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_cron" });
+      const live = await synchronizeLiveWorkspace(sql, config);
+      return sendJson(response, 200, {
+        ok: true,
+        syncedAt: live.syncedAt,
+        sourceUpdatedAt: live.updatedAt,
+        availableProducts: live.products.length,
+      });
+    }
     if (request.method === "POST" && action === "login") {
       const body = await readJsonBody(request);
       const pin = String(body.pin || "");
@@ -722,7 +797,7 @@ export default async function handler(request, response) {
     if (request.method === "GET" && resource === "session") return sendJson(response, 200, { user: session ? { role: session.role } : null });
     requireRole(session, "owner", "eitan");
 
-    if (request.method === "GET" && resource === "live") return sendJson(response, 200, await getLiveWorkspace(config));
+    if (request.method === "GET" && resource === "live") return sendJson(response, 200, await getPortalLiveWorkspace(sql, config));
     if (request.method === "GET" && resource === "catalog") return sendJson(response, 200, { products: await getCatalog(config) });
     if (request.method === "GET" && resource === "customers") return sendJson(response, 200, { items: await listCustomers(sql) });
     if (request.method === "GET" && resource === "reservations") return sendJson(response, 200, { items: await listReservations(sql) });
