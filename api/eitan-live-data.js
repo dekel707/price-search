@@ -10,14 +10,17 @@ export default async function handler(request, response) {
     const current = await readPartnerMainState();
     if (!current?.state) return sendJson(response, 503, { error: "main_state_unavailable" });
     const state = current.state;
-    // This is intentionally a narrow, read-only projection. It never sends
-    // orders, stock, settings, notes, backups, or unrelated business data.
+    // This is intentionally a narrow, read-only projection. Eitan receives
+    // only the working price list, current stock, customers, reservations and
+    // aging needed for his permitted ordering workflow. It never exposes the
+    // main order history, settings, notes, backups or storage credentials.
     return sendJson(response, 200, {
       updatedAt: current.updatedAt,
       products: (state.products || []).map((product) => ({
         sku: text(product.sku, 120),
         description: text(product.description, 240),
         price: money(product.price),
+        stockQuantity: optionalQuantity(product.stockQuantity ?? product.stock ?? product.inventory),
       })).filter((product) => product.sku && product.description),
       customers: (state.customers || []).map((customer) => ({
         id: text(customer.id, 180),
@@ -64,4 +67,5 @@ function isPortalAuthorized(request) {
 function text(value, max) { return String(value || "").trim().replace(/\s+/g, " ").slice(0, max); }
 function money(value) { const number = Number(value); return Number.isFinite(number) ? Math.round(number * 100) / 100 : 0; }
 function quantity(value) { const number = Number(value); return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) / 100 : 0; }
+function optionalQuantity(value) { const number = Number(value); return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) / 100 : null; }
 function sendJson(response, status, body) { response.statusCode = status; response.end(JSON.stringify(body)); }

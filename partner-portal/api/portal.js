@@ -83,6 +83,7 @@ async function ensureSchema(sql) {
         customer_id UUID NOT NULL REFERENCES partner_customers(id),
         created_by TEXT NOT NULL CHECK (created_by IN ('owner', 'eitan')),
         status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed')),
+        sync_action TEXT NOT NULL DEFAULT 'create' CHECK (sync_action IN ('create', 'update', 'delete')),
         note TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -131,6 +132,9 @@ async function ensureSchema(sql) {
       // ever creating the main order twice.
       await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_status_check`;
       await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_status_check CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed'))`;
+      await sql`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS sync_action TEXT NOT NULL DEFAULT 'create'`;
+      await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_sync_action_check`;
+      await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_sync_action_check CHECK (sync_action IN ('create', 'update', 'delete'))`;
     })().catch((error) => {
       schemaReady = undefined;
       throw error;
@@ -255,7 +259,7 @@ async function getCatalog(config) {
       name: cleanText(product.name, 180),
       category: cleanText(product.category, 100),
       colors: Array.isArray(product.colors) ? product.colors.map((color) => cleanText(color, 50)).filter(Boolean).slice(0, 12) : [],
-      documents: Array.isArray(product.documents) ? product.documents.map((document) => ({ title: cleanText(document.title, 100), url: cleanText(document.url, 1000) })).filter((document) => document.url.startsWith("http")) : [],
+      documents: Array.isArray(product.documents) ? product.documents.map((document) => ({ label: cleanText(document.label || document.title, 100), type: cleanText(document.type, 40), url: cleanText(document.url, 1000) })).filter((document) => document.url.startsWith("http")) : [],
       technical: {
         facts: Array.isArray(technical.facts) ? technical.facts.map((fact) => cleanText(fact, 120)).filter(Boolean).slice(0, 20) : [],
         dimensionsCm: numericFields(technical.dimensionsCm, ["widthCm", "heightCm", "depthCm"]),
@@ -287,7 +291,9 @@ async function getLiveWorkspace(config) {
       category: technical?.category || "",
       colors: technical?.colors || [],
       technical: technical?.technical || { facts: [], dimensionsCm: {}, capacities: {}, performance: {} },
+      documents: technical?.documents || [],
       price: asMoney(product.price),
+      stockQuantity: Number.isFinite(Number(product.stockQuantity)) ? Number(product.stockQuantity) : null,
     };
   }).filter((product) => product.model && product.name);
   return {
@@ -322,15 +328,15 @@ async function listAging(sql) {
 
 async function listOrders(sql, session, all = false) {
   if (all) {
-    return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+    return sql`SELECT o.id, o.status, o.sync_action, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
       COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
       FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
       GROUP BY o.id, c.name, c.phone, c.main_customer_id ORDER BY o.created_at DESC`;
   }
-  return sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+  return sql`SELECT o.id, o.status, o.sync_action, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
     COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
     FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
-    WHERE o.created_by = ${session.role}
+    WHERE o.created_by = ${session.role} AND o.status <> 'cancelled'
     GROUP BY o.id, c.name, c.phone, c.main_customer_id ORDER BY o.created_at DESC`;
 }
 
@@ -362,33 +368,13 @@ async function createOrder(sql, session, body, config) {
   const live = await getLiveWorkspace(config);
   const customer = live.customers.find((item) => cleanText(item.id, 100) === customerId);
   if (!customer) throw new Error("main_customer_not_found");
-  const safeItems = items.map((item) => {
-    const model = cleanText(item.skuKey || item.model, 100);
-    const product = live.products.find((candidate) => modelKey(candidate.skuKey || candidate.model) === modelKey(model));
-    if (!product) throw new Error("main_product_not_found");
-    const quantity = normaliseQuantity(item.quantity);
-    const plannedReservation = Boolean(item.fromReservation)
-      ? Math.min(quantity, live.reservations
-        .filter((reservation) => cleanText(reservation.customerId, 100) === customerId && modelKey(reservation.skuKey || reservation.sku) === modelKey(product.skuKey || product.model))
-        .reduce((sum, reservation) => sum + Math.max(0, asNumber(reservation.quantity)), 0))
-      : 0;
-    return {
-      model: cleanText(product.model, 100),
-      skuKey: cleanText(product.skuKey || product.model, 100),
-      name: cleanText(product.name || product.model, 180),
-      quantity,
-      reservationQuantity: plannedReservation,
-      fromReservation: plannedReservation > 0,
-      unitPrice: asMoney(product.price),
-      listPrice: asMoney(product.price),
-    };
-  });
+  const safeItems = buildSafePartnerOrderItems(live, customerId, items);
 
   return sql.begin(async (tx) => {
     const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
     const beforeBackup = await createBackup(tx, "before-order-create");
     const orderId = crypto.randomUUID();
-    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'processing', '')`;
+    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, sync_action, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'processing', 'create', '')`;
     for (const item of safeItems) {
       await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, sku_key, quantity, reservation_quantity, unit_price, list_price, from_reservation)
         VALUES (${crypto.randomUUID()}, ${orderId}, ${item.model}, ${item.name}, ${item.skuKey}, ${item.quantity}, ${item.reservationQuantity}, ${item.unitPrice}, ${item.listPrice}, ${item.fromReservation})`;
@@ -406,6 +392,73 @@ async function createOrder(sql, session, body, config) {
   });
 }
 
+function buildSafePartnerOrderItems(live, customerId, items) {
+  return items.map((item) => {
+    const model = cleanText(item.skuKey || item.model, 100);
+    const product = live.products.find((candidate) => modelKey(candidate.skuKey || candidate.model) === modelKey(model));
+    if (!product) throw new Error("main_product_not_found");
+    const quantity = normaliseQuantity(item.quantity);
+    const plannedReservation = Boolean(item.fromReservation)
+      ? Math.min(quantity, live.reservations
+        .filter((reservation) => cleanText(reservation.customerId, 100) === customerId && modelKey(reservation.skuKey || reservation.sku) === modelKey(product.skuKey || product.model))
+        .reduce((sum, reservation) => sum + Math.max(0, asNumber(reservation.quantity)), 0))
+      : 0;
+    return {
+      model: cleanText(product.model, 100),
+      skuKey: cleanText(product.skuKey || product.model, 100),
+      name: cleanText(product.name || product.model, 180),
+      quantity,
+      reservationQuantity: plannedReservation,
+      fromReservation: plannedReservation > 0,
+      unitPrice: Number.isFinite(Number(item.unitPrice ?? item.price)) && Number(item.unitPrice ?? item.price) >= 0 ? asMoney(item.unitPrice ?? item.price) : asMoney(product.price),
+      listPrice: asMoney(product.price),
+    };
+  });
+}
+
+async function updateOrder(sql, session, body, config) {
+  requireRole(session, "eitan");
+  const orderId = cleanText(body.orderId, 100);
+  const customerId = cleanText(body.customerId, 100);
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (!orderId || !customerId || !items.length || items.length > 100) throw new Error("invalid_order");
+  const live = await getLiveWorkspace(config);
+  const customer = live.customers.find((item) => cleanText(item.id, 100) === customerId);
+  if (!customer) throw new Error("main_customer_not_found");
+  const safeItems = buildSafePartnerOrderItems(live, customerId, items);
+  return sql.begin(async (tx) => {
+    const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
+    if (!current.length) throw new Error("order_not_editable");
+    const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
+    const beforeBackup = await createBackup(tx, "before-order-update");
+    await tx`UPDATE partner_orders SET customer_id = ${mirrorCustomer.id}, status = 'processing', sync_action = 'update', updated_at = now() WHERE id = ${orderId}`;
+    await tx`DELETE FROM partner_order_items WHERE order_id = ${orderId}`;
+    for (const item of safeItems) {
+      await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, sku_key, quantity, reservation_quantity, unit_price, list_price, from_reservation)
+        VALUES (${crypto.randomUUID()}, ${orderId}, ${item.model}, ${item.name}, ${item.skuKey}, ${item.quantity}, ${item.reservationQuantity}, ${item.unitPrice}, ${item.listPrice}, ${item.fromReservation})`;
+    }
+    await recordAudit(tx, session.role, "order_updated_for_main_import", { orderId, customerId, itemCount: safeItems.length });
+    const afterBackup = await createBackup(tx, "after-order-update");
+    return { orderId, order: await getOwnerQueueOrder(tx, orderId), plannedReservationUnits: safeItems.reduce((sum, item) => sum + item.reservationQuantity, 0), beforeBackup, afterBackup };
+  });
+}
+
+async function prepareDeleteOrder(sql, session, body) {
+  requireRole(session, "eitan");
+  const orderId = cleanText(body.orderId, 100);
+  if (!orderId) throw new Error("invalid_order_id");
+  return sql.begin(async (tx) => {
+    const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
+    if (!current.length) throw new Error("order_not_editable");
+    const beforeBackup = await createBackup(tx, "before-order-delete");
+    await tx`UPDATE partner_orders SET status = 'processing', sync_action = 'delete', updated_at = now() WHERE id = ${orderId}`;
+    await recordAudit(tx, session.role, "order_delete_requested_for_main_import", { orderId });
+    const order = await getOwnerQueueOrder(tx, orderId);
+    const afterBackup = await createBackup(tx, "after-order-delete");
+    return { orderId, order, beforeBackup, afterBackup };
+  });
+}
+
 async function ensureMirrorCustomer(tx, customer) {
   const mainCustomerId = cleanText(customer.id, 100);
   const existing = await tx`SELECT id FROM partner_customers WHERE main_customer_id = ${mainCustomerId} LIMIT 1`;
@@ -418,7 +471,7 @@ async function ensureMirrorCustomer(tx, customer) {
   return { id, name: cleanText(customer.name, 150) };
 }
 
-async function sendOrderToMain(config, order) {
+async function sendOrderToMain(config, order, action = "create") {
   if (!config.mainOrderSecret) throw new Error("main_order_sync_not_configured");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -431,7 +484,7 @@ async function sendOrderToMain(config, order) {
         "Content-Type": "application/json",
         "x-eitan-order": config.mainOrderSecret,
       },
-      body: JSON.stringify({ order }),
+      body: JSON.stringify({ action, order: action === "delete" ? { id: order.id } : order }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "main_order_import_failed");
@@ -453,13 +506,14 @@ async function markOrderMainSync(sql, orderId, status, eventType, details = {}) 
 }
 
 async function retryPendingMainOrders(sql, config) {
-  const pending = await sql`SELECT id FROM partner_orders WHERE created_by = 'eitan' AND status IN ('processing', 'sync_failed') ORDER BY created_at ASC LIMIT 8`;
+  const pending = await sql`SELECT id, sync_action FROM partner_orders WHERE created_by = 'eitan' AND status IN ('processing', 'sync_failed') ORDER BY created_at ASC LIMIT 8`;
   for (const entry of pending) {
     try {
       const order = await getOwnerQueueOrder(sql, entry.id);
       if (!order) continue;
-      const imported = await sendOrderToMain(config, order);
-      await markOrderMainSync(sql, entry.id, "sent_to_main", "main_order_import_completed", { mainOrderId: imported.orderId, retried: true });
+      const action = ["create", "update", "delete"].includes(entry.sync_action) ? entry.sync_action : "create";
+      const imported = await sendOrderToMain(config, order, action);
+      await markOrderMainSync(sql, entry.id, action === "delete" ? "cancelled" : "sent_to_main", action === "delete" ? "main_order_delete_completed" : "main_order_import_completed", { mainOrderId: imported.orderId, retried: true, action });
     } catch (error) {
       console.warn("partner_main_order_retry_failed", entry.id, error?.message || error);
     }
@@ -521,7 +575,7 @@ async function approveOrderByOwner(sql, orderId) {
 }
 
 async function getOwnerQueueOrder(sql, orderId) {
-  const rows = await sql`SELECT o.id, o.status, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
+  const rows = await sql`SELECT o.id, o.status, o.sync_action, o.created_by, o.note, o.created_at, o.updated_at, c.name AS customer_name, c.phone AS customer_phone, c.main_customer_id AS "mainCustomerId",
     COALESCE(json_agg(json_build_object('model', i.product_model, 'skuKey', i.sku_key, 'name', i.product_name, 'quantity', i.quantity, 'reservationQuantity', i.reservation_quantity, 'unitPrice', i.unit_price, 'listPrice', i.list_price, 'fromReservation', i.from_reservation) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
     FROM partner_orders o JOIN partner_customers c ON c.id = o.customer_id LEFT JOIN partner_order_items i ON i.order_id = o.id
     WHERE o.id = ${orderId} AND o.created_by = 'eitan'
@@ -691,11 +745,33 @@ export default async function handler(request, response) {
     if (request.method === "POST" && action === "create-order") {
       const created = await createOrder(sql, session, await readJsonBody(request), config);
       try {
-        const imported = await sendOrderToMain(config, created.order);
+        const imported = await sendOrderToMain(config, created.order, "create");
         await markOrderMainSync(sql, created.orderId, "sent_to_main", "main_order_import_completed", { mainOrderId: imported.orderId });
         return sendJson(response, 201, { ok: true, ...created, imported });
       } catch (error) {
         await markOrderMainSync(sql, created.orderId, "sync_failed", "main_order_import_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
+        throw error;
+      }
+    }
+    if (request.method === "POST" && action === "update-order") {
+      const updated = await updateOrder(sql, session, await readJsonBody(request), config);
+      try {
+        const imported = await sendOrderToMain(config, updated.order, "update");
+        await markOrderMainSync(sql, updated.orderId, "sent_to_main", "main_order_update_completed", { mainOrderId: imported.orderId });
+        return sendJson(response, 200, { ok: true, ...updated, imported });
+      } catch (error) {
+        await markOrderMainSync(sql, updated.orderId, "sync_failed", "main_order_update_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
+        throw error;
+      }
+    }
+    if (request.method === "POST" && action === "delete-order") {
+      const pendingDelete = await prepareDeleteOrder(sql, session, await readJsonBody(request));
+      try {
+        const imported = await sendOrderToMain(config, pendingDelete.order, "delete");
+        await markOrderMainSync(sql, pendingDelete.orderId, "cancelled", "main_order_delete_completed", { mainOrderId: imported.orderId });
+        return sendJson(response, 200, { ok: true, ...pendingDelete, imported });
+      } catch (error) {
+        await markOrderMainSync(sql, pendingDelete.orderId, "sync_failed", "main_order_delete_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
         throw error;
       }
     }

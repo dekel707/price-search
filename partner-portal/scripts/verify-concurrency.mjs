@@ -8,6 +8,8 @@ assert.match(api, /status = 'processing'/);
 assert.match(api, /retryPendingMainOrders/);
 assert.match(api, /sent_to_main/);
 assert.match(api, /sync_failed/);
+assert.match(api, /sync_action/);
+assert.match(api, /status IN \('sent_to_main', 'sync_failed', 'processing'\) FOR UPDATE/);
 
 class ReservationLockModel {
   constructor(quantity) { this.remaining = quantity; this.tail = Promise.resolve(); }

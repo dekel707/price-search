@@ -63,13 +63,28 @@
           </section>
         </section>
 
-        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2>הזמנה חדשה</h2></div></div><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button></div><label class="field-wrap"><span>לקוח קיים</span><select id="customerSelect"><option value="">בחירת לקוח</option></select></label><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
+        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2 id="cartTitle">הזמנה חדשה</h2></div></div><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button></div><label class="field-wrap"><span>לקוח קיים</span><input id="customerSelect" list="customerOptions" autocomplete="off" placeholder="הקלד שם לקוח" /></label><datalist id="customerOptions"></datalist><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><button id="cancelEditOrder" class="secondary-button" type="button" hidden>ביטול עריכת הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
 
         <section class="tab-panel" data-tab-panel="customers"><section class="customers-panel"><div class="panel-header"><div><p class="eyebrow">לקוחות</p><h2>לקוחות</h2><p class="panel-subtitle">קריאה בלבד · כל שינוי נשמר רק אצל דקל.</p></div></div><div id="customerList" class="portal-data-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="reservations"><section class="reservations-panel"><div class="panel-header"><div><p class="eyebrow">שריונים</p><h2>שריונים</h2><p class="panel-subtitle">יתרות עדכניות מהמערכת הראשית.</p></div></div><div id="reservationList" class="reservations-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="collections"><section class="collections-panel"><div class="panel-header"><div><p class="eyebrow">גיול</p><h2>גיול וגבייה</h2><p class="panel-subtitle">תצוגה מלאה וקריאה בלבד.</p></div></div><div id="agingList" class="collections-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="orders"><section class="orders-panel"><div class="panel-header"><div><p class="eyebrow">הזמנות</p><h2>ההזמנות של איתן</h2><p class="panel-subtitle">הזמנות שנשלחות נכנסות מיד למערכת הראשית לפי מועד השליחה.</p></div></div><div id="orderList" class="orders-list"></div></section></section>
       </main>
+      <div id="cartCustomerDialog" class="modal-backdrop" hidden>
+        <form id="cartCustomerForm" class="customer-dialog" aria-labelledby="cartCustomerTitle">
+          <button id="closeCartCustomerDialog" class="dialog-close" type="button" aria-label="סגירה">×</button>
+          <p class="eyebrow">הוספה לסל</p>
+          <h2 id="cartCustomerTitle">פרטי המוצר להזמנה</h2>
+          <div id="pendingProductSummary" class="pending-product"></div>
+          <label class="field-wrap"><span>לקוח</span><input id="cartCustomerInput" list="cartCustomerOptions" autocomplete="off" placeholder="הקלד שם לקוח" required /></label>
+          <datalist id="cartCustomerOptions"></datalist>
+          <label class="field-wrap"><span>כמות</span><select id="cartProductQuantity"></select></label>
+          <label class="field-wrap"><span>מחיר ליחידה</span><input id="cartProductPrice" type="number" min="0" step="0.01" inputmode="decimal" required /></label>
+          <label id="cartProductReservationWrap" class="reservation-choice" hidden><input id="cartProductReservation" type="checkbox" /> משיכה משריון הלקוח</label>
+          <p id="cartCustomerFeedback" class="status" aria-live="polite"></p>
+          <button class="file-button" type="submit">הוסף לסל</button>
+        </form>
+      </div>
     </div>
     <script type="module" src="/src/app.js"></script>
   </body>

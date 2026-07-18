@@ -99,77 +99,19 @@ export async function savePartnerOrderIntoMain(partnerOrder, { timeBasis = "appr
   if (existing) return { orderId: existing.id, alreadyImported: true, reportDate: existing.reportDate };
 
   const state = structuredClone(current.state);
-  const customerId = cleanText(partnerOrder.mainCustomerId, 180);
-  const customer = (state.customers || []).find((item) => cleanText(item.id, 180) === customerId);
-  if (!customer) {
-    const error = new Error("main_customer_not_found");
-    error.statusCode = 422;
-    throw error;
-  }
-
   const submittedAt = new Date(partnerOrder.createdAt || partnerOrder.created_at || "");
   const now = timeBasis === "submitted" && !Number.isNaN(submittedAt.getTime()) ? submittedAt : new Date();
   const createdAt = now.toISOString();
-  const products = Array.isArray(state.products) ? state.products : [];
-  const reservations = Array.isArray(state.reservations) ? state.reservations : [];
-  const nextItems = [];
-  const reservationAdjustments = [];
-
-  for (const submittedLine of Array.isArray(partnerOrder.items) ? partnerOrder.items : []) {
-    const skuKey = getSkuKey(submittedLine.skuKey || submittedLine.model);
-    const product = products.find((item) => getSkuKey(item.sku || item.skuKey) === skuKey);
-    const quantity = positiveQuantity(submittedLine.quantity);
-    if (!product || !quantity) {
-      const error = new Error("main_product_not_found");
-      error.statusCode = 422;
-      throw error;
-    }
-    const price = money(submittedLine.unitPrice, money(product.price, 0));
-    const requestedReservation = submittedLine.fromReservation ? Math.min(quantity, nonNegativeQuantity(submittedLine.reservationQuantity)) : 0;
-    const reservation = reservations.find((item) => cleanText(item.customerId, 180) === customer.id && getSkuKey(item.skuKey || item.sku) === skuKey);
-    const availableReservation = nonNegativeQuantity(reservation?.quantity);
-    const actualReservation = Math.min(requestedReservation, availableReservation);
-    const paidQuantity = quantity - actualReservation;
-
-    if (actualReservation) {
-      nextItems.push(createMainLine({ sourceId, skuKey, product, quantity: actualReservation, price, fromReservation: true }));
-      reservationAdjustments.push({ reservation, nextQuantity: availableReservation - actualReservation });
-    }
-    if (paidQuantity) nextItems.push(createMainLine({ sourceId, skuKey, product, quantity: paidQuantity, price, fromReservation: false }));
-  }
-  if (!nextItems.length) {
-    const error = new Error("partner_order_has_no_valid_items");
-    error.statusCode = 422;
-    throw error;
-  }
-
-  reservationAdjustments.forEach(({ reservation, nextQuantity }) => {
-    if (reservation) {
-      reservation.quantity = nextQuantity;
-      reservation.updatedAt = createdAt;
-    }
-  });
-
-  const order = {
-    id: sourceId,
+  const result = buildPartnerMainOrder(state, partnerOrder, {
+    sourceId,
     createdAt,
     updatedAt: createdAt,
-    completedAt: "",
-    // Direct partner orders are classified by their original submitted time,
-    // so the owner sees them in the same daily workflow as locally entered orders.
     reportDate: getOrderReportDateForDraft(createdAt, false, false),
-    customerId: customer.id,
-    customerName: cleanText(customer.name, 180),
-    customerCode: cleanText(customer.code, 80),
-    customerPhone: cleanText(customer.phone, 80),
-    orderType: "delivery",
-    items: nextItems,
-    total: roundMoney(nextItems.reduce((sum, line) => sum + line.lineTotal, 0)),
-  };
+  });
+  const { order } = result;
   state.orders = [order, ...(state.orders || [])];
-  state.reservations = reservations;
   state.lastPrices = { ...(state.lastPrices || {}) };
-  nextItems.filter((line) => !line.fromReservation).forEach((line) => {
+  order.items.filter((line) => !line.fromReservation).forEach((line) => {
     state.lastPrices[line.skuKey] = { price: line.unitPrice, savedAt: createdAt };
   });
   state.updatedAt = createdAt;
@@ -178,11 +120,161 @@ export async function savePartnerOrderIntoMain(partnerOrder, { timeBasis = "appr
   return {
     orderId: order.id,
     reportDate: order.reportDate,
-    reservationUnits: nextItems.filter((item) => item.fromReservation).reduce((sum, item) => sum + item.quantity, 0),
-    paidUnits: nextItems.filter((item) => !item.fromReservation).reduce((sum, item) => sum + item.quantity, 0),
+    reservationUnits: result.reservationUnits,
+    paidUnits: result.paidUnits,
     recoveredConcurrentSave: Boolean(saved.recovered),
   };
 }
+
+export async function updatePartnerOrderInMain(partnerOrder) {
+  const current = await readPartnerMainState();
+  if (!current?.state) throw new Error("main_state_unavailable");
+
+  const sourceId = `eitan-${cleanText(partnerOrder.id, 100)}`;
+  const existing = (current.state.orders || []).find((order) => order.id === sourceId);
+  if (!existing) return savePartnerOrderIntoMain(partnerOrder, { timeBasis: "submitted" });
+
+  const state = structuredClone(current.state);
+  const savedAt = new Date().toISOString();
+  restorePartnerReservationEffects(state, existing, savedAt);
+  const result = buildPartnerMainOrder(state, partnerOrder, {
+    sourceId,
+    createdAt: cleanIsoDate(existing.createdAt) || cleanIsoDate(partnerOrder.createdAt || partnerOrder.created_at) || savedAt,
+    updatedAt: savedAt,
+    reportDate: cleanText(existing.reportDate, 20) || getOrderReportDateForDraft(existing.createdAt || savedAt, false, false),
+    completedAt: cleanText(existing.completedAt, 80),
+  });
+  state.orders = (state.orders || []).map((order) => (order.id === sourceId ? result.order : order));
+  state.lastPrices = rebuildPartnerLastPrices(state.orders);
+  state.updatedAt = savedAt;
+  const saved = await savePartnerMainState(current, state, { action: "eitan-direct-order-edit" });
+  return {
+    orderId: sourceId,
+    reportDate: result.order.reportDate,
+    reservationUnits: result.reservationUnits,
+    paidUnits: result.paidUnits,
+    updated: true,
+    recoveredConcurrentSave: Boolean(saved.recovered),
+  };
+}
+
+export async function deletePartnerOrderFromMain(partnerOrderId) {
+  const current = await readPartnerMainState();
+  if (!current?.state) throw new Error("main_state_unavailable");
+  const sourceId = `eitan-${cleanText(partnerOrderId, 100)}`;
+  const existing = (current.state.orders || []).find((order) => order.id === sourceId);
+  if (!existing) return { orderId: sourceId, alreadyDeleted: true };
+
+  const state = structuredClone(current.state);
+  const deletedAt = new Date().toISOString();
+  restorePartnerReservationEffects(state, existing, deletedAt);
+  state.orders = (state.orders || []).filter((order) => order.id !== sourceId);
+  state.orderTombstones = [...(Array.isArray(state.orderTombstones) ? state.orderTombstones : []).filter((entry) => entry?.id !== sourceId), { id: sourceId, deletedAt }];
+  state.lastPrices = rebuildPartnerLastPrices(state.orders);
+  state.updatedAt = deletedAt;
+  const saved = await savePartnerMainState(current, state, { action: "eitan-direct-order-delete" });
+  return { orderId: sourceId, deleted: true, recoveredConcurrentSave: Boolean(saved.recovered) };
+}
+
+function buildPartnerMainOrder(state, partnerOrder, options) {
+  const customerId = cleanText(partnerOrder.mainCustomerId, 180);
+  const customer = (state.customers || []).find((item) => cleanText(item.id, 180) === customerId);
+  if (!customer) throw partnerError("main_customer_not_found", 422);
+
+  const products = Array.isArray(state.products) ? state.products : [];
+  const reservations = Array.isArray(state.reservations) ? state.reservations : [];
+  const nextItems = [];
+  const reservationAdjustments = [];
+  for (const submittedLine of Array.isArray(partnerOrder.items) ? partnerOrder.items : []) {
+    const skuKey = getSkuKey(submittedLine.skuKey || submittedLine.model);
+    const product = products.find((item) => getSkuKey(item.sku || item.skuKey) === skuKey);
+    const quantity = positiveQuantity(submittedLine.quantity);
+    if (!product || !quantity) throw partnerError("main_product_not_found", 422);
+    const price = money(submittedLine.unitPrice, money(product.price, 0));
+    const requestedReservation = submittedLine.fromReservation ? Math.min(quantity, nonNegativeQuantity(submittedLine.reservationQuantity || quantity)) : 0;
+    const reservation = reservations.find((item) => cleanText(item.customerId, 180) === customer.id && getSkuKey(item.skuKey || item.sku) === skuKey);
+    const availableReservation = nonNegativeQuantity(reservation?.quantity);
+    const actualReservation = Math.min(requestedReservation, availableReservation);
+    const paidQuantity = quantity - actualReservation;
+    if (actualReservation) {
+      nextItems.push(createMainLine({ sourceId: options.sourceId, skuKey, product, quantity: actualReservation, price, fromReservation: true }));
+      reservationAdjustments.push({ reservation, nextQuantity: availableReservation - actualReservation });
+    }
+    if (paidQuantity) nextItems.push(createMainLine({ sourceId: options.sourceId, skuKey, product, quantity: paidQuantity, price, fromReservation: false }));
+  }
+  if (!nextItems.length) throw partnerError("partner_order_has_no_valid_items", 422);
+  reservationAdjustments.forEach(({ reservation, nextQuantity }) => {
+    if (!reservation) return;
+    reservation.quantity = nextQuantity;
+    reservation.updatedAt = options.updatedAt;
+  });
+  state.reservations = reservations;
+  const order = {
+    id: options.sourceId,
+    createdAt: options.createdAt,
+    updatedAt: options.updatedAt,
+    completedAt: options.completedAt || "",
+    reportDate: options.reportDate,
+    customerId: customer.id,
+    customerName: cleanText(customer.name, 180),
+    customerCode: cleanText(customer.code, 80),
+    customerPhone: cleanText(customer.phone, 80),
+    orderType: "delivery",
+    items: nextItems,
+    total: roundMoney(nextItems.reduce((sum, line) => sum + line.lineTotal, 0)),
+  };
+  return {
+    order,
+    reservationUnits: nextItems.filter((item) => item.fromReservation).reduce((sum, item) => sum + item.quantity, 0),
+    paidUnits: nextItems.filter((item) => !item.fromReservation).reduce((sum, item) => sum + item.quantity, 0),
+  };
+}
+
+function restorePartnerReservationEffects(state, order, updatedAt) {
+  const customerId = cleanText(order.customerId, 180);
+  const customerName = cleanText(order.customerName, 180);
+  const reservations = Array.isArray(state.reservations) ? state.reservations : [];
+  for (const line of Array.isArray(order.items) ? order.items : []) {
+    if (!line?.fromReservation) continue;
+    const skuKey = getSkuKey(line.skuKey || line.sku);
+    const quantity = nonNegativeQuantity(line.quantity);
+    if (!skuKey || !quantity) continue;
+    let reservation = reservations.find((item) => cleanText(item.customerId, 180) === customerId && getSkuKey(item.skuKey || item.sku) === skuKey);
+    if (!reservation) {
+      reservation = {
+        id: `reservation-${customerId}-${skuKey}`,
+        customerId,
+        customerName,
+        skuKey,
+        sku: cleanText(line.sku || skuKey, 120),
+        description: cleanText(line.description, 240),
+        quantity: 0,
+        updatedAt,
+      };
+      reservations.push(reservation);
+    }
+    reservation.quantity = nonNegativeQuantity(reservation.quantity) + quantity;
+    reservation.updatedAt = updatedAt;
+  }
+  state.reservations = reservations;
+}
+
+function rebuildPartnerLastPrices(orders) {
+  return [...(Array.isArray(orders) ? orders : [])]
+    .sort((left, right) => new Date(left?.createdAt || 0).getTime() - new Date(right?.createdAt || 0).getTime())
+    .reduce((prices, order) => {
+      for (const line of Array.isArray(order?.items) ? order.items : []) {
+        if (line?.fromReservation || line?.priceSource === "reservation" || line?.priceSource === "bonus") continue;
+        const skuKey = getSkuKey(line?.skuKey || line?.sku);
+        if (!skuKey) continue;
+        prices[skuKey] = { price: money(line.unitPrice, 0), savedAt: cleanIsoDate(order.createdAt) || "" };
+      }
+      return prices;
+    }, {});
+}
+
+function partnerError(message, statusCode) { const error = new Error(message); error.statusCode = statusCode; return error; }
+function cleanIsoDate(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "" : date.toISOString(); }
 
 function createMainLine({ sourceId, skuKey, product, quantity, price, fromReservation }) {
   const unitPrice = fromReservation ? 0 : price;

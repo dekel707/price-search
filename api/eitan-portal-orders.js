@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { savePartnerOrderIntoMain } from "./eitan-orders.js";
+import { deletePartnerOrderFromMain, savePartnerOrderIntoMain, updatePartnerOrderInMain } from "./eitan-orders.js";
 
 export default async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store, max-age=0");
@@ -9,7 +9,13 @@ export default async function handler(request, response) {
   try {
     const body = await readJsonBody(request);
     if (!body?.order?.id) return sendJson(response, 400, { error: "invalid_partner_order" });
-    const result = await savePartnerOrderIntoMain(body.order, { timeBasis: "submitted" });
+    const action = String(body.action || "create").trim();
+    if (!["create", "update", "delete"].includes(action)) return sendJson(response, 400, { error: "invalid_partner_order_action" });
+    const result = action === "delete"
+      ? await deletePartnerOrderFromMain(body.order.id)
+      : action === "update"
+        ? await updatePartnerOrderInMain(body.order)
+        : await savePartnerOrderIntoMain(body.order, { timeBasis: "submitted" });
     return sendJson(response, 200, { ok: true, ...result });
   } catch (error) {
     console.error("eitan_portal_order_import_failed", error);
