@@ -441,29 +441,26 @@ function refreshDemo() {
   $("#portalTitle").textContent = "מחירון והזמנות · הדגמה";
   $("#portalSubtitle").textContent = "סביבת הדגמה מבודדת · שום פעולה אינה נשמרת או נשלחת";
   $("#portalMetadata").textContent = `דמו פעיל עד ${demoExpiryLabel()}`;
-  $("#orderSearchStatus").textContent = "נתוני הדגמה בלבד: אפשר לחפש, להוסיף לסל, ליצור, לערוך ולמחוק הזמנות בלי להשפיע על שום מערכת.";
+  $("#orderSearchStatus").textContent = "נתוני הדגמה בלבד: אפשר לחפש, להוסיף לסל, ליצור, לערוך ולמחוק הזמנות בלי להשפיע על שום מערכת. WhatsApp נפתח כטיוטת בדיקה בלבד.";
   renderOrderSearch(); renderProducts(); renderData(); renderCart();
   setTab(state.activeTab);
 }
 
 function sendReservationsToWhatsApp(customerId) {
-  if (isDemoMode()) {
-    $("#orderActionMessage").textContent = "הדגמה: ההודעה לא נשלחה ב־WhatsApp ולא בוצע שינוי במערכת האמיתית.";
-    return;
-  }
   const customer = state.customers.find((item) => item.id === customerId);
   const entries = state.reservations.filter((item) => item.customerId === customerId && Number(item.quantity) > 0);
-  const phone = String(customer?.phone || "").replace(/\D/g, "").replace(/^0/, "972");
+  const phone = isDemoMode() ? ORDER_WHATSAPP_PHONE : String(customer?.phone || "").replace(/\D/g, "").replace(/^0/, "972");
   if (!customer || !phone || !entries.length) return;
-  const text = [`שריון עבור ${customer.name}`, "", ...entries.map((item) => `${item.sku || item.skuKey} · ${item.description || ""} — ${Number(item.quantity).toLocaleString("he-IL")} יח׳`)].join("\n");
+  const text = [isDemoMode() ? "הודעת בדיקה · הדגמה בלבד" : `שריון עבור ${customer.name}`, isDemoMode() ? `שריון עבור ${customer.name}` : "", "", ...entries.map((item) => `${item.sku || item.skuKey} · ${item.description || ""} — ${Number(item.quantity).toLocaleString("he-IL")} יח׳`)].filter(Boolean).join("\n");
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. הנתונים הם דמיוניים ולא נשמרו במערכת.";
 }
 
 function whatsappText({ customerName, items, createdAt }) {
   const normalizedItems = Array.isArray(items) ? items : [];
   const total = normalizedItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.price ?? item.unitPrice ?? 0), 0);
   return [
-    "הזמנה חדשה",
+    isDemoMode() ? "הודעת בדיקה · הדגמה בלבד" : "הזמנה חדשה",
     customerName ? `לקוח: ${customerName}` : "",
     createdAt ? `תאריך: ${new Date(createdAt).toLocaleString("he-IL")}` : "",
     "",
@@ -475,18 +472,15 @@ function whatsappText({ customerName, items, createdAt }) {
 
 function openOrderWhatsApp(order) {
   if (!order) return;
-  if (isDemoMode()) {
-    $("#orderActionMessage").textContent = "הדגמה: WhatsApp מושבת בהדגמה כדי שלא תישלח הודעה אמיתית.";
-    return;
-  }
   window.open(`https://wa.me/${ORDER_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappText({ customerName: order.customer_name, items: order.items, createdAt: order.created_at }))}`, "_blank", "noopener,noreferrer");
+  if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. שליחה מתבצעת רק אם לוחצים שלח בתוך WhatsApp.";
 }
 
 function sendCartToWhatsApp() {
   const customer = findCustomer(state.customerId);
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שליחה בוואטסאפ."; return; }
-  if (isDemoMode()) { $("#cartMessage").textContent = "הדגמה: WhatsApp מושבת כדי שלא תישלח הודעה אמיתית."; return; }
   openOrderWhatsApp({ customer_name: customer.name, items: state.cart, created_at: new Date().toISOString() });
+  if (isDemoMode()) $("#cartMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. ההזמנה אינה נשמרת במערכת.";
 }
 
 function saveDemoOrder(customer) {
