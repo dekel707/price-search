@@ -102,6 +102,7 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
 .dialog-close { position: absolute; top: 10px; left: 10px; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgba(132,169,203,.27); border-radius: 9px; background: rgba(13,32,52,.88); color: #c9d9e9; font-size: 1.4rem; line-height: 1; }
 .pending-product { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid rgba(132,169,203,.2); border-radius: 11px; background: rgba(8,23,39,.66); }
 .pending-product strong { color: #f7fffb; }.pending-product span { direction: ltr; color: #5ce3d0; font-size: .82rem; text-align: right; }
+.dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 
 .inline-add-field { display: grid; gap: 5px; }
 .inline-add-field span { color: #b9c9d9; font-size: .78rem; font-weight: 800; }

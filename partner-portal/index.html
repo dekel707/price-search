@@ -68,7 +68,7 @@
         <section class="tab-panel" data-tab-panel="customers"><section class="customers-panel"><div class="panel-header"><div><p class="eyebrow">לקוחות</p><h2>לקוחות</h2><p class="panel-subtitle">קריאה בלבד · כל שינוי נשמר רק אצל דקל.</p></div></div><div id="customerList" class="portal-data-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="reservations"><section class="reservations-panel"><div class="panel-header"><div><p class="eyebrow">שריונים</p><h2>שריונים</h2><p class="panel-subtitle">יתרות עדכניות מהמערכת הראשית.</p></div></div><div id="reservationList" class="reservations-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="collections"><section class="collections-panel"><div class="panel-header"><div><p class="eyebrow">גיול</p><h2>גיול וגבייה</h2><p class="panel-subtitle">תצוגה מלאה וקריאה בלבד.</p></div></div><div id="agingList" class="collections-list"></div></section></section>
-        <section class="tab-panel" data-tab-panel="orders"><section class="orders-panel"><div class="panel-header"><div><p class="eyebrow">הזמנות</p><h2>ההזמנות של איתן</h2><p class="panel-subtitle">הזמנות שנשלחות נכנסות מיד למערכת הראשית לפי מועד השליחה.</p></div></div><div id="orderList" class="orders-list"></div></section></section>
+        <section class="tab-panel" data-tab-panel="orders"><section class="orders-panel"><div class="panel-header"><div><p class="eyebrow">הזמנות</p><h2>ההזמנות של איתן</h2><p class="panel-subtitle">הזמנות שנשלחות נכנסות מיד למערכת הראשית לפי מועד השליחה.</p></div></div><div id="orderList" class="orders-list"></div><p id="orderActionMessage" class="status" aria-live="polite"></p></section></section>
       </main>
       <div id="cartCustomerDialog" class="modal-backdrop" hidden>
         <form id="cartCustomerForm" class="customer-dialog" aria-labelledby="cartCustomerTitle">
@@ -84,6 +84,16 @@
           <p id="cartCustomerFeedback" class="status" aria-live="polite"></p>
           <button class="file-button" type="submit">הוסף לסל</button>
         </form>
+      </div>
+      <div id="deleteOrderDialog" class="modal-backdrop" hidden>
+        <section class="customer-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteOrderTitle">
+          <button id="closeDeleteOrderDialog" class="dialog-close" type="button" aria-label="סגירה">×</button>
+          <p class="eyebrow">מחיקת הזמנה</p>
+          <h2 id="deleteOrderTitle">למחוק את ההזמנה?</h2>
+          <p id="deleteOrderSummary" class="status"></p>
+          <p class="panel-subtitle">הפעולה תשפיע רק על ההזמנה המקבילה שנוצרה על ידי איתן במערכת הראשית.</p>
+          <div class="dialog-actions"><button id="cancelDeleteOrder" class="secondary-button" type="button">ביטול</button><button id="confirmDeleteOrder" class="danger-button" type="button">מחק הזמנה</button></div>
+        </section>
       </div>
     </div>
     <script type="module" src="/src/app.js"></script>

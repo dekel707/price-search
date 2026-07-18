@@ -1,6 +1,6 @@
 import "./styles.css";
 
-const state = { user: null, products: [], customers: [], reservations: [], aging: [], orders: [], cart: [], category: "", filters: {}, syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null };
+const state = { user: null, products: [], customers: [], reservations: [], aging: [], orders: [], cart: [], category: "", filters: {}, syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 2 });
 
@@ -19,6 +19,8 @@ async function api(path, options = {}) {
 }
 
 function setTab(name) {
+  if (!document.querySelector(`[data-tab="${name}"]`)) return;
+  state.activeTab = name;
   document.querySelectorAll(".tab-button").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.tabPanel === name));
 }
@@ -204,7 +206,7 @@ function renderData() {
   if (state.customerId) { const customer = findCustomer(state.customerId); if (customer) $("#customerSelect").value = customerLabel(customer); }
   $("#customerList").innerHTML = state.customers.map((item) => `<article class="customer-card portal-customer-card"><div><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.phone || "ללא טלפון")}</p></div><span class="portal-readonly-badge">קריאה בלבד</span></article>`).join("") || `<div class="empty-state">אין לקוחות.</div>`;
   const reservationGroups = state.customers.map((customer) => ({ customer, items: state.reservations.filter((item) => item.customerId === customer.id && Number(item.quantity) > 0) })).filter((group) => group.items.length);
-  $("#reservationList").innerHTML = reservationGroups.map(({ customer, items }) => `<details class="reservation-customer-card"><summary class="reservation-customer-header"><div><strong>${escapeHtml(customer.name)}</strong><span>${items.reduce((sum, item) => sum + Number(item.quantity || 0), 0).toLocaleString("he-IL")} יח׳ בשריון</span></div><b>הצג פירוט</b></summary><div class="portal-reservation-body">${customer.phone ? `<button class="whatsapp-button reservation-export-button" type="button" data-send-reservations="${escapeAttr(customer.id)}">שלח שריון בוואטסאפ</button>` : ""}${items.map((item) => `<div class="reservation-row"><div class="reservation-product"><strong>${escapeHtml(item.sku || item.skuKey)}</strong><span>${escapeHtml(item.description || "")}</span></div><b>${Number(item.quantity).toLocaleString("he-IL")} יח׳</b></div>`).join("")}</div></details>`).join("") || `<div class="empty-state">אין שריונים פעילים.</div>`;
+  $("#reservationList").innerHTML = reservationGroups.map(({ customer, items }) => `<details class="reservation-customer-card" data-reservation-customer="${escapeAttr(customer.id)}" ${state.openReservationCustomers.has(customer.id) ? "open" : ""}><summary class="reservation-customer-header"><div><strong>${escapeHtml(customer.name)}</strong><span>${items.reduce((sum, item) => sum + Number(item.quantity || 0), 0).toLocaleString("he-IL")} יח׳ בשריון</span></div><b>הצג פירוט</b></summary><div class="portal-reservation-body">${customer.phone ? `<button class="whatsapp-button reservation-export-button" type="button" data-send-reservations="${escapeAttr(customer.id)}">שלח שריון בוואטסאפ</button>` : ""}${items.map((item) => `<div class="reservation-row"><div class="reservation-product"><strong>${escapeHtml(item.sku || item.skuKey)}</strong><span>${escapeHtml(item.description || "")}</span></div><b>${Number(item.quantity).toLocaleString("he-IL")} יח׳</b></div>`).join("")}</div></details>`).join("") || `<div class="empty-state">אין שריונים פעילים.</div>`;
   $("#agingList").innerHTML = state.aging.map((item) => {
     const open = Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0));
     const details = [...(item.months || []), ...(item.invoices || [])].map((value) => typeof value === "string" ? value : value?.label || value?.number || "").filter(Boolean).join(" · ");
@@ -235,26 +237,37 @@ function editOrder(order) {
   renderCart(); setTab("cart");
 }
 
+function openDeleteDialog(orderId) {
+  const order = state.orders.find((item) => item.id === orderId);
+  if (!order) return;
+  state.pendingDeleteId = orderId;
+  $("#deleteOrderSummary").textContent = `מחיקת ההזמנה של ${order.customer_name || "הלקוח"}.`;
+  $("#deleteOrderDialog").hidden = false;
+}
+
+function closeDeleteDialog() { state.pendingDeleteId = ""; $("#deleteOrderDialog").hidden = true; }
+
 async function deleteOrder(orderId) {
-  if (!window.confirm("למחוק את ההזמנה? הפעולה תעדכן רק את ההזמנה המקבילה שנוצרה על ידי איתן במערכת הראשית.")) return;
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) return;
   try {
     await api("?action=delete-order", { method: "POST", body: JSON.stringify({ orderId }) });
     if (state.editingOrderId === orderId) cancelEdit();
     await refresh();
-  } catch (error) { window.alert(`המחיקה לא הושלמה: ${error.message}`); }
+  } catch (error) { $("#orderActionMessage").textContent = `המחיקה לא הושלמה: ${error.message}`; }
 }
 
 function cancelEdit() { state.editingOrderId = ""; state.cart = []; $("#cartMessage").textContent = ""; renderCart(); }
 
 async function refresh() {
+  document.querySelectorAll(".reservation-customer-card[open]").forEach((item) => state.openReservationCustomers.add(item.dataset.reservationCustomer));
   const [live, orders] = await Promise.all([api("?resource=live"), api("?resource=orders")]);
   Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], aging: live.aging || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
   renderOrderSearch(); renderProducts(); renderData(); renderCart();
   const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
   $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, שריונים וגיול מסונכרנים לקריאה בלבד";
   $("#portalMetadata").textContent = `עודכן ${updated}`;
+  setTab(state.activeTab);
 }
 
 function sendReservationsToWhatsApp(customerId) {
@@ -275,7 +288,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
 });
 
 $("#logoutButton").addEventListener("click", async () => { await api("?action=logout", { method: "POST" }); location.reload(); });
-document.querySelectorAll(".tab-button").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
+document.querySelectorAll(".tab-button").forEach((tab) => tab.addEventListener("click", (event) => { event.preventDefault(); setTab(tab.dataset.tab); }));
 $("#orderSearchInput").addEventListener("input", renderOrderSearch);
 $("#advancedSearchInput").addEventListener("input", renderProducts);
 $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
@@ -292,7 +305,12 @@ $("#cartCustomerInput").addEventListener("change", updateDialogReservation);
 $("#cartItems").addEventListener("click", (event) => { const button = event.target.closest("[data-remove]"); if (!button) return; state.cart.splice(Number(button.dataset.remove), 1); renderCart(); });
 $("#cartItems").addEventListener("change", (event) => { const quantity = event.target.closest("[data-cart-quantity]"); if (quantity) { const item = state.cart[Number(quantity.dataset.cartQuantity)]; if (item) item.quantity = Number(quantity.value) || 1; renderCart(); return; } const price = event.target.closest("[data-cart-price]"); if (price) { const item = state.cart[Number(price.dataset.cartPrice)]; if (item && Number.isFinite(Number(price.value)) && Number(price.value) >= 0) item.price = Number(price.value); renderCart(); return; } const toggle = event.target.closest("[data-cart-reservation]"); if (toggle) { const item = state.cart[Number(toggle.dataset.cartReservation)]; if (item) item.fromReservation = toggle.checked; renderCart(); } });
 $("#reservationList").addEventListener("click", (event) => { const button = event.target.closest("[data-send-reservations]"); if (button) sendReservationsToWhatsApp(button.dataset.sendReservations); });
-$("#orderList").addEventListener("click", (event) => { const show = event.target.closest("[data-show-order]"); const edit = event.target.closest("[data-edit-order]"); const remove = event.target.closest("[data-delete-order]"); if (show) showOrder(state.orders.find((item) => item.id === show.dataset.showOrder)); if (edit) editOrder(state.orders.find((item) => item.id === edit.dataset.editOrder)); if (remove) deleteOrder(remove.dataset.deleteOrder); });
+$("#reservationList").addEventListener("toggle", (event) => { const details = event.target.closest?.("[data-reservation-customer]"); if (!details) return; if (details.open) state.openReservationCustomers.add(details.dataset.reservationCustomer); else state.openReservationCustomers.delete(details.dataset.reservationCustomer); }, true);
+$("#orderList").addEventListener("click", (event) => { const show = event.target.closest("[data-show-order]"); const edit = event.target.closest("[data-edit-order]"); const remove = event.target.closest("[data-delete-order]"); if (show) showOrder(state.orders.find((item) => item.id === show.dataset.showOrder)); if (edit) editOrder(state.orders.find((item) => item.id === edit.dataset.editOrder)); if (remove) openDeleteDialog(remove.dataset.deleteOrder); });
+$("#closeDeleteOrderDialog").addEventListener("click", closeDeleteDialog);
+$("#cancelDeleteOrder").addEventListener("click", closeDeleteDialog);
+$("#confirmDeleteOrder").addEventListener("click", async () => { const orderId = state.pendingDeleteId; closeDeleteDialog(); if (orderId) await deleteOrder(orderId); });
+$("#deleteOrderDialog").addEventListener("click", (event) => { if (event.target === $("#deleteOrderDialog")) closeDeleteDialog(); });
 $("#cancelEditOrder").addEventListener("click", cancelEdit);
 $("#submitOrder").addEventListener("click", async () => {
   const customer = resolveCustomerInput($("#customerSelect"));

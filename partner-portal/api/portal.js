@@ -427,7 +427,7 @@ async function updateOrder(sql, session, body, config) {
   if (!customer) throw new Error("main_customer_not_found");
   const safeItems = buildSafePartnerOrderItems(live, customerId, items);
   return sql.begin(async (tx) => {
-    const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
+    const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('pending_owner_approval', 'approved', 'sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
     if (!current.length) throw new Error("order_not_editable");
     const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
     const beforeBackup = await createBackup(tx, "before-order-update");
@@ -448,7 +448,7 @@ async function prepareDeleteOrder(sql, session, body) {
   const orderId = cleanText(body.orderId, 100);
   if (!orderId) throw new Error("invalid_order_id");
   return sql.begin(async (tx) => {
-    const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
+    const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('pending_owner_approval', 'approved', 'sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
     if (!current.length) throw new Error("order_not_editable");
     const beforeBackup = await createBackup(tx, "before-order-delete");
     await tx`UPDATE partner_orders SET status = 'processing', sync_action = 'delete', updated_at = now() WHERE id = ${orderId}`;
