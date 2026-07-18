@@ -1,16 +1,16 @@
 import "./styles.css";
 
 const ORDER_WHATSAPP_PHONE = "972523685265";
-const state = { user: null, products: [], customers: [], reservations: [], orders: [], cart: [], category: "", filters: {}, syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
+const state = { user: null, products: [], customers: [], reservations: [], orders: [], cart: [], syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 2 });
 const DEMO_EXPIRES_AT = "2026-07-20T22:00:00.000Z";
 const DEMO_DATA = {
   products: [
-    { model: "RF488", skuKey: "RF488", name: "מקרר 4 דלתות 488 ל׳", category: "מקררים", colors: ["נירוסטה"], price: 3490, stockQuantity: 6, technical: { facts: ["No Frost", "קו אפס", "מנוע אינוורטר"], dimensionsCm: { widthCm: 83, heightCm: 178, depthCm: 70 }, capacities: { totalLiters: 488, freezerLiters: 160 }, performance: { energyRating: "E" } }, documents: [] },
-    { model: "WM8", skuKey: "WM8", name: "מכונת כביסה 8 ק״ג", category: "מכונות כביסה", colors: ["לבן"], price: 1890, stockQuantity: 9, technical: { facts: ["מנוע אינוורטר", "1,400 סל״ד", "תכנית מהירה"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 56 }, capacities: { washKg: 8 }, performance: { energyRating: "A" } }, documents: [] },
-    { model: "DR9", skuKey: "DR9", name: "מייבש כביסה 9 ק״ג", category: "מייבשים", colors: ["לבן"], price: 2190, stockQuantity: 4, technical: { facts: ["משאבת חום", "חיישני לחות", "תוף גדול"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 63 }, capacities: { washKg: 9 }, performance: { energyRating: "A" } }, documents: [] },
-    { model: "OV60", skuKey: "OV60", name: "תנור בילד־אין 60 ס״מ", category: "תנורים", colors: ["שחור"], price: 2390, stockQuantity: 3, technical: { facts: ["טורבו", "ניקוי קל", "תא אפייה גדול"], dimensionsCm: { widthCm: 60, heightCm: 60, depthCm: 56 }, capacities: { ovenLiters: 72 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "RF488", skuKey: "RF488", name: "מקרר 4 דלתות 488 ל׳", category: "מקרר", colors: ["נירוסטה"], price: 3490, stockQuantity: 6, technical: { facts: ["No Frost", "קו אפס", "מנוע אינוורטר"], dimensionsCm: { widthCm: 83, heightCm: 178, depthCm: 70 }, capacities: { totalLiters: 488, freezerLiters: 160 }, performance: { energyRating: "E" } }, documents: [] },
+    { model: "WM8", skuKey: "WM8", name: "מכונת כביסה 8 ק״ג", category: "מכונת כביסה", colors: ["לבן"], price: 1890, stockQuantity: 9, technical: { facts: ["מנוע אינוורטר", "1,400 סל״ד", "תכנית מהירה"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 56 }, capacities: { washKg: 8 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "DR9", skuKey: "DR9", name: "מייבש כביסה 9 ק״ג", category: "מייבש כביסה", colors: ["לבן"], price: 2190, stockQuantity: 4, technical: { facts: ["משאבת חום", "חיישני לחות", "תוף גדול"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 63 }, capacities: { washKg: 9 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "OV60", skuKey: "OV60", name: "תנור בילד־אין 60 ס״מ", category: "תנור", colors: ["שחור"], price: 2390, stockQuantity: 3, technical: { facts: ["טורבו", "ניקוי קל", "תא אפייה גדול"], dimensionsCm: { widthCm: 60, heightCm: 60, depthCm: 56 }, capacities: { ovenLiters: 72 }, performance: { energyRating: "A" } }, documents: [] },
   ],
   customers: [
     { id: "demo-customer-sap", name: "לקוח א׳", code: "D-1001", phone: "0500000001" },
@@ -27,6 +27,15 @@ const DEMO_DATA = {
   ],
 };
 let demoInitialized = false;
+let activeAdvancedCategory = "";
+const activeAdvancedFacets = { color: "", energy: "", volume: "", height: "", width: "", depth: "", feature: "" };
+const activeAdvancedQuickFilters = {};
+
+const ADVANCED_VOLUME_RANGES = [["up-to-100", "עד 100 ליטר", 0, 100], ["101-to-300", "101–300 ליטר", 101, 300], ["301-to-450", "301–450 ליטר", 301, 450], ["451-to-600", "451–600 ליטר", 451, 600], ["over-600", "מעל 600 ליטר", 601, Infinity]];
+const ADVANCED_HEIGHT_RANGES = [["up-to-100", "עד 100 ס״מ", 0, 100], ["101-to-170", "101–170 ס״מ", 101, 170], ["171-to-185", "171–185 ס״מ", 171, 185], ["186-to-200", "186–200 ס״מ", 186, 200], ["over-200", "מעל 200 ס״מ", 201, Infinity]];
+const ADVANCED_WIDTH_RANGES = [["up-to-50", "עד 50 ס״מ", 0, 50], ["51-to-60", "51–60 ס״מ", 51, 60], ["61-to-70", "61–70 ס״מ", 61, 70], ["71-to-90", "71–90 ס״מ", 71, 90], ["over-90", "מעל 90 ס״מ", 91, Infinity]];
+const ADVANCED_DEPTH_RANGES = [["up-to-50", "עד 50 ס״מ", 0, 50], ["51-to-60", "51–60 ס״מ", 51, 60], ["61-to-70", "61–70 ס״מ", 61, 70], ["over-70", "מעל 70 ס״מ", 71, Infinity]];
+const ADVANCED_FEATURES = [["zero-line", "↔ קו אפס", (facts) => /קו\s*(אפס|0)|zero\s*-?\s*line/.test(facts)], ["no-frost", "❄ No Frost", (facts) => /no\s*frost|frost\s*no/.test(facts)], ["inverter", "ϟ מנוע אינוורטר", (facts) => /inverter|אינוורטר/.test(facts)], ["4k", "✦ 4K", (facts) => /\b4k\b|\buhd\b/.test(facts)], ["smart", "◉ Smart TV", (facts) => /smart/.test(facts)], ["wifi", "⌁ Wi‑Fi", (facts) => /wi\s*-?\s*fi|wifi/.test(facts)], ["heat-pump", "♨ Heat Pump", (facts) => /heat\s*pump|משאבת חום/.test(facts)], ["induction", "◎ אינדוקציה", (facts) => /אינדוקציה/.test(facts)]];
 
 function isDemoMode() { return state.user?.role === "demo"; }
 function demoIsAvailable() { return Date.now() < Date.parse(DEMO_EXPIRES_AT); }
@@ -209,102 +218,204 @@ function renderOrderSearch() {
   $("#orderSearchResults").innerHTML = visible.map((product) => productCard(product, { ordering: true })).join("") || `<p class="muted">לא נמצאו מוצרים במחירון.</p>`;
 }
 
-function renderProducts() {
-  const query = $("#advancedSearchInput").value.trim().toLowerCase();
-  const categories = [...new Set(state.products.map((product) => product.category).filter(Boolean))].sort((left, right) => left.localeCompare(right, "he"));
-  $("#categoryFilters").innerHTML = [`<button class="advanced-category-chip ${!state.category ? "active" : ""}" type="button" data-category="">הכול · ${state.products.length}</button>`, ...categories.map((category) => `<button class="advanced-category-chip ${state.category === category ? "active" : ""}" type="button" data-category="${escapeAttr(category)}">${escapeHtml(category)} · ${state.products.filter((product) => product.category === category).length}</button>`)].join("");
-  const categorized = state.category ? state.products.filter((product) => product.category === state.category) : state.products;
-  renderQuickFilters(categorized);
-  const visible = categorized.filter((product) => matchesQuickFilters(product) && matchesProductSearch(product, query)).slice(0, 80);
-  $("#advancedSearchStatus").textContent = visible.length ? `${visible.length} מוצרים מתאימים` : "לא נמצאו מוצרים";
-  $("#productResults").innerHTML = visible.map((product) => productCard(product)).join("") || `<div class="empty-state">לא נמצאו מוצרים.</div>`;
+const ADVANCED_CATEGORY_TABS = [
+  { key: "refrigerators", label: "מקררים", matches: (product) => advancedIsCategory(product, "מקרר") },
+  { key: "top-freezer", label: "מקפיא עליון", matches: (product) => advancedMatchesRefrigeratorStyle(product, "top") },
+  { key: "bottom-freezer", label: "מקפיא תחתון", matches: (product) => advancedMatchesRefrigeratorStyle(product, "bottom") },
+  { key: "four-door", label: "4 דלתות", matches: (product) => advancedMatchesRefrigeratorStyle(product, "four-door") },
+  { key: "integrated-refrigerators", label: "מקררים אינטגרליים", matches: (product) => advancedMatchesRefrigeratorStyle(product, "integrated") },
+  { key: "mini-refrigerators", label: "מקררים משרדיים", matches: (product) => advancedMatchesRefrigeratorStyle(product, "mini") },
+  { key: "freezers", label: "מקפיאים", matches: (product) => advancedIsCategory(product, "מקפיא") },
+  { key: "upright-freezers", label: "מקפיאים עומדים", matches: (product) => advancedMatchesFreezerStyle(product, "upright") },
+  { key: "chest-freezers", label: "מקפיאים שוכבים", matches: (product) => advancedMatchesFreezerStyle(product, "chest") },
+  { key: "washing-machines", label: "מכונות כביסה", matches: (product) => advancedIsCategory(product, "מכונת כביסה") },
+  { key: "dryers", label: "מייבשים", matches: (product) => advancedIsCategory(product, "מייבש כביסה") },
+  { key: "dishwashers", label: "מדיחי כלים", matches: (product) => advancedIsCategory(product, "מדיח כלים") },
+  { key: "ovens", label: "תנורים", matches: (product) => advancedIsCategory(product, "תנור") },
+  { key: "hobs", label: "כיריים", matches: (product) => advancedIsCategory(product, "כיריים") },
+  { key: "microwaves", label: "מיקרוגלים", matches: (product) => advancedIsCategory(product, "מיקרוגל") },
+  { key: "tvs", label: "טלוויזיות", matches: (product) => advancedIsCategory(product, "טלוויזיה") },
+  { key: "hoods", label: "קולטי אדים", matches: (product) => advancedIsCategory(product, "קולט אדים") },
+];
+
+function advancedCategoryName(product) { return String(product.category || product.technical?.category || "").trim(); }
+function advancedIsCategory(product, category) {
+  const current = advancedCategoryName(product);
+  const aliases = { "מקרר": ["מקרר", "מקררים"], "מקפיא": ["מקפיא", "מקפיאים"], "מכונת כביסה": ["מכונת כביסה", "מכונות כביסה"], "מייבש כביסה": ["מייבש כביסה", "מייבשים"], "מדיח כלים": ["מדיח כלים", "מדיחי כלים"], "תנור": ["תנור", "תנורים"], "מיקרוגל": ["מיקרוגל", "מיקרוגלים"], "טלוויזיה": ["טלוויזיה", "טלוויזיות"], "קולט אדים": ["קולט אדים", "קולטי אדים"] };
+  return (aliases[category] || [category]).includes(current);
 }
+function advancedFacts(product) { return `${product.name || ""} ${advancedCategoryName(product)} ${(product.technical?.facts || []).join(" ")}`.toLowerCase(); }
+function advancedValue(product, group, key) { return product.technical?.[group]?.[key]; }
+function advancedNumber(value) { return Number.isFinite(Number(value)) ? Number(value) : null; }
+function advancedMatchesRange(value, range) { const number = advancedNumber(value); return Boolean(range) && number !== null && number >= range.minimum && number <= range.maximum; }
+function advancedRange(ranges, value) { const found = ranges.find(([rangeValue]) => rangeValue === value); return found ? { minimum: found[2], maximum: found[3] } : null; }
+function advancedFormatNumber(value) { return Number(value).toLocaleString("he-IL"); }
+
+function renderProducts() {
+  renderAdvancedCategoryFilters();
+  renderAdvancedSimpleFilters();
+  const query = $("#advancedSearchInput").value.trim().toLowerCase();
+  const visible = state.products.filter((product) => advancedMatchesProduct(product, query) && advancedMatchesActiveCategory(product) && advancedMatchesSimpleFilters(product)).slice(0, 80);
+  $("#advancedSearchStatus").textContent = visible.length ? `${visible.length.toLocaleString("he-IL")} מוצרים מתאימים` : "לא נמצאו מוצרים";
+  $("#productResults").innerHTML = visible.map((product) => productCard(product)).join("") || `<div class="empty-state">לא נמצאו דגמים מתאימים. נסה לשנות את הסינון.</div>`;
+}
+
+function advancedMatchesProduct(product, query) {
+  if (!query) return true;
+  const technical = product.technical || {};
+  const values = [technical.dimensionsCm, technical.capacities, technical.performance].flatMap((group) => Object.values(group || {}));
+  const haystack = `${product.name || ""} ${product.model || ""} ${advancedCategoryName(product)} ${(product.colors || []).join(" ")} ${(technical.facts || []).join(" ")} ${values.join(" ")}`.toLowerCase();
+  return query.split(/\s+/).filter(Boolean).every((term) => haystack.includes(term));
+}
+
+function getActiveAdvancedCategory() { return ADVANCED_CATEGORY_TABS.find((tab) => tab.key === activeAdvancedCategory) || null; }
+function advancedMatchesActiveCategory(product) { const tab = getActiveAdvancedCategory(); return !tab || tab.matches(product); }
+function getActiveAdvancedProducts() { return state.products.filter(advancedMatchesActiveCategory); }
+
+function clearAdvancedQuickFilters() { Object.keys(activeAdvancedQuickFilters).forEach((key) => { delete activeAdvancedQuickFilters[key]; }); }
+function clearAdvancedFacets() { Object.keys(activeAdvancedFacets).forEach((key) => { activeAdvancedFacets[key] = ""; }); }
+function hasActiveAdvancedFilters() { return Object.values(activeAdvancedFacets).some(Boolean) || Object.values(activeAdvancedQuickFilters).some(Boolean); }
+function advancedFilterValue(key) { return key.startsWith("quick-") ? (activeAdvancedQuickFilters[key.slice(6)] || "") : (activeAdvancedFacets[key] || ""); }
+
+function renderAdvancedCategoryFilters() {
+  const filters = $("#categoryFilters");
+  filters.replaceChildren(...ADVANCED_CATEGORY_TABS.map((tab) => ({ tab, count: state.products.filter(tab.matches).length })).filter(({ count }) => count).map(({ tab, count }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `advanced-category-chip ${activeAdvancedCategory === tab.key ? "active" : ""}`;
+    button.dataset.category = tab.key;
+    button.textContent = `${tab.label} · ${count.toLocaleString("he-IL")}`;
+    return button;
+  }));
+  $("#clearAdvancedCategory").hidden = !activeAdvancedCategory;
+}
+
+function renderAdvancedSimpleFilters() {
+  const tab = getActiveAdvancedCategory();
+  const groups = [...advancedQuickGroups(), ...advancedSimpleGroups()];
+  $("#advancedFilterKicker").textContent = tab ? "סינון מהיר לקטגוריה" : "סינון פשוט";
+  $("#advancedFilterTitle").textContent = tab ? tab.label : "מצא את הדגם המתאים";
+  $("#quickFilters").replaceChildren(...groups.map(createAdvancedFilterGroup));
+  $("#clearAdvancedFilters").hidden = !hasActiveAdvancedFilters() && !activeAdvancedCategory;
+}
+
+function advancedQuickGroups() {
+  if (!activeAdvancedCategory) return [];
+  const products = getActiveAdvancedProducts();
+  const refrigeratorTabs = new Set(["refrigerators", "top-freezer", "bottom-freezer", "four-door", "integrated-refrigerators", "mini-refrigerators"]);
+  const freezerTabs = new Set(["freezers", "upright-freezers", "chest-freezers"]);
+  if (refrigeratorTabs.has(activeAdvancedCategory)) {
+    const groups = [advancedRangeGroup("volume", "נפח מקרר", products, ADVANCED_VOLUME_RANGES, (product) => advancedValue(product, "capacities", "totalLiters")), advancedOptionGroup("refrigeratorFeature", "מאפיינים חשובים", products, [["zero-line", "קו אפס"]])];
+    if (activeAdvancedCategory === "refrigerators") groups.unshift(advancedOptionGroup("fridgeStyle", "סוג מקרר", products, [["top", "מקפיא עליון"], ["bottom", "מקפיא תחתון"], ["four-door", "4 דלתות"], ["integrated", "אינטגרלי"], ["mini", "משרדי / מיני"]]));
+    return groups.filter(Boolean);
+  }
+  if (freezerTabs.has(activeAdvancedCategory)) {
+    const groups = [advancedRangeGroup("volume", "נפח מקפיא", products, ADVANCED_VOLUME_RANGES, (product) => advancedValue(product, "capacities", "totalLiters"))];
+    if (activeAdvancedCategory === "freezers") groups.unshift(advancedOptionGroup("freezerStyle", "סוג מקפיא", products, [["upright", "מקפיא עומד"], ["chest", "מקפיא שוכב"], ["integrated", "אינטגרלי"]]));
+    return groups.filter(Boolean);
+  }
+  if (activeAdvancedCategory === "washing-machines") return [advancedNumericGroup("washKg", "קיבולת כביסה", products, (product) => advancedValue(product, "capacities", "washKg"), (value) => `${advancedFormatNumber(value)} ק״ג`), advancedNumericGroup("spinRpm", "מהירות סחיטה", products, (product) => advancedValue(product, "performance", "spinRpm"), (value) => `${advancedFormatNumber(value)} סל״ד`)].filter(Boolean);
+  if (activeAdvancedCategory === "dryers") return [advancedNumericGroup("washKg", "קיבולת ייבוש", products, (product) => advancedValue(product, "capacities", "washKg"), (value) => `${advancedFormatNumber(value)} ק״ג`)].filter(Boolean);
+  if (activeAdvancedCategory === "tvs") return [advancedNumericGroup("screenSize", "גודל מסך", products, (product) => advancedValue(product, "performance", "screenSizeInches"), (value) => `${advancedFormatNumber(value)} אינץ׳`)].filter(Boolean);
+  if (activeAdvancedCategory === "dishwashers") return [advancedOptionGroup("dishwasherStyle", "סוג מדיח", products, [["counter", "על השיש"], ["integrated", "אינטגרלי"], ["standard", "רגיל"]]), advancedNumericGroup("placeSettings", "מערכות כלים", products, (product) => advancedValue(product, "capacities", "placeSettings"), (value) => `${advancedFormatNumber(value)} מערכות`)].filter(Boolean);
+  if (activeAdvancedCategory === "ovens") return [advancedOptionGroup("ovenStyle", "סוג תנור", products, [["built-in", "בנוי"], ["standing", "עומד / משולב"], ["microwave", "משולב מיקרו"]]), advancedNumericGroup("ovenLiters", "נפח תא אפייה", products, (product) => advancedValue(product, "capacities", "ovenLiters"), (value) => `${advancedFormatNumber(value)} ליטר`)].filter(Boolean);
+  if (activeAdvancedCategory === "hobs") return [advancedOptionGroup("hobType", "סוג כיריים", products, [["gas", "גז"], ["induction", "אינדוקציה"]])].filter(Boolean);
+  if (activeAdvancedCategory === "microwaves") return [advancedNumericGroup("microwaveLiters", "נפח", products, (product) => advancedValue(product, "capacities", "totalLiters"), (value) => `${advancedFormatNumber(value)} ליטר`)].filter(Boolean);
+  if (activeAdvancedCategory === "hoods") return [advancedOptionGroup("hoodWidth", "רוחב", products, [["60", "60 ס״מ"], ["90", "90 ס״מ"]])].filter(Boolean);
+  return [];
+}
+
+function advancedNumericGroup(key, label, products, getValue, format) {
+  const counts = new Map();
+  products.forEach((product) => { const value = advancedNumber(getValue(product)); if (value !== null) counts.set(value, (counts.get(value) || 0) + 1); });
+  const options = [...counts.entries()].map(([value, count]) => ({ value: String(value), label: format(value), count })).sort((left, right) => Number(left.value) - Number(right.value));
+  return options.length ? { key: `quick-${key}`, label, options } : null;
+}
+function advancedRangeGroup(key, label, products, ranges, getValue) { const options = advancedRangeOptions(ranges, getValue, products); return options.length ? { key: `quick-${key}`, label, options } : null; }
+function advancedOptionGroup(key, label, products, definitions) { const options = definitions.map(([value, optionLabel]) => ({ value, label: optionLabel, count: products.filter((product) => advancedMatchesQuickFilter(product, key, value)).length })).filter((option) => option.count); return options.length ? { key: `quick-${key}`, label, options } : null; }
+
+function advancedSimpleGroups() {
+  const products = getActiveAdvancedProducts();
+  const quickVolume = new Set(["refrigerators", "top-freezer", "bottom-freezer", "four-door", "integrated-refrigerators", "mini-refrigerators", "freezers", "upright-freezers", "chest-freezers", "microwaves"]).has(activeAdvancedCategory);
+  const countValues = (values, label = (value) => value) => { const counts = new Map(); values.filter(Boolean).forEach((value) => counts.set(value, (counts.get(value) || 0) + 1)); return [...counts.entries()].map(([value, count]) => ({ value, label: label(value), count })); };
+  return [
+    { key: "color", label: "צבע", options: countValues(products.flatMap((product) => product.colors || [])).sort((a, b) => a.label.localeCompare(b.label, "he")) },
+    { key: "energy", label: "דירוג אנרגטי", options: countValues(products.map((product) => advancedValue(product, "performance", "energyRating")), (value) => `דירוג ${value}`).sort((a, b) => a.value.localeCompare(b.value, "en")) },
+    { key: "feature", label: "תכונות בולטות", options: ADVANCED_FEATURES.map(([value, label]) => ({ value, label, count: products.filter((product) => advancedMatchesFeature(product, value)).length })).filter((option) => option.count) },
+    ...(!quickVolume ? [{ key: "volume", label: "נפח", options: advancedRangeOptions(ADVANCED_VOLUME_RANGES, (product) => advancedValue(product, "capacities", "totalLiters"), products) }] : []),
+    { key: "height", label: "גובה", options: advancedRangeOptions(ADVANCED_HEIGHT_RANGES, (product) => advancedValue(product, "dimensionsCm", "heightCm"), products) },
+    { key: "width", label: "רוחב", options: advancedRangeOptions(ADVANCED_WIDTH_RANGES, (product) => advancedValue(product, "dimensionsCm", "widthCm"), products) },
+    { key: "depth", label: "עומק", options: advancedRangeOptions(ADVANCED_DEPTH_RANGES, (product) => advancedValue(product, "dimensionsCm", "depthCm"), products) },
+  ].filter((group) => group.options.length);
+}
+
+function advancedRangeOptions(ranges, getValue, products) { return ranges.map(([value, label, minimum, maximum]) => ({ value, label, count: products.filter((product) => advancedMatchesRange(getValue(product), { minimum, maximum })).length })).filter((option) => option.count); }
+function createAdvancedFilterGroup(group) {
+  const details = document.createElement("details");
+  details.className = "portal-simple-filter-group";
+  const activeValue = advancedFilterValue(group.key);
+  details.open = Boolean(activeValue) || Boolean(activeAdvancedCategory && group.key.startsWith("quick-"));
+  const summary = document.createElement("summary");
+  summary.textContent = group.label;
+  const options = document.createElement("div");
+  options.className = "portal-simple-filter-options";
+  group.options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "portal-simple-filter-option";
+    button.dataset.filterGroup = group.key;
+    button.dataset.filterValue = option.value;
+    button.setAttribute("aria-pressed", String(activeValue === option.value));
+    button.textContent = `${option.label} (${option.count})`;
+    button.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); toggleAdvancedFilter(group.key, option.value); });
+    options.append(button);
+  });
+  details.append(summary, options);
+  return details;
+}
+
+function toggleAdvancedFilter(group, value) {
+  if (group.startsWith("quick-")) { const key = group.slice(6); activeAdvancedQuickFilters[key] = activeAdvancedQuickFilters[key] === value ? "" : value; }
+  else if (group in activeAdvancedFacets) activeAdvancedFacets[group] = activeAdvancedFacets[group] === value ? "" : value;
+  renderProducts();
+}
+
+function advancedMatchesSimpleFilters(product) {
+  return (!activeAdvancedFacets.color || (product.colors || []).includes(activeAdvancedFacets.color))
+    && (!activeAdvancedFacets.energy || advancedValue(product, "performance", "energyRating") === activeAdvancedFacets.energy)
+    && (!activeAdvancedFacets.volume || advancedMatchesRange(advancedValue(product, "capacities", "totalLiters"), advancedRange(ADVANCED_VOLUME_RANGES, activeAdvancedFacets.volume)))
+    && (!activeAdvancedFacets.height || advancedMatchesRange(advancedValue(product, "dimensionsCm", "heightCm"), advancedRange(ADVANCED_HEIGHT_RANGES, activeAdvancedFacets.height)))
+    && (!activeAdvancedFacets.width || advancedMatchesRange(advancedValue(product, "dimensionsCm", "widthCm"), advancedRange(ADVANCED_WIDTH_RANGES, activeAdvancedFacets.width)))
+    && (!activeAdvancedFacets.depth || advancedMatchesRange(advancedValue(product, "dimensionsCm", "depthCm"), advancedRange(ADVANCED_DEPTH_RANGES, activeAdvancedFacets.depth)))
+    && (!activeAdvancedFacets.feature || advancedMatchesFeature(product, activeAdvancedFacets.feature))
+    && Object.entries(activeAdvancedQuickFilters).every(([key, value]) => !value || advancedMatchesQuickFilter(product, key, value));
+}
+
+function advancedMatchesFeature(product, value) { const feature = ADVANCED_FEATURES.find(([key]) => key === value); return Boolean(feature?.[2](advancedFacts(product))); }
+function advancedMatchesQuickFilter(product, key, value) {
+  if (key === "washKg") return advancedNumber(advancedValue(product, "capacities", "washKg")) === Number(value);
+  if (key === "spinRpm") return advancedNumber(advancedValue(product, "performance", "spinRpm")) === Number(value);
+  if (key === "screenSize") return advancedNumber(advancedValue(product, "performance", "screenSizeInches")) === Number(value);
+  if (key === "placeSettings") return advancedNumber(advancedValue(product, "capacities", "placeSettings")) === Number(value);
+  if (key === "ovenLiters") return advancedNumber(advancedValue(product, "capacities", "ovenLiters")) === Number(value);
+  if (key === "microwaveLiters") return advancedNumber(advancedValue(product, "capacities", "totalLiters")) === Number(value);
+  if (key === "volume") return advancedMatchesRange(advancedValue(product, "capacities", "totalLiters"), advancedRange(ADVANCED_VOLUME_RANGES, value));
+  if (key === "refrigeratorFeature") return value === "zero-line" && advancedIsCategory(product, "מקרר") && /קו\s*(אפס|0)|zero\s*-?\s*line/.test(advancedFacts(product));
+  if (key === "fridgeStyle") return advancedMatchesRefrigeratorStyle(product, value);
+  if (key === "freezerStyle") return advancedMatchesFreezerStyle(product, value);
+  if (key === "dishwasherStyle") { const facts = advancedFacts(product); return value === "counter" ? /על השיש/.test(facts) : value === "integrated" ? /אינטגרלי/.test(facts) : !/על השיש|אינטגרלי/.test(facts); }
+  if (key === "ovenStyle") { const facts = advancedFacts(product); return value === "built-in" ? /בנוי/.test(facts) && !/משולב מיקרו/.test(facts) : value === "standing" ? /עומד|משולב/.test(facts) && !/משולב מיקרו/.test(facts) : /משולב מיקרו/.test(facts); }
+  if (key === "hobType") return value === "gas" ? /גז/.test(advancedFacts(product)) : /אינדוקציה/.test(advancedFacts(product));
+  if (key === "hoodWidth") return advancedNumber(advancedValue(product, "dimensionsCm", "widthCm")) === Number(value) || new RegExp(`\\b${value}\\s*סמ`).test(advancedFacts(product));
+  return false;
+}
+function advancedMatchesRefrigeratorStyle(product, style) { if (!advancedIsCategory(product, "מקרר")) return false; const facts = advancedFacts(product); return style === "top" ? /מקפיא עליון/.test(facts) : style === "bottom" ? /מקפיא תחתון|מקפיא תחתחון/.test(facts) : style === "four-door" ? /4 דלתות/.test(facts) : style === "integrated" ? /אינטגרלי/.test(facts) : /משרדי|קוביה|יין|ויטרינה/.test(facts); }
+function advancedMatchesFreezerStyle(product, style) { if (!advancedIsCategory(product, "מקפיא")) return false; const facts = advancedFacts(product); return style === "chest" ? /שוכב/.test(facts) : style === "upright" ? !/שוכב/.test(facts) : /אינטגרלי/.test(facts); }
 
 function productCard(product, { ordering = false } = {}) {
   const facts = cleanFacts(product);
   const action = ordering ? `<div class="inline-add-fields"><label class="inline-add-field"><span>כמות</span><select data-quantity-for="${escapeAttr(product.model)}">${quantityOptions(1, 50)}</select></label><button class="add-cart-button" type="button" data-order-add="${escapeAttr(product.model)}">הוסף לסל</button></div>` : `<div class="advanced-readonly-actions"><span class="portal-readonly-badge">מפרט לקריאה בלבד</span></div>`;
   return `<article class="result-row"><div class="result-main"><div class="result-content"><div class="sku">${escapeHtml(product.model || "—")}</div><div class="description">${escapeHtml(product.name || product.model)}</div><div class="annotation-meta"><span class="category-label">${escapeHtml(product.category || "מוצר")}</span>${ordering ? stockLabel(product) : ""}</div>${facts ? `<div class="portal-fact-tags">${facts}</div>` : ""}${!ordering ? `${productSpecification(product)}${productDocumentLinks(product)}` : ""}</div>${ordering ? `<strong class="price">${formatPrice(product.price)}</strong>` : ""}</div><div class="item-tools">${action}</div></article>`;
-}
-
-function renderQuickFilters(products) {
-  const groups = [];
-  const volumeRanges = [[0, 300, "עד 300 ליטר"], [301, 450, "301–450 ליטר"], [451, 650, "451–650 ליטר"], [651, Infinity, "מעל 650 ליטר"]];
-  const widthRanges = [[0, 60, "רוחב עד 60 ס״מ"], [61, 70, "רוחב 61–70 ס״מ"], [71, Infinity, "רוחב 71+ ס״מ"]];
-  const heightRanges = [[0, 120, "עד 120 ס״מ"], [121, 160, "121–160 ס״מ"], [161, 180, "161–180 ס״מ"], [181, Infinity, "מעל 180 ס״מ"]];
-  const depthRanges = [[0, 55, "עד 55 ס״מ"], [56, 65, "56–65 ס״מ"], [66, Infinity, "מעל 65 ס״מ"]];
-  const rangeButtons = (key, ranges, getValue) => ranges
-    .map(([min, max, label]) => ({ min, max, label, count: products.filter((product) => inRange(getValue(product), min, max)).length }))
-    .filter((option) => option.count)
-    .map((option) => quickButton(key, `${option.min}:${option.max}`, option.label, option.count));
-  const numericButtons = (key, getValue, format) => [...new Set(products.map(getValue).filter((value) => Number.isFinite(Number(value))))]
-    .sort((left, right) => Number(left) - Number(right))
-    .slice(0, 12)
-    .map((value) => quickButton(key, String(value), format(value), products.filter((product) => Number(getValue(product)) === Number(value)).length));
-  const capacityButtons = rangeButtons("volume", volumeRanges, (product) => product.technical?.capacities?.totalLiters);
-  const widthButtons = rangeButtons("width", widthRanges, (product) => product.technical?.dimensionsCm?.widthCm);
-  const heightButtons = rangeButtons("height", heightRanges, (product) => product.technical?.dimensionsCm?.heightCm);
-  const depthButtons = rangeButtons("depth", depthRanges, (product) => product.technical?.dimensionsCm?.depthCm);
-  const washButtons = numericButtons("washKg", (product) => product.technical?.capacities?.washKg, (value) => `${value} ק״ג`);
-  const screenButtons = numericButtons("screenSize", (product) => product.technical?.performance?.screenSizeInches, (value) => `${value} אינץ׳`);
-  const spinButtons = numericButtons("spinRpm", (product) => product.technical?.performance?.spinRpm, (value) => `${Number(value).toLocaleString("he-IL")} סל״ד`);
-  const colors = [...new Set(products.flatMap((product) => product.colors || []).filter(Boolean))].sort((left, right) => String(left).localeCompare(String(right), "he"));
-  const energy = [...new Set(products.map((product) => product.technical?.performance?.energyRating).filter(Boolean))].sort();
-  const featureDefinitions = [["zeroLine", "קו אפס"], ["noFrost", "No Frost"], ["inverter", "מנוע אינוורטר"], ["heatPump", "משאבת חום"], ["turbo", "טורבו"]];
-  const featureButtons = featureDefinitions
-    .map(([value, label]) => ({ value, label, count: products.filter((product) => productMatchesFeature(product, value)).length }))
-    .filter((option) => option.count)
-    .map((option) => quickButton("feature", option.value, option.label, option.count));
-  if (capacityButtons.length) groups.push(portalFilterGroup("נפח", capacityButtons));
-  if (washButtons.length) groups.push(portalFilterGroup("קיבולת", washButtons));
-  if (screenButtons.length) groups.push(portalFilterGroup("גודל מסך", screenButtons));
-  if (spinButtons.length) groups.push(portalFilterGroup("מהירות סחיטה", spinButtons));
-  if (widthButtons.length) groups.push(portalFilterGroup("רוחב", widthButtons));
-  if (heightButtons.length) groups.push(portalFilterGroup("גובה", heightButtons));
-  if (depthButtons.length) groups.push(portalFilterGroup("עומק", depthButtons));
-  if (colors.length) groups.push(portalFilterGroup("צבע", colors.map((color) => quickButton("color", color, color, products.filter((product) => (product.colors || []).includes(color)).length))));
-  if (energy.length) groups.push(portalFilterGroup("דירוג אנרגטי", energy.map((rating) => quickButton("energy", rating, `דירוג ${rating}`, products.filter((product) => product.technical?.performance?.energyRating === rating).length))));
-  if (featureButtons.length) groups.push(portalFilterGroup("תכונות בולטות", featureButtons));
-  const quickFilters = $("#quickFilters");
-  quickFilters.innerHTML = groups.join("") || `<span class="portal-muted">בחר קטגוריה כדי לראות סינונים רלוונטיים.</span>`;
-  quickFilters.querySelectorAll("[data-filter]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      togglePortalQuickFilter(button.dataset.filter || "", button.dataset.value || "");
-    });
-  });
-}
-
-function portalFilterGroup(label, buttons) {
-  const active = buttons.some((button) => /\bactive\b/.test(button));
-  return `<details class="portal-filter-group" ${active ? "open" : ""}><summary>${escapeHtml(label)}</summary><div class="portal-filter-options">${buttons.join("")}</div></details>`;
-}
-function quickButton(key, value, label, count = 0) { return `<button class="advanced-filter-option ${state.filters[key] === value ? "active" : ""}" type="button" data-filter="${escapeAttr(key)}" data-value="${escapeAttr(value)}">${escapeHtml(label)}${count ? ` <small>(${Number(count).toLocaleString("he-IL")})</small>` : ""}</button>`; }
-function inRange(value, min, max) { return Number.isFinite(Number(value)) && Number(value) >= min && Number(value) <= max; }
-function productMatchesFeature(product, feature) {
-  const facts = `${product.name || ""} ${(product.technical?.facts || []).join(" ")}`;
-  const matchers = {
-    zeroLine: /קו\s*(אפס|0)|zero\s*-?\s*line/i,
-    noFrost: /no\s*-?\s*frost/i,
-    inverter: /אינוורטר|inverter/i,
-    heatPump: /משאבת\s*חום|heat\s*pump/i,
-    turbo: /טורבו|turbo/i,
-  };
-  return Boolean(matchers[feature]?.test(facts));
-}
-function matchesQuickFilters(product) {
-  const { volume, width, height, depth, washKg, screenSize, spinRpm, color, energy, feature } = state.filters;
-  if (volume) { const [min, max] = volume.split(":").map(Number); if (!inRange(product.technical?.capacities?.totalLiters, min, max)) return false; }
-  if (width) { const [min, max] = width.split(":").map(Number); if (!inRange(product.technical?.dimensionsCm?.widthCm, min, max)) return false; }
-  if (height) { const [min, max] = height.split(":").map(Number); if (!inRange(product.technical?.dimensionsCm?.heightCm, min, max)) return false; }
-  if (depth) { const [min, max] = depth.split(":").map(Number); if (!inRange(product.technical?.dimensionsCm?.depthCm, min, max)) return false; }
-  if (washKg && Number(product.technical?.capacities?.washKg) !== Number(washKg)) return false;
-  if (screenSize && Number(product.technical?.performance?.screenSizeInches) !== Number(screenSize)) return false;
-  if (spinRpm && Number(product.technical?.performance?.spinRpm) !== Number(spinRpm)) return false;
-  if (color && !(product.colors || []).includes(color)) return false;
-  if (energy && product.technical?.performance?.energyRating !== energy) return false;
-  if (feature && !productMatchesFeature(product, feature)) return false;
-  return true;
 }
 
 function reservationFor(customerId, model) {
@@ -564,12 +675,27 @@ $("#searchCustomerSelect").addEventListener("input", () => { if (findCustomer($(
 $("#searchCustomerSelect").addEventListener("change", () => { selectActiveCustomer($("#searchCustomerSelect")); renderCart(); renderOrderSearch(); });
 $("#customerSelect").addEventListener("change", () => { selectActiveCustomer($("#customerSelect")); renderCart(); renderOrderSearch(); });
 $("#clearCart").addEventListener("click", () => clearCart("ההזמנה נוקתה והלקוח שוחרר."));
-$("#categoryFilters").addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (!button) return; state.category = button.dataset.category === state.category ? "" : button.dataset.category; state.filters = {}; renderProducts(); });
-function togglePortalQuickFilter(filter, value) {
-  if (!filter || !value) return;
-  state.filters[filter] = state.filters[filter] === value ? "" : value;
+$("#categoryFilters").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-category]");
+  if (!button) return;
+  const selected = button.dataset.category || "";
+  activeAdvancedCategory = activeAdvancedCategory === selected ? "" : selected;
+  clearAdvancedFacets();
+  clearAdvancedQuickFilters();
   renderProducts();
-}
+});
+$("#clearAdvancedCategory").addEventListener("click", () => {
+  activeAdvancedCategory = "";
+  clearAdvancedFacets();
+  clearAdvancedQuickFilters();
+  renderProducts();
+});
+$("#clearAdvancedFilters").addEventListener("click", () => {
+  activeAdvancedCategory = "";
+  clearAdvancedFacets();
+  clearAdvancedQuickFilters();
+  renderProducts();
+});
 $("#orderSearchResults").addEventListener("click", (event) => { const button = event.target.closest("[data-order-add]"); if (!button) return; const product = state.products.find((item) => item.model === button.dataset.orderAdd); const picker = button.closest(".item-tools")?.querySelector("[data-quantity-for]"); if (product) openAddDialog(product, picker?.value || 1); });
 $("#cartCustomerForm").addEventListener("submit", (event) => { event.preventDefault(); addPendingToCart(); });
 $("#closeCartCustomerDialog").addEventListener("click", closeAddDialog);
