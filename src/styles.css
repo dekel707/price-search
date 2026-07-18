@@ -6746,6 +6746,103 @@ body {
   .customer-intelligence-header { align-items: center; }
 }
 
+/* Keep the customer list compact. A customer opens only on an explicit tap,
+   so long lists stay easy to scan on both desktop and mobile. */
+.customer-card {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+
+.customer-card-summary {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 62px;
+  padding: 11px 44px 11px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.customer-card-summary::-webkit-details-marker { display: none; }
+
+.customer-card-summary::after {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(139, 188, 220, 0.3);
+  border-radius: 8px;
+  background: rgba(76, 145, 183, 0.11);
+  color: #aeeaff;
+  font-size: 1rem;
+  font-weight: 900;
+  content: "+";
+  transform: translateY(-50%);
+}
+
+.customer-card[open] .customer-card-summary::after { content: "−"; }
+
+.customer-card-summary > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.customer-card-summary strong {
+  overflow: hidden;
+  color: #f2fbff;
+  font-size: .9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-card-summary small {
+  overflow: hidden;
+  color: #a9c1d0;
+  font-size: .73rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-card-summary > b {
+  color: #aeeaff;
+  font-size: .75rem;
+  white-space: nowrap;
+}
+
+.customer-card-content {
+  display: grid;
+  gap: 7px;
+  padding: 0 14px 14px;
+  border-top: 1px solid rgba(151, 193, 220, 0.14);
+}
+
+.customer-card-content > span,
+.customer-card-content > small {
+  color: #a9c1d0;
+  font-size: .78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.customer-card-content > span { padding-top: 11px; }
+
+.customer-card-content .customer-actions {
+  margin-top: 2px;
+}
+
+@media (max-width: 620px) {
+  .customer-card-summary { min-height: 58px; padding-inline-start: 40px; }
+  .customer-card-summary > b { font-size: .7rem; }
+  .customer-card-content { padding-inline: 11px; padding-bottom: 11px; }
+}
+
 /* Owner-only queue for orders created in the isolated Eitan portal. */
 .orders-panel.eitan-orders-panel {
   --workspace-tone: #9d83e8;

@@ -455,6 +455,7 @@ let aiOrderProposal = null;
 let activeTab = "search";
 let orderType = "delivery";
 let activeCustomerId = "";
+let openCustomerCardId = "";
 let pendingCartProduct = null;
 let pendingCartFutureStock = false;
 let pendingFutureStockRequest = null;
@@ -886,6 +887,7 @@ function bindEvents() {
     const viewOrdersButton = event.target.closest("[data-view-customer-orders]");
     if (viewOrdersButton) {
       activeCustomerId = viewOrdersButton.dataset.viewCustomerOrders;
+      openCustomerCardId = activeCustomerId;
       renderCustomersPanel();
       dom.customerHistory.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -893,15 +895,29 @@ function bindEvents() {
 
     const card = event.target.closest("[data-view-customer]");
     if (event.target.closest(".customer-display-sales")) return;
-    if (card) {
+    if (card && card.tagName !== "DETAILS") {
       activeCustomerId = card.dataset.viewCustomer;
       renderCustomersPanel();
     }
   });
+  dom.customersList.addEventListener("toggle", (event) => {
+    const card = event.target.closest("details[data-view-customer]");
+    if (!card || event.target !== card) return;
+    const customerId = card.dataset.viewCustomer;
+    if (card.open) {
+      activeCustomerId = customerId;
+      openCustomerCardId = customerId;
+    } else if (openCustomerCardId === customerId) {
+      openCustomerCardId = "";
+      if (activeCustomerId === customerId) activeCustomerId = "";
+    }
+    renderCustomersPanel();
+  }, true);
   dom.customerAlertsList.addEventListener("click", (event) => {
     const alert = event.target.closest("[data-open-customer-intelligence]");
     if (!alert) return;
     activeCustomerId = alert.dataset.openCustomerIntelligence;
+    openCustomerCardId = activeCustomerId;
     renderCustomersPanel();
     dom.customerIntelligence.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -2561,6 +2577,10 @@ function renderTabs() {
 
 function setActiveTab(tab) {
   if (!dom.tabPanels.some((panel) => panel.dataset.tabPanel === tab)) return;
+  if (tab === "customers" && activeTab !== "customers") {
+    activeCustomerId = "";
+    openCustomerCardId = "";
+  }
   activeTab = tab;
   localStorage.setItem(ACTIVE_TAB_KEY, JSON.stringify(activeTab));
   renderTabs();
@@ -4297,18 +4317,25 @@ function renderCustomersPanel() {
 function renderCustomerCard(customer) {
   const customerOrders = getOrdersForCustomer(customer);
   const stats = getOrderStats(customerOrders);
-  const card = document.createElement("article");
+  const card = document.createElement("details");
   card.className = "customer-card";
   card.dataset.viewCustomer = customer.id;
   card.setAttribute("aria-selected", String(customer.id === activeCustomerId));
+  card.open = customer.id === openCustomerCardId;
+
+  const summary = document.createElement("summary");
+  summary.className = "customer-card-summary";
+  const summaryDetails = [customer.code ? `קוד: ${customer.code}` : "", customer.phone ? `טל׳: ${customer.phone}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  summary.innerHTML = `<span><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(summaryDetails || "ללא קוד או טלפון")}</small></span><b>${escapeHtml(stats.orderCount ? `${stats.orderCount.toLocaleString("he-IL")} הזמנות` : "לקוח חדש")}</b>`;
 
   const body = document.createElement("div");
-  body.className = "customer-body";
+  body.className = "customer-card-content";
   const details = [customer.code ? `קוד: ${customer.code}` : "", customer.phone ? `טל׳: ${customer.phone}` : ""]
     .filter(Boolean)
     .join(" · ");
   body.innerHTML = `
-    <strong>${escapeHtml(customer.name)}</strong>
     <span>${escapeHtml(details || "ללא קוד או טלפון")}</span>
     <small>${escapeHtml(stats.orderCount ? `${stats.orderCount.toLocaleString("he-IL")} הזמנות` : "אין הזמנות עדיין")}</small>
   `;
@@ -4338,7 +4365,8 @@ function renderCustomerCard(customer) {
   viewOrders.textContent = "הצג הזמנות";
 
   actions.append(viewOrders, choose, edit);
-  card.append(body, actions);
+  body.append(actions);
+  card.append(summary, body);
   return card;
 }
 
@@ -4434,9 +4462,9 @@ function getOrderItemLineTotal(item) {
 
 function renderCustomerOrders() {
   const customer = customers.find((item) => item.id === activeCustomerId) || null;
-  if (!customer) {
+  if (!customer || customer.id !== openCustomerCardId) {
     dom.customerHistoryTitle.textContent = "הזמנות לקוח";
-    dom.customerOrders.replaceChildren(emptyState("בחר לקוח כדי לראות הזמנות עבר."));
+    dom.customerOrders.replaceChildren(emptyState("פתח לקוח מהרשימה כדי לראות את ההזמנות והנתונים שלו."));
     return;
   }
 
@@ -4643,6 +4671,7 @@ function editCustomer(customerId) {
   const customer = customers.find((item) => item.id === customerId);
   if (!customer) return;
   activeCustomerId = customer.id;
+  openCustomerCardId = customer.id;
   dom.customerId.value = customer.id;
   dom.customerCode.value = customer.code || "";
   dom.customerFormName.value = customer.name;
