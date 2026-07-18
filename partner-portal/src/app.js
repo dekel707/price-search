@@ -4,6 +4,58 @@ const ORDER_WHATSAPP_PHONE = "972523685265";
 const state = { user: null, products: [], customers: [], reservations: [], orders: [], cart: [], category: "", filters: {}, syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 2 });
+const DEMO_EXPIRES_AT = "2026-07-20T22:00:00.000Z";
+const DEMO_DATA = {
+  products: [
+    { model: "DEMO-RF488", skuKey: "DEMO-RF488", name: "מקרר 4 דלתות 488 ל׳ · הדגמה", category: "מקררים", colors: ["נירוסטה"], price: 3490, stockQuantity: 6, technical: { facts: ["No Frost", "קו אפס", "מנוע אינוורטר"], dimensionsCm: { widthCm: 83, heightCm: 178, depthCm: 70 }, capacities: { totalLiters: 488, freezerLiters: 160 }, performance: { energyRating: "E" } }, documents: [] },
+    { model: "DEMO-WM8", skuKey: "DEMO-WM8", name: "מכונת כביסה 8 ק״ג · הדגמה", category: "מכונות כביסה", colors: ["לבן"], price: 1890, stockQuantity: 9, technical: { facts: ["מנוע אינוורטר", "1,400 סל״ד", "תכנית מהירה"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 56 }, capacities: { washKg: 8 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "DEMO-DR9", skuKey: "DEMO-DR9", name: "מייבש כביסה 9 ק״ג · הדגמה", category: "מייבשים", colors: ["לבן"], price: 2190, stockQuantity: 4, technical: { facts: ["משאבת חום", "חיישני לחות", "תוף גדול"], dimensionsCm: { widthCm: 60, heightCm: 85, depthCm: 63 }, capacities: { washKg: 9 }, performance: { energyRating: "A" } }, documents: [] },
+    { model: "DEMO-OV60", skuKey: "DEMO-OV60", name: "תנור בילד־אין 60 ס״מ · הדגמה", category: "תנורים", colors: ["שחור"], price: 2390, stockQuantity: 3, technical: { facts: ["טורבו", "ניקוי קל", "תא אפייה גדול"], dimensionsCm: { widthCm: 60, heightCm: 60, depthCm: 56 }, capacities: { ovenLiters: 72 }, performance: { energyRating: "A" } }, documents: [] },
+  ],
+  customers: [
+    { id: "demo-customer-sap", name: "סאפ הדגמה בע״מ", code: "D-1001", phone: "0500000001" },
+    { id: "demo-customer-north", name: "חשמל הצפון · הדגמה", code: "D-1002", phone: "0500000002" },
+    { id: "demo-customer-direct", name: "לקוח לדוגמה", code: "D-1003", phone: "0500000003" },
+  ],
+  reservations: [
+    { id: "demo-res-1", customerId: "demo-customer-sap", sku: "DEMO-RF488", skuKey: "DEMO-RF488", description: "מקרר 4 דלתות 488 ל׳ · הדגמה", quantity: 2 },
+    { id: "demo-res-2", customerId: "demo-customer-sap", sku: "DEMO-WM8", skuKey: "DEMO-WM8", description: "מכונת כביסה 8 ק״ג · הדגמה", quantity: 3 },
+    { id: "demo-res-3", customerId: "demo-customer-north", sku: "DEMO-DR9", skuKey: "DEMO-DR9", description: "מייבש כביסה 9 ק״ג · הדגמה", quantity: 1 },
+  ],
+  orders: [
+    { id: "demo-order-1", status: "demo", customer_name: "סאפ הדגמה בע״מ", mainCustomerId: "demo-customer-sap", created_at: "2026-07-18T08:30:00.000Z", items: [{ model: "DEMO-RF488", skuKey: "DEMO-RF488", name: "מקרר 4 דלתות 488 ל׳ · הדגמה", quantity: 1, price: 3490, unitPrice: 3490, listPrice: 3490, fromReservation: true, reservationQuantity: 1 }] },
+  ],
+};
+let demoInitialized = false;
+
+function isDemoMode() { return state.user?.role === "demo"; }
+function demoIsAvailable() { return Date.now() < Date.parse(DEMO_EXPIRES_AT); }
+function cloneDemoData() { return JSON.parse(JSON.stringify(DEMO_DATA)); }
+function demoExpiryLabel() { return new Date(DEMO_EXPIRES_AT).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" }); }
+
+async function startDemoMode() {
+  if (!demoIsAvailable()) {
+    $("#loginMessage").textContent = "תקופת ההדגמה הסתיימה.";
+    return;
+  }
+  clearInterval(refreshTimer);
+  demoInitialized = false;
+  state.user = { id: "eitan-demo", role: "demo", name: "איתן · הדגמה" };
+  state.cart = [];
+  state.customerId = "";
+  state.editingOrderId = "";
+  state.activeTab = "search";
+  state.openReservationCustomers = new Set();
+  $("#loginView").hidden = true;
+  $("#portalView").hidden = false;
+  await refresh();
+}
+
+function configureDemoEntry() {
+  const available = demoIsAvailable();
+  $("#demoLogin").hidden = !available;
+  $("#demoLoginHint").hidden = !available;
+}
 
 async function api(path, options = {}) {
   const controller = new AbortController();
@@ -297,7 +349,7 @@ function renderData() {
 }
 
 function orderCard(order) {
-  const labels = { processing: "מסנכרן", sent_to_main: "נכנסה למערכת", sync_failed: "מנסה שוב לשלוח" };
+  const labels = { processing: "מסנכרן", sent_to_main: "נכנסה למערכת", sync_failed: "מנסה שוב לשלוח", demo: "הדגמה בלבד" };
   const items = (order.items || []).map((item) => `${item.name} ×${item.quantity}${Number(item.reservationQuantity || 0) ? ` · שריון ${item.reservationQuantity}` : ""}`).join(" · ");
   return `<article class="order-card"><div class="order-body"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><span>${escapeHtml(items)}</span><small>${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</small></div><div class="order-card-actions"><button class="secondary-button" type="button" data-show-order="${escapeAttr(order.id)}">הצג הזמנה</button><button class="whatsapp-button" type="button" data-send-order="${escapeAttr(order.id)}">WhatsApp</button><button class="secondary-button" type="button" data-edit-order="${escapeAttr(order.id)}">ערוך</button><button class="danger-button" type="button" data-delete-order="${escapeAttr(order.id)}">מחק</button></div></article>`;
 }
@@ -330,6 +382,13 @@ function closeDeleteDialog() { state.pendingDeleteId = ""; $("#deleteOrderDialog
 async function deleteOrder(orderId) {
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) return;
+  if (isDemoMode()) {
+    state.orders = state.orders.filter((item) => item.id !== orderId);
+    if (state.editingOrderId === orderId) cancelEdit();
+    renderData();
+    $("#orderActionMessage").textContent = "ההזמנה נמחקה מההדגמה בלבד — לא בוצע שינוי במערכת האמיתית.";
+    return;
+  }
   try {
     await api("?action=delete-order", { method: "POST", body: JSON.stringify({ orderId }) });
     if (state.editingOrderId === orderId) cancelEdit();
@@ -348,6 +407,7 @@ function clearCart(message = "") {
 function cancelEdit() { clearCart("עריכת ההזמנה בוטלה והסל נוקה."); }
 
 async function refresh() {
+  if (isDemoMode()) return refreshDemo();
   document.querySelectorAll(".reservation-customer-card[open]").forEach((item) => state.openReservationCustomers.add(item.dataset.reservationCustomer));
   const [live, orders] = await Promise.all([api("?resource=live"), api("?resource=orders")]);
   Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
@@ -361,7 +421,36 @@ async function refresh() {
   setTab(state.activeTab);
 }
 
+function refreshDemo() {
+  if (!demoIsAvailable()) {
+    state.user = null;
+    demoInitialized = false;
+    document.body.classList.remove("portal-demo");
+    $("#portalView").hidden = true;
+    $("#loginView").hidden = false;
+    $("#loginMessage").textContent = "תקופת ההדגמה הסתיימה.";
+    configureDemoEntry();
+    return;
+  }
+  if (!demoInitialized) {
+    Object.assign(state, cloneDemoData());
+    state.syncedAt = new Date().toISOString();
+    demoInitialized = true;
+  }
+  document.body.classList.add("portal-demo");
+  $("#portalTitle").textContent = "מחירון והזמנות · הדגמה";
+  $("#portalSubtitle").textContent = "סביבת הדגמה מבודדת · שום פעולה אינה נשמרת או נשלחת";
+  $("#portalMetadata").textContent = `דמו פעיל עד ${demoExpiryLabel()}`;
+  $("#orderSearchStatus").textContent = "נתוני הדגמה בלבד: אפשר לחפש, להוסיף לסל, ליצור, לערוך ולמחוק הזמנות בלי להשפיע על שום מערכת.";
+  renderOrderSearch(); renderProducts(); renderData(); renderCart();
+  setTab(state.activeTab);
+}
+
 function sendReservationsToWhatsApp(customerId) {
+  if (isDemoMode()) {
+    $("#orderActionMessage").textContent = "הדגמה: ההודעה לא נשלחה ב־WhatsApp ולא בוצע שינוי במערכת האמיתית.";
+    return;
+  }
   const customer = state.customers.find((item) => item.id === customerId);
   const entries = state.reservations.filter((item) => item.customerId === customerId && Number(item.quantity) > 0);
   const phone = String(customer?.phone || "").replace(/\D/g, "").replace(/^0/, "972");
@@ -386,13 +475,31 @@ function whatsappText({ customerName, items, createdAt }) {
 
 function openOrderWhatsApp(order) {
   if (!order) return;
+  if (isDemoMode()) {
+    $("#orderActionMessage").textContent = "הדגמה: WhatsApp מושבת בהדגמה כדי שלא תישלח הודעה אמיתית.";
+    return;
+  }
   window.open(`https://wa.me/${ORDER_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappText({ customerName: order.customer_name, items: order.items, createdAt: order.created_at }))}`, "_blank", "noopener,noreferrer");
 }
 
 function sendCartToWhatsApp() {
   const customer = findCustomer(state.customerId);
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שליחה בוואטסאפ."; return; }
+  if (isDemoMode()) { $("#cartMessage").textContent = "הדגמה: WhatsApp מושבת כדי שלא תישלח הודעה אמיתית."; return; }
   openOrderWhatsApp({ customer_name: customer.name, items: state.cart, created_at: new Date().toISOString() });
+}
+
+function saveDemoOrder(customer) {
+  const editing = state.editingOrderId;
+  const items = state.cart.map((item) => ({ ...item, unitPrice: item.price, listPrice: item.price, reservationQuantity: item.fromReservation ? Math.min(Number(item.quantity || 0), Number(reservationFor(customer.id, item.model)?.quantity || 0)) : 0 }));
+  const nextOrder = { id: editing || `demo-order-${Date.now()}`, status: "demo", customer_name: customer.name, mainCustomerId: customer.id, created_at: editing ? (state.orders.find((item) => item.id === editing)?.created_at || new Date().toISOString()) : new Date().toISOString(), items };
+  state.orders = editing ? state.orders.map((item) => item.id === editing ? nextOrder : item) : [nextOrder, ...state.orders];
+  state.cart = [];
+  state.editingOrderId = "";
+  clearActiveCustomer();
+  renderData();
+  renderCart();
+  $("#cartMessage").textContent = editing ? "הדגמה: השינויים נשמרו בהדגמה בלבד." : "הדגמה: ההזמנה נוצרה בהדגמה בלבד ולא נשלחה למערכת האמיתית.";
 }
 
 $("#loginForm").addEventListener("submit", async (event) => {
@@ -403,7 +510,11 @@ $("#loginForm").addEventListener("submit", async (event) => {
   finally { submit.disabled = false; }
 });
 
-$("#logoutButton").addEventListener("click", async () => { await api("?action=logout", { method: "POST" }); location.reload(); });
+$("#demoLogin").addEventListener("click", () => startDemoMode().catch((error) => { $("#loginMessage").textContent = `לא ניתן לפתוח את ההדגמה: ${error.message}`; }));
+$("#logoutButton").addEventListener("click", async () => {
+  if (isDemoMode()) { location.href = location.pathname; return; }
+  await api("?action=logout", { method: "POST" }); location.reload();
+});
 document.querySelectorAll(".tab-button").forEach((tab) => tab.addEventListener("click", (event) => { event.preventDefault(); setTab(tab.dataset.tab); }));
 $("#orderSearchInput").addEventListener("input", renderOrderSearch);
 $("#advancedSearchInput").addEventListener("input", renderProducts);
@@ -442,6 +553,7 @@ $("#submitOrder").addEventListener("click", async () => {
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים."; return; }
   const displayedCustomer = resolveCustomerInput($("#customerSelect"));
   if (!displayedCustomer || displayedCustomer.id !== customer.id) { syncActiveCustomerInputs(); $("#cartMessage").textContent = "הסל משויך ללקוח הפעיל. נקה את ההזמנה כדי לבחור לקוח אחר."; return; }
+  if (isDemoMode()) { saveDemoOrder(customer); return; }
   const submit = $("#submitOrder"); submit.disabled = true;
   const editing = state.editingOrderId;
   try {
@@ -455,4 +567,10 @@ $("#submitOrder").addEventListener("click", async () => {
 
 let refreshTimer;
 function startRefreshTimer() { clearInterval(refreshTimer); refreshTimer = setInterval(() => refresh().catch(() => {}), 30_000); }
-api("?resource=session").then(async ({ user }) => { if (!user) return; state.user = user; $("#loginView").hidden = true; $("#portalView").hidden = false; await refresh(); startRefreshTimer(); }).catch(() => {});
+configureDemoEntry();
+const demoRequested = new URLSearchParams(window.location.search).get("demo") === "1";
+if (demoRequested && demoIsAvailable()) {
+  startDemoMode().catch((error) => { $("#loginMessage").textContent = `לא ניתן לפתוח את ההדגמה: ${error.message}`; });
+} else {
+  api("?resource=session").then(async ({ user }) => { if (!user) return; state.user = user; $("#loginView").hidden = true; $("#portalView").hidden = false; await refresh(); startRefreshTimer(); }).catch(() => {});
+}

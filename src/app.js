@@ -4463,11 +4463,13 @@ function getOrderItemLineTotal(item) {
 function renderCustomerOrders() {
   const customer = customers.find((item) => item.id === activeCustomerId) || null;
   if (!customer || customer.id !== openCustomerCardId) {
+    dom.customerHistory.hidden = true;
     dom.customerHistoryTitle.textContent = "הזמנות לקוח";
-    dom.customerOrders.replaceChildren(emptyState("פתח לקוח מהרשימה כדי לראות את ההזמנות והנתונים שלו."));
+    dom.customerOrders.replaceChildren();
     return;
   }
 
+  dom.customerHistory.hidden = false;
   const customerOrders = getOrdersForCustomer(customer);
   dom.customerHistoryTitle.textContent = `הזמנות ${customer.name}`;
 
@@ -4661,6 +4663,7 @@ function saveCustomerFromForm(event) {
 
 function openNewCustomerForm() {
   resetCustomerForm();
+  dom.customerForm.hidden = false;
   setActiveTab("customers");
   renderCustomersPanel();
   dom.customerForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -4672,6 +4675,7 @@ function editCustomer(customerId) {
   if (!customer) return;
   activeCustomerId = customer.id;
   openCustomerCardId = customer.id;
+  dom.customerForm.hidden = false;
   dom.customerId.value = customer.id;
   dom.customerCode.value = customer.code || "";
   dom.customerFormName.value = customer.name;
@@ -4685,6 +4689,7 @@ function resetCustomerForm() {
   dom.customerCode.value = "";
   dom.customerFormName.value = "";
   dom.customerPhone.value = "";
+  dom.customerForm.hidden = true;
 }
 
 function chooseCustomerForOrder(customerId) {

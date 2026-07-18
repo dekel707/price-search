@@ -6543,6 +6543,31 @@ body {
   gap: 12px;
 }
 
+.customer-insights-panel {
+  overflow: hidden;
+  border: 1px solid rgba(139, 188, 220, 0.2);
+  border-radius: 14px;
+  background: rgba(10, 24, 38, 0.58);
+}
+
+.customer-insights-panel > summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  padding: 0 14px;
+  color: #cce5f4;
+  cursor: pointer;
+  font-size: .86rem;
+  font-weight: 850;
+  list-style: none;
+}
+
+.customer-insights-panel > summary::-webkit-details-marker { display: none; }
+.customer-insights-panel > summary::after { margin-inline-start: auto; color: #80d5e5; content: "+"; font-size: 1.15rem; }
+.customer-insights-panel[open] > summary { border-bottom: 1px solid rgba(139, 188, 220, 0.16); }
+.customer-insights-panel[open] > summary::after { content: "−"; }
+.customer-insights-panel .customer-intelligence-grid { padding: 12px; }
+
 .customer-alert-center,
 .customer-smart-card {
   display: grid;
