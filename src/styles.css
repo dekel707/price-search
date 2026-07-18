@@ -6780,38 +6780,36 @@ body {
 }
 
 .customer-card-summary {
-  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto 28px;
+  gap: 9px;
   align-items: center;
   min-height: 62px;
-  padding: 11px 44px 11px 14px;
+  padding: 11px 14px;
   cursor: pointer;
   list-style: none;
 }
 
 .customer-card-summary::-webkit-details-marker { display: none; }
 
-.customer-card-summary::after {
-  position: absolute;
-  top: 50%;
-  left: 14px;
+.customer-card-toggle {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 1px solid rgba(139, 188, 220, 0.3);
   border-radius: 8px;
   background: rgba(76, 145, 183, 0.11);
   color: #aeeaff;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 900;
-  content: "+";
-  transform: translateY(-50%);
+  font-style: normal;
 }
 
-.customer-card[open] .customer-card-summary::after { content: "−"; }
+.customer-card-toggle::before { content: "⌄"; }
+.customer-card[open] .customer-card-toggle { border-color: rgba(91, 217, 194, 0.48); background: rgba(47, 195, 179, 0.13); color: #93f5e4; }
+.customer-card[open] .customer-card-toggle::before { content: "⌃"; }
+.customer-card[open] { border-color: rgba(91, 217, 194, 0.42); background: linear-gradient(145deg, rgba(13, 42, 54, 0.94), rgba(10, 28, 43, 0.9)); }
 
 .customer-card-summary > span {
   display: grid;
@@ -6843,27 +6841,38 @@ body {
 
 .customer-card-content {
   display: grid;
-  gap: 7px;
-  padding: 0 14px 14px;
+  gap: 11px;
+  padding: 13px 14px 14px;
   border-top: 1px solid rgba(151, 193, 220, 0.14);
 }
 
-.customer-card-content > span,
-.customer-card-content > small {
+.customer-card-open-heading {
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px solid rgba(139, 188, 220, 0.15);
+  border-radius: 10px;
+  background: rgba(8, 23, 37, 0.42);
+}
+
+.customer-card-open-heading strong { color: #b9f0eb; font-size: .78rem; }
+.customer-card-open-heading span,
+.customer-card-open-status {
   color: #a9c1d0;
   font-size: .78rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.customer-card-content > span { padding-top: 11px; }
+.customer-card-open-status { padding-inline: 2px; }
 
 .customer-card-content .customer-actions {
   margin-top: 2px;
 }
 
 @media (max-width: 620px) {
-  .customer-card-summary { min-height: 58px; padding-inline-start: 40px; }
+  .customer-card-summary { grid-template-columns: minmax(0, 1fr) auto 26px; min-height: 60px; padding-inline: 11px; }
+  .customer-card-toggle { width: 26px; height: 26px; }
   .customer-card-summary > b { font-size: .7rem; }
   .customer-card-content { padding-inline: 11px; padding-bottom: 11px; }
 }

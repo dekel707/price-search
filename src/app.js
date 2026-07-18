@@ -4328,7 +4328,7 @@ function renderCustomerCard(customer) {
   const summaryDetails = [customer.code ? `קוד: ${customer.code}` : "", customer.phone ? `טל׳: ${customer.phone}` : ""]
     .filter(Boolean)
     .join(" · ");
-  summary.innerHTML = `<span><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(summaryDetails || "ללא קוד או טלפון")}</small></span><b>${escapeHtml(stats.orderCount ? `${stats.orderCount.toLocaleString("he-IL")} הזמנות` : "לקוח חדש")}</b>`;
+  summary.innerHTML = `<span><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(summaryDetails || "ללא קוד או טלפון")}</small></span><b>${escapeHtml(stats.orderCount ? `${stats.orderCount.toLocaleString("he-IL")} הזמנות` : "לקוח חדש")}</b><i class="customer-card-toggle" aria-hidden="true"></i>`;
 
   const body = document.createElement("div");
   body.className = "customer-card-content";
@@ -4336,8 +4336,11 @@ function renderCustomerCard(customer) {
     .filter(Boolean)
     .join(" · ");
   body.innerHTML = `
-    <span>${escapeHtml(details || "ללא קוד או טלפון")}</span>
-    <small>${escapeHtml(stats.orderCount ? `${stats.orderCount.toLocaleString("he-IL")} הזמנות` : "אין הזמנות עדיין")}</small>
+    <div class="customer-card-open-heading">
+      <strong>פרטי לקוח</strong>
+      <span>${escapeHtml(details || "ללא קוד או טלפון")}</span>
+    </div>
+    <small class="customer-card-open-status">${escapeHtml(stats.orderCount ? `${stats.orderCount.toLocaleString("he-IL")} הזמנות שמורות ללקוח` : "אין הזמנות עדיין")}</small>
   `;
   body.append(createCustomerTotals(stats));
   const displaySales = getCustomerDisplaySales(customerOrders);
