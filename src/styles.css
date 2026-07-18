@@ -1360,25 +1360,31 @@ h2 {
 
 .floating-cart {
   position: fixed;
-  right: max(14px, env(safe-area-inset-right));
-  bottom: max(14px, env(safe-area-inset-bottom));
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 30;
   display: grid;
-  grid-template-columns: auto auto;
-  grid-template-areas:
-    "count label"
-    "count total";
-  column-gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
   align-items: center;
-  min-width: 118px;
-  min-height: 58px;
-  padding: 8px 12px 8px 14px;
-  border: 1px solid rgba(38, 211, 103, 0.72);
-  border-radius: 999px;
-  background: #26d367;
-  color: #03120d;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+  min-width: 218px;
+  max-width: min(360px, calc(100vw - 36px));
+  padding: 9px 12px 9px 10px;
+  border: 1px solid rgba(116, 255, 210, 0.7);
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(15, 92, 76, 0.98), rgba(8, 47, 46, 0.98));
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.42), 0 0 0 4px rgba(67, 213, 193, 0.08);
+  color: #efffff;
   font-weight: 900;
+  text-align: right;
+}
+
+.floating-cart:hover,
+.floating-cart:focus-visible {
+  border-color: #a7eee4;
+  background: linear-gradient(135deg, rgba(20, 111, 90, 0.99), rgba(11, 58, 56, 0.99));
+  outline: none;
+  transform: translateY(-2px);
 }
 
 .floating-cart[hidden] {
@@ -1386,29 +1392,42 @@ h2 {
 }
 
 .floating-cart-count {
-  grid-area: count;
   display: grid;
   width: 34px;
   height: 34px;
   place-items: center;
-  border-radius: 999px;
-  background: #04110f;
-  color: #f7fffb;
+  border-radius: 50%;
+  background: #d7fff7;
+  color: #073d37;
   font-size: 0.95rem;
 }
 
-.floating-cart-label {
-  grid-area: label;
-  font-size: 0.8rem;
-  line-height: 1;
+.floating-cart-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.floating-cart-copy strong {
+  overflow: hidden;
+  color: #f3fffc;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .floating-cart-total {
-  grid-area: total;
+  overflow: hidden;
   direction: ltr;
-  font-size: 0.95rem;
-  line-height: 1.1;
+  color: #c0eee5;
+  font-size: 0.71rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.floating-cart-arrow { color: #8ff5e2; font-size: 1.2rem; font-weight: 900; }
 
 .search-label,
 .field-wrap span {
@@ -4236,8 +4255,7 @@ h2 {
 }
 
 .whatsapp-button,
-.collection-whatsapp-button,
-.floating-cart {
+.collection-whatsapp-button {
   border-color: #61bd88;
   background: linear-gradient(135deg, #57ad7c, #70c792);
   color: #092017;
@@ -4252,8 +4270,8 @@ h2 {
 }
 
 .floating-cart-count {
-  background: #17392c;
-  color: #f4fff9;
+  background: #d7fff7;
+  color: #073d37;
 }
 
 .pending-product,
@@ -4941,9 +4959,7 @@ h2 {
 .floating-cart {
   right: max(16px, env(safe-area-inset-right));
   bottom: max(16px, env(safe-area-inset-bottom));
-  border-radius: 14px;
-  background: linear-gradient(135deg, #24bca9, #4cd7c4);
-  box-shadow: 0 14px 30px rgba(13, 186, 163, 0.32);
+  border-radius: 15px;
 }
 
 .modal-backdrop {

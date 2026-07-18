@@ -389,6 +389,7 @@ const dom = {
   cartTotal: document.querySelector("#cartTotal"),
   floatingCart: document.querySelector("#floatingCart"),
   floatingCartCount: document.querySelector("#floatingCartCount"),
+  floatingCartCustomer: document.querySelector("#floatingCartCustomer"),
   floatingCartTotal: document.querySelector("#floatingCartTotal"),
   clearCart: document.querySelector("#clearCart"),
   saveAsDraft: document.querySelector("#saveAsDraft"),
@@ -10351,12 +10352,17 @@ function renderCartSummary() {
 
 function renderFloatingCart(total = getOrderTotal(cart), itemCount = cart.reduce((sum, line) => sum + line.quantity, 0)) {
   const hasItems = itemCount > 0;
+  const selectedCustomer = getSelectedCustomer();
+  const customerName = cleanString(selectedCustomer?.name || settings.customerName || dom.customerName.value);
   dom.floatingCart.hidden = !hasItems || activeTab === "cart";
   dom.floatingCartCount.textContent = itemCount.toLocaleString("he-IL");
+  dom.floatingCartCustomer.textContent = customerName || "סל הזמנה";
   dom.floatingCartTotal.textContent = formatPrice(total);
   dom.floatingCart.setAttribute(
     "aria-label",
-    hasItems ? `פתח סל עם ${itemCount.toLocaleString("he-IL")} פריטים, סך הכל ${formatPrice(total)}` : "פתח סל הזמנה",
+    hasItems
+      ? `פתח סל של ${customerName || "ההזמנה הנוכחית"}: ${itemCount.toLocaleString("he-IL")} פריטים, סך הכל ${formatPrice(total)}`
+      : "פתח סל הזמנה",
   );
 }
 
