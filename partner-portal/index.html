@@ -41,7 +41,6 @@
           <button class="tab-button" type="button" data-tab="orders">הזמנות</button>
           <button class="tab-button" type="button" data-tab="customers">לקוחות</button>
           <button class="tab-button" type="button" data-tab="reservations">שריונים</button>
-          <button class="tab-button" type="button" data-tab="collections">גיול</button>
         </nav>
 
         <section class="tab-panel active" data-tab-panel="search">
@@ -63,11 +62,10 @@
           </section>
         </section>
 
-        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2 id="cartTitle">הזמנה חדשה</h2></div></div><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button></div><label class="field-wrap"><span>לקוח קיים</span><input id="customerSelect" list="customerOptions" autocomplete="off" placeholder="הקלד שם לקוח" /></label><datalist id="customerOptions"></datalist><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><button id="cancelEditOrder" class="secondary-button" type="button" hidden>ביטול עריכת הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
+        <section class="tab-panel" data-tab-panel="cart"><section class="cart-panel"><div class="panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">□</span><div><p class="eyebrow">סל הזמנה</p><h2 id="cartTitle">הזמנה חדשה</h2></div></div><button id="backToOrderSearch" class="secondary-button" type="button">הוסף מוצרים</button></div><label class="field-wrap"><span>לקוח קיים</span><input id="customerSelect" list="customerOptions" autocomplete="off" placeholder="הקלד שם לקוח" /></label><datalist id="customerOptions"></datalist><div id="cartItems" class="cart-items"></div><p id="cartTotal" class="cart-total">סה״כ לתשלום לפי מחירון: ₪0</p><div class="cart-submit-actions"><button id="submitOrder" class="file-button" type="button">שלח הזמנה</button><button id="sendCartWhatsApp" class="whatsapp-button" type="button">שלח הזמנה בוואטסאפ</button></div><button id="cancelEditOrder" class="secondary-button" type="button" hidden>ביטול עריכת הזמנה</button><p id="cartMessage" class="status" aria-live="polite"></p></section></section>
 
         <section class="tab-panel" data-tab-panel="customers"><section class="customers-panel"><div class="panel-header"><div><p class="eyebrow">לקוחות</p><h2>לקוחות</h2><p class="panel-subtitle">קריאה בלבד · כל שינוי נשמר רק אצל דקל.</p></div></div><div id="customerList" class="portal-data-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="reservations"><section class="reservations-panel"><div class="panel-header"><div><p class="eyebrow">שריונים</p><h2>שריונים</h2><p class="panel-subtitle">יתרות עדכניות מהמערכת הראשית.</p></div></div><div id="reservationList" class="reservations-list"></div></section></section>
-        <section class="tab-panel" data-tab-panel="collections"><section class="collections-panel"><div class="panel-header"><div><p class="eyebrow">גיול</p><h2>גיול וגבייה</h2><p class="panel-subtitle">תצוגה מלאה וקריאה בלבד.</p></div></div><div id="agingList" class="collections-list"></div></section></section>
         <section class="tab-panel" data-tab-panel="orders"><section class="orders-panel"><div class="panel-header"><div><p class="eyebrow">הזמנות</p><h2>ההזמנות של איתן</h2><p class="panel-subtitle">הזמנות שנשלחות נכנסות מיד למערכת הראשית לפי מועד השליחה.</p></div></div><div id="orderList" class="orders-list"></div><p id="orderActionMessage" class="status" aria-live="polite"></p></section></section>
       </main>
       <div id="cartCustomerDialog" class="modal-backdrop" hidden>

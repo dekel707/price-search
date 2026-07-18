@@ -11,8 +11,8 @@ export default async function handler(request, response) {
     if (!current?.state) return sendJson(response, 503, { error: "main_state_unavailable" });
     const state = current.state;
     // This is intentionally a narrow, read-only projection. Eitan receives
-    // only the working price list, current stock, customers, reservations and
-    // aging needed for his permitted ordering workflow. It never exposes the
+    // only the working price list, current stock, customers and reservations
+    // needed for his permitted ordering workflow. It never exposes the
     // main order history, settings, notes, backups or storage credentials.
     return sendJson(response, 200, {
       updatedAt: current.updatedAt,
@@ -38,20 +38,6 @@ export default async function handler(request, response) {
         quantity: quantity(reservation.quantity),
         updatedAt: text(reservation.updatedAt, 80),
       })).filter((reservation) => reservation.customerId && reservation.skuKey),
-      aging: (state.collections || []).map((collection) => ({
-        id: text(collection.id, 180),
-        customerId: text(collection.customerId, 180),
-        customerName: text(collection.customerName, 180),
-        accountNumber: text(collection.accountNumber, 100),
-        amount: money(collection.amount),
-        paidAmount: money(collection.paidAmount),
-        invoices: Array.isArray(collection.invoices) ? collection.invoices.slice(0, 40) : [],
-        months: Array.isArray(collection.months) ? collection.months.slice(0, 40) : [],
-        dueDate: text(collection.dueDate, 40),
-        note: text(collection.note, 500),
-        paid: Boolean(collection.paid),
-        updatedAt: text(collection.updatedAt, 80),
-      })).filter((collection) => collection.customerId || collection.customerName),
     });
   } catch (error) {
     console.error("eitan_live_data_failed", error);

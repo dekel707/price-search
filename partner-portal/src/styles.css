@@ -103,6 +103,7 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
 .pending-product { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid rgba(132,169,203,.2); border-radius: 11px; background: rgba(8,23,39,.66); }
 .pending-product strong { color: #f7fffb; }.pending-product span { direction: ltr; color: #5ce3d0; font-size: .82rem; text-align: right; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.cart-submit-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 9px; }
 
 .inline-add-field { display: grid; gap: 5px; }
 .inline-add-field span { color: #b9c9d9; font-size: .78rem; font-weight: 800; }
@@ -183,4 +184,5 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
   .order-card-actions .secondary-button,.order-card-actions .danger-button { flex: 1; }
   .customer-dialog { width: min(100%, 480px); padding: 18px 15px; }
   .product-spec-grid { grid-template-columns: 1fr; }
+  .cart-submit-actions { grid-template-columns: 1fr; }
 }

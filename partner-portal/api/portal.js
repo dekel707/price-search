@@ -301,7 +301,6 @@ async function getLiveWorkspace(config) {
     products,
     customers: Array.isArray(main.customers) ? main.customers : [],
     reservations: Array.isArray(main.reservations) ? main.reservations : [],
-    aging: Array.isArray(main.aging) ? main.aging : [],
   };
 }
 
@@ -727,7 +726,6 @@ export default async function handler(request, response) {
     if (request.method === "GET" && resource === "catalog") return sendJson(response, 200, { products: await getCatalog(config) });
     if (request.method === "GET" && resource === "customers") return sendJson(response, 200, { items: await listCustomers(sql) });
     if (request.method === "GET" && resource === "reservations") return sendJson(response, 200, { items: await listReservations(sql) });
-    if (request.method === "GET" && resource === "aging") return sendJson(response, 200, { items: await listAging(sql) });
     if (request.method === "GET" && resource === "orders") {
       await retryPendingMainOrders(sql, config);
       return sendJson(response, 200, { items: await listOrders(sql, session) });

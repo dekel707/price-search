@@ -1,6 +1,7 @@
 import "./styles.css";
 
-const state = { user: null, products: [], customers: [], reservations: [], aging: [], orders: [], cart: [], category: "", filters: {}, syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
+const ORDER_WHATSAPP_PHONE = "972523685265";
+const state = { user: null, products: [], customers: [], reservations: [], orders: [], cart: [], category: "", filters: {}, syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 2 });
 
@@ -207,18 +208,13 @@ function renderData() {
   $("#customerList").innerHTML = state.customers.map((item) => `<article class="customer-card portal-customer-card"><div><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.phone || "ללא טלפון")}</p></div><span class="portal-readonly-badge">קריאה בלבד</span></article>`).join("") || `<div class="empty-state">אין לקוחות.</div>`;
   const reservationGroups = state.customers.map((customer) => ({ customer, items: state.reservations.filter((item) => item.customerId === customer.id && Number(item.quantity) > 0) })).filter((group) => group.items.length);
   $("#reservationList").innerHTML = reservationGroups.map(({ customer, items }) => `<details class="reservation-customer-card" data-reservation-customer="${escapeAttr(customer.id)}" ${state.openReservationCustomers.has(customer.id) ? "open" : ""}><summary class="reservation-customer-header"><div><strong>${escapeHtml(customer.name)}</strong><span>${items.reduce((sum, item) => sum + Number(item.quantity || 0), 0).toLocaleString("he-IL")} יח׳ בשריון</span></div><b>הצג פירוט</b></summary><div class="portal-reservation-body">${customer.phone ? `<button class="whatsapp-button reservation-export-button" type="button" data-send-reservations="${escapeAttr(customer.id)}">שלח שריון בוואטסאפ</button>` : ""}${items.map((item) => `<div class="reservation-row"><div class="reservation-product"><strong>${escapeHtml(item.sku || item.skuKey)}</strong><span>${escapeHtml(item.description || "")}</span></div><b>${Number(item.quantity).toLocaleString("he-IL")} יח׳</b></div>`).join("")}</div></details>`).join("") || `<div class="empty-state">אין שריונים פעילים.</div>`;
-  $("#agingList").innerHTML = state.aging.map((item) => {
-    const open = Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0));
-    const details = [...(item.months || []), ...(item.invoices || [])].map((value) => typeof value === "string" ? value : value?.label || value?.number || "").filter(Boolean).join(" · ");
-    return `<article class="collection-row ${open ? "due" : "paid"}"><div class="collection-check"><span>קריאה בלבד</span></div><div class="collection-body"><strong>${escapeHtml(item.customerName || "לקוח")}</strong><span>חשבון: ${escapeHtml(item.accountNumber || "—")} · סכום מקורי: ${formatPrice(item.amount)} · שולם: ${formatPrice(item.paidAmount)}</span>${item.dueDate ? `<span>מועד: ${escapeHtml(item.dueDate)}</span>` : ""}${details ? `<span>${escapeHtml(details)}</span>` : ""}${item.note ? `<span>${escapeHtml(item.note)}</span>` : ""}</div><div class="collection-values"><b>${formatPrice(open)}</b><span>יתרה פתוחה</span></div></article>`;
-  }).join("") || `<div class="empty-state">אין נתוני גיול.</div>`;
   $("#orderList").innerHTML = state.orders.map(orderCard).join("") || `<p class="muted">עדיין לא יצרת הזמנות.</p>`;
 }
 
 function orderCard(order) {
   const labels = { processing: "מסנכרן", sent_to_main: "נכנסה למערכת", sync_failed: "מנסה שוב לשלוח" };
   const items = (order.items || []).map((item) => `${item.name} ×${item.quantity}${Number(item.reservationQuantity || 0) ? ` · שריון ${item.reservationQuantity}` : ""}`).join(" · ");
-  return `<article class="order-card"><div class="order-body"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><span>${escapeHtml(items)}</span><small>${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</small></div><div class="order-card-actions"><button class="secondary-button" type="button" data-show-order="${escapeAttr(order.id)}">הצג הזמנה</button><button class="secondary-button" type="button" data-edit-order="${escapeAttr(order.id)}">ערוך</button><button class="danger-button" type="button" data-delete-order="${escapeAttr(order.id)}">מחק</button></div></article>`;
+  return `<article class="order-card"><div class="order-body"><strong>${escapeHtml(order.customer_name || "לקוח")}</strong><span>${escapeHtml(items)}</span><small>${escapeHtml(labels[order.status] || order.status)} · ${new Date(order.created_at).toLocaleString("he-IL")}</small></div><div class="order-card-actions"><button class="secondary-button" type="button" data-show-order="${escapeAttr(order.id)}">הצג הזמנה</button><button class="whatsapp-button" type="button" data-send-order="${escapeAttr(order.id)}">WhatsApp</button><button class="secondary-button" type="button" data-edit-order="${escapeAttr(order.id)}">ערוך</button><button class="danger-button" type="button" data-delete-order="${escapeAttr(order.id)}">מחק</button></div></article>`;
 }
 
 function showOrder(order) {
@@ -262,7 +258,7 @@ function cancelEdit() { state.editingOrderId = ""; state.cart = []; $("#cartMess
 async function refresh() {
   document.querySelectorAll(".reservation-customer-card[open]").forEach((item) => state.openReservationCustomers.add(item.dataset.reservationCustomer));
   const [live, orders] = await Promise.all([api("?resource=live"), api("?resource=orders")]);
-  Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], aging: live.aging || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
+  Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
   renderOrderSearch(); renderProducts(); renderData(); renderCart();
   const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
   $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, שריונים וגיול מסונכרנים לקריאה בלבד";
@@ -277,6 +273,31 @@ function sendReservationsToWhatsApp(customerId) {
   if (!customer || !phone || !entries.length) return;
   const text = [`שריון עבור ${customer.name}`, "", ...entries.map((item) => `${item.sku || item.skuKey} · ${item.description || ""} — ${Number(item.quantity).toLocaleString("he-IL")} יח׳`)].join("\n");
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+}
+
+function whatsappText({ customerName, items, createdAt }) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  const total = normalizedItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.price ?? item.unitPrice ?? 0), 0);
+  return [
+    "הזמנה חדשה",
+    customerName ? `לקוח: ${customerName}` : "",
+    createdAt ? `תאריך: ${new Date(createdAt).toLocaleString("he-IL")}` : "",
+    "",
+    ...normalizedItems.map((item) => `${item.model || item.skuKey || "מוצר"} · ${item.name || ""} — ${Number(item.quantity || 0).toLocaleString("he-IL")} יח׳ × ${formatPrice(item.price ?? item.unitPrice)}${item.fromReservation ? " · שריון" : ""}`),
+    "",
+    `סה״כ לפי מחיר: ${formatPrice(total)}`,
+  ].filter(Boolean).join("\n");
+}
+
+function openOrderWhatsApp(order) {
+  if (!order) return;
+  window.open(`https://wa.me/${ORDER_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappText({ customerName: order.customer_name, items: order.items, createdAt: order.created_at }))}`, "_blank", "noopener,noreferrer");
+}
+
+function sendCartToWhatsApp() {
+  const customer = findCustomer(state.customerId);
+  if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שליחה בוואטסאפ."; return; }
+  openOrderWhatsApp({ customer_name: customer.name, items: state.cart, created_at: new Date().toISOString() });
 }
 
 $("#loginForm").addEventListener("submit", async (event) => {
@@ -306,12 +327,13 @@ $("#cartItems").addEventListener("click", (event) => { const button = event.targ
 $("#cartItems").addEventListener("change", (event) => { const quantity = event.target.closest("[data-cart-quantity]"); if (quantity) { const item = state.cart[Number(quantity.dataset.cartQuantity)]; if (item) item.quantity = Number(quantity.value) || 1; renderCart(); return; } const price = event.target.closest("[data-cart-price]"); if (price) { const item = state.cart[Number(price.dataset.cartPrice)]; if (item && Number.isFinite(Number(price.value)) && Number(price.value) >= 0) item.price = Number(price.value); renderCart(); return; } const toggle = event.target.closest("[data-cart-reservation]"); if (toggle) { const item = state.cart[Number(toggle.dataset.cartReservation)]; if (item) item.fromReservation = toggle.checked; renderCart(); } });
 $("#reservationList").addEventListener("click", (event) => { const button = event.target.closest("[data-send-reservations]"); if (button) sendReservationsToWhatsApp(button.dataset.sendReservations); });
 $("#reservationList").addEventListener("toggle", (event) => { const details = event.target.closest?.("[data-reservation-customer]"); if (!details) return; if (details.open) state.openReservationCustomers.add(details.dataset.reservationCustomer); else state.openReservationCustomers.delete(details.dataset.reservationCustomer); }, true);
-$("#orderList").addEventListener("click", (event) => { const show = event.target.closest("[data-show-order]"); const edit = event.target.closest("[data-edit-order]"); const remove = event.target.closest("[data-delete-order]"); if (show) showOrder(state.orders.find((item) => item.id === show.dataset.showOrder)); if (edit) editOrder(state.orders.find((item) => item.id === edit.dataset.editOrder)); if (remove) openDeleteDialog(remove.dataset.deleteOrder); });
+$("#orderList").addEventListener("click", (event) => { const show = event.target.closest("[data-show-order]"); const send = event.target.closest("[data-send-order]"); const edit = event.target.closest("[data-edit-order]"); const remove = event.target.closest("[data-delete-order]"); if (show) showOrder(state.orders.find((item) => item.id === show.dataset.showOrder)); if (send) openOrderWhatsApp(state.orders.find((item) => item.id === send.dataset.sendOrder)); if (edit) editOrder(state.orders.find((item) => item.id === edit.dataset.editOrder)); if (remove) openDeleteDialog(remove.dataset.deleteOrder); });
 $("#closeDeleteOrderDialog").addEventListener("click", closeDeleteDialog);
 $("#cancelDeleteOrder").addEventListener("click", closeDeleteDialog);
 $("#confirmDeleteOrder").addEventListener("click", async () => { const orderId = state.pendingDeleteId; closeDeleteDialog(); if (orderId) await deleteOrder(orderId); });
 $("#deleteOrderDialog").addEventListener("click", (event) => { if (event.target === $("#deleteOrderDialog")) closeDeleteDialog(); });
 $("#cancelEditOrder").addEventListener("click", cancelEdit);
+$("#sendCartWhatsApp").addEventListener("click", sendCartToWhatsApp);
 $("#submitOrder").addEventListener("click", async () => {
   const customer = resolveCustomerInput($("#customerSelect"));
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים."; return; }
