@@ -630,7 +630,7 @@ function whatsappText({ customerName, items, createdAt }) {
     ...lines,
     "",
     `סה״כ הזמנה: ${formatPlainPartnerPrice(total)} ש״ח`,
-  ].filter(Boolean).join("\n");
+  ].join("\n");
 }
 
 function formatPlainPartnerPrice(value) { return Number(value || 0).toLocaleString("he-IL", { maximumFractionDigits: 2 }); }
