@@ -491,6 +491,12 @@ let advancedSearchCategory = "";
 const advancedSearchFacets = { color: "", energy: "", volume: "", height: "", width: "", feature: "" };
 const advancedSearchQuickFilters = {};
 let advancedSearchProximityOverride = null;
+let productSearchRenderTimer = null;
+let advancedSearchRenderTimer = null;
+let advancedSearchProductsCache = null;
+let advancedSearchProductsCacheSource = null;
+let advancedSearchProductsCacheAttributes = null;
+let advancedSearchProductsCacheManifest = null;
 let eitanPortalOrders = [];
 let eitanOrdersLoadState = "idle";
 
@@ -718,11 +724,11 @@ function bindEvents() {
     setActiveTab("reminders");
     dom.status.textContent = "נפתחו רק התזכורות הפתוחות להיום.";
   });
-  dom.searchInput.addEventListener("input", render);
-  dom.categoryFilter.addEventListener("change", render);
+  dom.searchInput.addEventListener("input", scheduleProductSearchRender);
+  dom.categoryFilter.addEventListener("change", renderProductSearchResults);
   dom.advancedSearchInput.addEventListener("input", () => {
     advancedSearchProximityOverride = null;
-    renderAdvancedSearch();
+    scheduleAdvancedSearchRender();
   });
   dom.advancedClearSearch.addEventListener("click", () => {
     dom.advancedSearchInput.value = "";
@@ -2508,7 +2514,7 @@ function ensureGeneralProduct(items) {
 
 function render() {
   renderTabs();
-  renderAdvancedSearch();
+  if (activeTab === "advanced-search") renderAdvancedSearch();
   renderMetadata();
   renderCategoryControls();
   renderCategoryProductManager();
@@ -2530,6 +2536,15 @@ function render() {
   renderCompletedOrders();
   renderTomorrowOrders();
 
+  renderProductSearchResults();
+}
+
+function scheduleProductSearchRender() {
+  window.clearTimeout(productSearchRenderTimer);
+  productSearchRenderTimer = window.setTimeout(renderProductSearchResults, 70);
+}
+
+function renderProductSearchResults() {
   const query = normalizeSearch(dom.searchInput.value);
   const activeCategory = dom.categoryFilter.value;
   let matches = query ? searchProducts(query) : products;
@@ -2585,6 +2600,7 @@ function setActiveTab(tab) {
   localStorage.setItem(ACTIVE_TAB_KEY, JSON.stringify(activeTab));
   renderTabs();
   renderFloatingCart();
+  if (tab === "advanced-search") renderAdvancedSearch();
 }
 
 function handleDashboardAction(action) {
@@ -2779,11 +2795,18 @@ function renderCategoryProductManager() {
 
 // Advanced search deliberately works from a read-only view of the existing
 // product/specification data. It never receives cart, order or customer data.
-function renderAdvancedSearch() {
+function scheduleAdvancedSearchRender() {
+  window.clearTimeout(advancedSearchRenderTimer);
+  advancedSearchRenderTimer = window.setTimeout(() => renderAdvancedSearch({ refreshFilters: false }), 90);
+}
+
+function renderAdvancedSearch({ refreshFilters = true } = {}) {
   if (!dom.advancedSearchResults) return;
   const advancedProducts = getAdvancedSearchProducts();
-  renderAdvancedCategoryFilters(advancedProducts);
-  renderAdvancedSimpleFilters(advancedProducts);
+  if (refreshFilters) {
+    renderAdvancedCategoryFilters(advancedProducts);
+    renderAdvancedSimpleFilters(advancedProducts);
+  }
 
   const query = normalizeSearch(dom.advancedSearchInput.value);
   const searchContext = getAdvancedSearchContext(query);
@@ -2811,8 +2834,15 @@ function renderAdvancedSearch() {
 }
 
 function getAdvancedSearchProducts() {
+  if (
+    advancedSearchProductsCache
+    && advancedSearchProductsCacheSource === products
+    && advancedSearchProductsCacheAttributes === catalogAttributesBySku
+    && advancedSearchProductsCacheManifest === specManifest
+  ) return advancedSearchProductsCache;
+
   const seen = new Set();
-  return products
+  const advancedProducts = products
     .map((product) => {
       const model = cleanString(product?.sku);
       const name = cleanString(product?.description);
@@ -2828,10 +2858,25 @@ function getAdvancedSearchProducts() {
         type: document.installation ? "installation" : "specification",
         url: document.url,
       }));
-      return { model, name, category, colors, technical, documents };
+      const advancedProduct = { model, name, category, colors, technical, documents };
+      advancedProduct.searchText = normalizeSearch([
+        model,
+        name,
+        category,
+        colors.join(" "),
+        getAdvancedSpecificationRows(advancedProduct).map((row) => `${row.label} ${row.value}`).join(" "),
+        technical.facts.join(" "),
+      ].join(" "));
+      return advancedProduct;
     })
     .filter(Boolean)
     .sort((left, right) => left.model.localeCompare(right.model, "en"));
+
+  advancedSearchProductsCache = advancedProducts;
+  advancedSearchProductsCacheSource = products;
+  advancedSearchProductsCacheAttributes = catalogAttributesBySku;
+  advancedSearchProductsCacheManifest = specManifest;
+  return advancedProducts;
 }
 
 function normalizeAdvancedTechnical(attributes) {
@@ -2889,15 +2934,7 @@ function renderAdvancedSimpleFilters(advancedProducts) {
 
 function advancedMatchesSearch(product, searchContext) {
   if (!searchContext.query) return true;
-  const rows = getAdvancedSpecificationRows(product).map((row) => `${row.label} ${row.value}`);
-  const haystack = normalizeSearch([
-    product.model,
-    product.name,
-    product.category,
-    product.colors.join(" "),
-    rows.join(" "),
-    product.technical.facts.join(" "),
-  ].join(" "));
+  const haystack = product.searchText || "";
   if (!searchContext.terms.every((term) => haystack.includes(term))) return false;
   if (!searchContext.proximity) return true;
   return advancedMatchesProximity(product, searchContext.proximity);
@@ -2994,15 +3031,7 @@ function advancedGetNearbyMetricValues(advancedProducts, searchContext) {
 
 function advancedMatchesSearchText(product, terms) {
   if (!terms.length) return true;
-  const rows = getAdvancedSpecificationRows(product).map((row) => `${row.label} ${row.value}`);
-  const haystack = normalizeSearch([
-    product.model,
-    product.name,
-    product.category,
-    product.colors.join(" "),
-    rows.join(" "),
-    product.technical.facts.join(" "),
-  ].join(" "));
+  const haystack = product.searchText || "";
   return terms.every((term) => haystack.includes(term));
 }
 

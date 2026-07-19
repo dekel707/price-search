@@ -31,6 +31,10 @@ let demoInitialized = false;
 let activeAdvancedCategory = "";
 const activeAdvancedFacets = { color: "", energy: "", volume: "", height: "", width: "", depth: "", feature: "" };
 const activeAdvancedQuickFilters = {};
+let orderSearchRenderTimer;
+let portalAdvancedSearchRenderTimer;
+const orderSearchTextCache = new WeakMap();
+const advancedSearchTextCache = new WeakMap();
 
 const ADVANCED_VOLUME_RANGES = [["up-to-100", "עד 100 ליטר", 0, 100], ["101-to-300", "101–300 ליטר", 101, 300], ["301-to-450", "301–450 ליטר", 301, 450], ["451-to-600", "451–600 ליטר", 451, 600], ["over-600", "מעל 600 ליטר", 601, Infinity]];
 const ADVANCED_HEIGHT_RANGES = [["up-to-100", "עד 100 ס״מ", 0, 100], ["101-to-170", "101–170 ס״מ", 101, 170], ["171-to-185", "171–185 ס״מ", 171, 185], ["186-to-200", "186–200 ס״מ", 186, 200], ["over-200", "מעל 200 ס״מ", 201, Infinity]];
@@ -104,6 +108,7 @@ function setTab(name) {
   document.querySelectorAll(".tab-button").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.tabPanel === name));
   renderFloatingCart();
+  if (name === "advanced-search") renderProducts();
 }
 
 function formatPrice(value) { return money.format(Number(value) || 0); }
@@ -192,7 +197,12 @@ function renderCustomerOptions() {
 
 function matchesProductSearch(product, query) {
   if (!query) return true;
-  return `${product.name} ${product.model} ${product.category} ${(product.colors || []).join(" ")} ${(product.technical?.facts || []).join(" ")}`.toLowerCase().includes(query);
+  let searchText = orderSearchTextCache.get(product);
+  if (!searchText) {
+    searchText = `${product.name} ${product.model} ${product.category} ${(product.colors || []).join(" ")} ${(product.technical?.facts || []).join(" ")}`.toLowerCase();
+    orderSearchTextCache.set(product, searchText);
+  }
+  return searchText.includes(query);
 }
 
 function cleanFacts(product, max = 3) {
@@ -225,8 +235,18 @@ function stockLabel(product) {
 
 function renderOrderSearch() {
   const query = $("#orderSearchInput").value.trim().toLowerCase();
-  const visible = state.products.filter((product) => matchesProductSearch(product, query)).slice(0, 80);
+  const matches = state.products.filter((product) => matchesProductSearch(product, query));
+  const limit = query ? 80 : 24;
+  const visible = matches.slice(0, limit);
   $("#orderSearchResults").innerHTML = visible.map((product) => productCard(product, { ordering: true })).join("") || `<p class="muted">לא נמצאו מוצרים במחירון.</p>`;
+  $("#orderSearchStatus").textContent = query
+    ? `${matches.length.toLocaleString("he-IL")} התאמות${matches.length > visible.length ? ` · מוצגים ${visible.length.toLocaleString("he-IL")} ראשונים` : ""}`
+    : `הקלד דגם או שם לחיפוש מהיר · מוצגים ${visible.length.toLocaleString("he-IL")} דגמים ראשונים`;
+}
+
+function scheduleOrderSearchRender() {
+  window.clearTimeout(orderSearchRenderTimer);
+  orderSearchRenderTimer = window.setTimeout(renderOrderSearch, 70);
 }
 
 const ADVANCED_CATEGORY_TABS = [
@@ -262,9 +282,16 @@ function advancedMatchesRange(value, range) { const number = advancedNumber(valu
 function advancedRange(ranges, value) { const found = ranges.find(([rangeValue]) => rangeValue === value); return found ? { minimum: found[2], maximum: found[3] } : null; }
 function advancedFormatNumber(value) { return Number(value).toLocaleString("he-IL"); }
 
-function renderProducts() {
-  renderAdvancedCategoryFilters();
-  renderAdvancedSimpleFilters();
+function schedulePortalAdvancedSearchRender() {
+  window.clearTimeout(portalAdvancedSearchRenderTimer);
+  portalAdvancedSearchRenderTimer = window.setTimeout(() => renderProducts({ refreshFilters: false }), 90);
+}
+
+function renderProducts({ refreshFilters = true } = {}) {
+  if (refreshFilters) {
+    renderAdvancedCategoryFilters();
+    renderAdvancedSimpleFilters();
+  }
   const query = $("#advancedSearchInput").value.trim().toLowerCase();
   const visible = state.products.filter((product) => advancedMatchesProduct(product, query) && advancedMatchesActiveCategory(product) && advancedMatchesSimpleFilters(product)).slice(0, 80);
   $("#advancedSearchStatus").textContent = visible.length ? `${visible.length.toLocaleString("he-IL")} מוצרים מתאימים` : "לא נמצאו מוצרים";
@@ -273,10 +300,18 @@ function renderProducts() {
 
 function advancedMatchesProduct(product, query) {
   if (!query) return true;
+  const haystack = getAdvancedSearchText(product);
+  return query.split(/\s+/).filter(Boolean).every((term) => haystack.includes(term));
+}
+
+function getAdvancedSearchText(product) {
+  const cached = advancedSearchTextCache.get(product);
+  if (cached) return cached;
   const technical = product.technical || {};
   const values = [technical.dimensionsCm, technical.capacities, technical.performance].flatMap((group) => Object.values(group || {}));
-  const haystack = `${product.name || ""} ${product.model || ""} ${advancedCategoryName(product)} ${(product.colors || []).join(" ")} ${(technical.facts || []).join(" ")} ${values.join(" ")}`.toLowerCase();
-  return query.split(/\s+/).filter(Boolean).every((term) => haystack.includes(term));
+  const value = `${product.name || ""} ${product.model || ""} ${advancedCategoryName(product)} ${(product.colors || []).join(" ")} ${(technical.facts || []).join(" ")} ${values.join(" ")}`.toLowerCase();
+  advancedSearchTextCache.set(product, value);
+  return value;
 }
 
 function getActiveAdvancedCategory() { return ADVANCED_CATEGORY_TABS.find((tab) => tab.key === activeAdvancedCategory) || null; }
@@ -500,7 +535,8 @@ function addPendingToCart() {
 function renderCart() {
   const customer = findCustomer(state.customerId);
   const count = cartItemCount();
-  $("#cartCount").textContent = count;
+  $("#cartCount").textContent = count ? count.toLocaleString("he-IL") : "";
+  $("#cartCount").hidden = !count;
   $("#searchCartCount").textContent = count ? `${count} פריטים` : "ריק";
   $("#cartItems").innerHTML = state.cart.map((item, index) => {
     const reservation = customer && item.fromReservation ? reservationFor(customer.id, item.model) : null;
@@ -594,7 +630,8 @@ async function refresh() {
   document.querySelectorAll(".reservation-customer-card[open]").forEach((item) => state.openReservationCustomers.add(item.dataset.reservationCustomer));
   const [live, orders] = await Promise.all([api("?resource=live"), api("?resource=orders")]);
   Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
-  renderOrderSearch(); renderProducts(); renderData(); renderCart();
+  renderOrderSearch();
+  renderData(); renderCart();
   const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
   $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, לקוחות ושריונים מסונכרנים לקריאה בלבד";
   $("#portalMetadata").textContent = `${live.syncMode === "cached" ? "גיבוי עדכני" : "עודכן"} ${updated} · ${state.products.length.toLocaleString("he-IL")} דגמים במלאי`;
@@ -625,7 +662,8 @@ function refreshDemo() {
   $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, לקוחות ושריונים זמינים לעבודה";
   $("#portalMetadata").textContent = `${state.products.length.toLocaleString("he-IL")} דגמים זמינים`;
   $("#orderSearchStatus").textContent = "אפשר לחפש, להוסיף לסל, ליצור, לערוך ולמחוק הזמנות. WhatsApp נפתח כטיוטה לפני שליחה.";
-  renderOrderSearch(); renderProducts(); renderData(); renderCart();
+  renderOrderSearch();
+  renderData(); renderCart();
   setTab(state.activeTab);
 }
 
@@ -772,8 +810,8 @@ $("#logoutButton").addEventListener("click", async () => {
   await api("?action=logout", { method: "POST" }); location.reload();
 });
 document.querySelectorAll(".tab-button").forEach((tab) => tab.addEventListener("click", (event) => { event.preventDefault(); setTab(tab.dataset.tab); }));
-$("#orderSearchInput").addEventListener("input", renderOrderSearch);
-$("#advancedSearchInput").addEventListener("input", renderProducts);
+$("#orderSearchInput").addEventListener("input", scheduleOrderSearchRender);
+$("#advancedSearchInput").addEventListener("input", schedulePortalAdvancedSearchRender);
 $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
 $("#backToOrderSearch").addEventListener("click", () => setTab("search"));
 $("#portalFloatingCart").addEventListener("click", () => setTab("cart"));
