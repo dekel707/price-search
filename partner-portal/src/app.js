@@ -120,17 +120,10 @@ function cartTotal(customer = findCustomer(state.customerId)) {
 function syncActiveCustomerInputs() {
   const customer = findCustomer(state.customerId);
   const label = customer ? customerLabel(customer) : "";
-  ["#searchCustomerSelect", "#customerSelect"].forEach((selector) => {
+  ["#customerSelect"].forEach((selector) => {
     const input = $(selector);
     if (input) input.value = label;
   });
-  const status = $("#activeOrderCustomer");
-  if (status) {
-    status.textContent = customer
-      ? `לקוח פעיל להזמנה: ${customerLabel(customer)} · כל מוצר שתוסיף ישויך אליו עד ניקוי או שליחת ההזמנה.`
-      : "בחר לקוח לפני הוספת מוצרים לסל.";
-    status.classList.toggle("selected", Boolean(customer));
-  }
 }
 
 function selectActiveCustomer(input) {
@@ -682,8 +675,6 @@ $("#advancedSearchInput").addEventListener("input", renderProducts);
 $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
 $("#backToOrderSearch").addEventListener("click", () => setTab("search"));
 $("#portalFloatingCart").addEventListener("click", () => setTab("cart"));
-$("#searchCustomerSelect").addEventListener("input", () => { if (findCustomer($("#searchCustomerSelect").value)) { selectActiveCustomer($("#searchCustomerSelect")); renderCart(); renderOrderSearch(); } });
-$("#searchCustomerSelect").addEventListener("change", () => { selectActiveCustomer($("#searchCustomerSelect")); renderCart(); renderOrderSearch(); });
 $("#customerSelect").addEventListener("change", () => { selectActiveCustomer($("#customerSelect")); renderCart(); renderOrderSearch(); });
 $("#clearCart").addEventListener("click", () => clearCart("ההזמנה נוקתה והלקוח שוחרר."));
 $("#categoryFilters").addEventListener("click", (event) => {
