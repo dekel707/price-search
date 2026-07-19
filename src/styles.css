@@ -6569,6 +6569,57 @@ body {
   }
 }
 
+/* The monthly target has one extra line of context, so give it its own compact
+   three-row layout instead of forcing the percentage and target text to compete
+   for the same dashboard grid row. */
+.dashboard-goal-stat {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 6px;
+}
+
+.dashboard-goal-stat > strong {
+  align-self: center;
+  line-height: 1;
+}
+
+.dashboard-goal-stat .dashboard-goal-details {
+  align-self: end;
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px;
+  direction: rtl;
+  white-space: nowrap;
+}
+
+.dashboard-goal-stat .dashboard-goal-details span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-goal-stat .dashboard-goal-details span:last-child {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 719px) {
+  .dashboard-goal-stat {
+    gap: 5px;
+    padding: 11px;
+  }
+
+  .dashboard-goal-stat > strong {
+    font-size: 1.16rem;
+  }
+
+  .dashboard-goal-stat .dashboard-goal-details {
+    gap: 4px;
+    font-size: 0.58rem;
+    letter-spacing: -0.01em;
+  }
+}
+
 /* Customer workspace: read-only decision support based on the existing orders,
    reservations, collections, and reminders. */
 .customer-intelligence-grid {
