@@ -618,29 +618,104 @@ function sendReservationsToWhatsApp(customerId) {
 
 function whatsappText({ customerName, items, createdAt }) {
   const normalizedItems = Array.isArray(items) ? items : [];
-  const total = normalizedItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.price ?? item.unitPrice ?? 0), 0);
+  const lines = normalizedItems.flatMap(formatPartnerWhatsAppLines);
+  const total = normalizedItems.reduce((sum, item) => {
+    const quantity = Math.max(0, Number(item.quantity || 0));
+    const reservationQuantity = partnerReservationQuantity(item);
+    return sum + Math.max(0, quantity - reservationQuantity) * Number(item.price ?? item.unitPrice ?? 0);
+  }, 0);
   return [
-    "הזמנה חדשה",
-    customerName ? `לקוח: ${customerName}` : "",
-    createdAt ? `תאריך: ${new Date(createdAt).toLocaleString("he-IL")}` : "",
+    customerName ? `הזמנה - ${customerName}` : "הזמנה",
     "",
-    ...normalizedItems.map((item) => `${item.model || item.skuKey || "מוצר"} · ${item.name || ""} — ${Number(item.quantity || 0).toLocaleString("he-IL")} יח׳ × ${formatPrice(item.price ?? item.unitPrice)}${item.fromReservation ? " · שריון" : ""}`),
+    ...lines,
     "",
-    `סה״כ לפי מחיר: ${formatPrice(total)}`,
+    `סה״כ הזמנה: ${formatPlainPartnerPrice(total)} ש״ח`,
   ].filter(Boolean).join("\n");
 }
 
-function openOrderWhatsApp(order) {
-  if (!order) return;
-  window.open(`https://wa.me/${ORDER_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappText({ customerName: order.customer_name, items: order.items, createdAt: order.created_at }))}`, "_blank", "noopener,noreferrer");
-  if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. שליחה מתבצעת רק אם לוחצים שלח בתוך WhatsApp.";
+function formatPlainPartnerPrice(value) { return Number(value || 0).toLocaleString("he-IL", { maximumFractionDigits: 2 }); }
+function formatPartnerQuantity(quantity) { return Number(quantity) === 1 ? "יחידה" : "יחידות"; }
+function partnerReservationQuantity(item) {
+  const quantity = Math.max(0, Number(item?.quantity || 0));
+  const requested = item?.reservationQuantity;
+  const quantityFromReservation = requested === undefined || requested === null
+    ? (item?.fromReservation ? quantity : 0)
+    : Number(requested);
+  const numericReservation = Number(quantityFromReservation);
+  return Math.min(quantity, Math.max(0, Number.isFinite(numericReservation) ? numericReservation : 0));
+}
+function formatPartnerWhatsAppLines(item) {
+  const quantity = Math.max(0, Number(item?.quantity || 0));
+  const reservationQuantity = partnerReservationQuantity(item);
+  const paidQuantity = Math.max(0, quantity - reservationQuantity);
+  const model = String(item?.model || item?.skuKey || "מוצר").trim();
+  const line = (count, suffix) => `${count.toLocaleString("he-IL")} ${formatPartnerQuantity(count)} (${model})${suffix}`;
+  return [
+    ...(reservationQuantity ? [line(reservationQuantity, " · משריון")] : []),
+    ...(paidQuantity ? [line(paidQuantity, ` לפי ${formatPlainPartnerPrice(item?.price ?? item?.unitPrice)} ש״ח`)] : []),
+  ];
 }
 
-function sendCartToWhatsApp() {
+function openOrderWhatsApp(order, targetWindow = null) {
+  if (!order) return false;
+  const url = `https://wa.me/${ORDER_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappText({ customerName: order.customer_name, items: order.items, createdAt: order.created_at }))}`;
+  if (targetWindow && !targetWindow.closed) targetWindow.location.href = url;
+  else window.open(url, "_blank", "noopener,noreferrer");
+  if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. שליחה מתבצעת רק אם לוחצים שלח בתוך WhatsApp.";
+  return true;
+}
+
+function currentCartCustomer() {
   const customer = findCustomer(state.customerId);
-  if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שליחה בוואטסאפ."; return; }
-  openOrderWhatsApp({ customer_name: customer.name, items: state.cart, created_at: new Date().toISOString() });
-  if (isDemoMode()) $("#cartMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. ההזמנה אינה נשמרת במערכת.";
+  if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שמירת ההזמנה."; return null; }
+  const displayedCustomer = resolveCustomerInput($("#customerSelect"));
+  if (!displayedCustomer || displayedCustomer.id !== customer.id) {
+    syncActiveCustomerInputs();
+    $("#cartMessage").textContent = "הסל משויך ללקוח הפעיל. נקה את ההזמנה כדי לבחור לקוח אחר.";
+    return null;
+  }
+  return customer;
+}
+
+async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
+  const customer = currentCartCustomer();
+  if (!customer) return null;
+  const submit = $("#submitOrder");
+  const whatsapp = $("#sendCartWhatsApp");
+  const draftWindow = openWhatsApp ? window.open("about:blank", "_blank") : null;
+  submit.disabled = true;
+  whatsapp.disabled = true;
+  const editing = state.editingOrderId;
+  try {
+    let savedOrder;
+    let plannedReservationUnits = 0;
+    if (isDemoMode()) {
+      savedOrder = saveDemoOrder(customer);
+      plannedReservationUnits = (savedOrder.items || []).reduce((sum, item) => sum + partnerReservationQuantity(item), 0);
+    } else {
+      const result = await api(`?action=${editing ? "update-order" : "create-order"}`, { method: "POST", body: JSON.stringify({ ...(editing ? { orderId: editing } : {}), customerId: customer.id, items: state.cart.map((item) => ({ ...item, unitPrice: item.price })) }) });
+      savedOrder = result.order;
+      plannedReservationUnits = Number(result.plannedReservationUnits || 0);
+      state.cart = [];
+      state.editingOrderId = "";
+      clearActiveCustomer();
+      await refresh();
+    }
+    if (openWhatsApp) openOrderWhatsApp(savedOrder, draftWindow);
+    $("#cartMessage").textContent = `${editing ? "השינויים נשמרו" : "ההזמנה נשמרה"}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? " ונפתחה לשליחה ב‑WhatsApp." : ""}`;
+    return savedOrder;
+  } catch (error) {
+    if (draftWindow && !draftWindow.closed) draftWindow.close();
+    $("#cartMessage").textContent = `ההזמנה לא נשמרה: ${error.message}`;
+    return null;
+  } finally {
+    submit.disabled = false;
+    whatsapp.disabled = false;
+  }
+}
+
+async function sendCartToWhatsApp() {
+  await persistCurrentCartOrder({ openWhatsApp: true });
 }
 
 function saveDemoOrder(customer) {
@@ -653,7 +728,7 @@ function saveDemoOrder(customer) {
   clearActiveCustomer();
   renderData();
   renderCart();
-  $("#cartMessage").textContent = editing ? "השינויים נשמרו לתצוגה הנוכחית." : "ההזמנה נוצרה לתצוגה הנוכחית.";
+  return nextOrder;
 }
 
 $("#loginForm").addEventListener("submit", async (event) => {
@@ -715,22 +790,7 @@ $("#confirmDeleteOrder").addEventListener("click", async () => { const orderId =
 $("#deleteOrderDialog").addEventListener("click", (event) => { if (event.target === $("#deleteOrderDialog")) closeDeleteDialog(); });
 $("#cancelEditOrder").addEventListener("click", cancelEdit);
 $("#sendCartWhatsApp").addEventListener("click", sendCartToWhatsApp);
-$("#submitOrder").addEventListener("click", async () => {
-  const customer = findCustomer(state.customerId);
-  if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים."; return; }
-  const displayedCustomer = resolveCustomerInput($("#customerSelect"));
-  if (!displayedCustomer || displayedCustomer.id !== customer.id) { syncActiveCustomerInputs(); $("#cartMessage").textContent = "הסל משויך ללקוח הפעיל. נקה את ההזמנה כדי לבחור לקוח אחר."; return; }
-  if (isDemoMode()) { saveDemoOrder(customer); return; }
-  const submit = $("#submitOrder"); submit.disabled = true;
-  const editing = state.editingOrderId;
-  try {
-    const result = await api(`?action=${editing ? "update-order" : "create-order"}`, { method: "POST", body: JSON.stringify({ ...(editing ? { orderId: editing } : {}), customerId: customer.id, items: state.cart.map((item) => ({ ...item, unitPrice: item.price })) }) });
-    state.cart = []; state.editingOrderId = ""; clearActiveCustomer();
-    $("#cartMessage").textContent = result.plannedReservationUnits ? `ההזמנה נשמרה. ${Number(result.plannedReservationUnits).toLocaleString("he-IL")} יח׳ מסומנות לשריון בכפוף ליתרה העדכנית.` : "ההזמנה נשמרה במערכת הראשית.";
-    await refresh();
-  } catch (error) { $("#cartMessage").textContent = `ההזמנה לא נשמרה: ${error.message}`; }
-  finally { submit.disabled = false; }
-});
+$("#submitOrder").addEventListener("click", () => { persistCurrentCartOrder(); });
 
 let refreshTimer;
 function startRefreshTimer() { clearInterval(refreshTimer); refreshTimer = setInterval(() => refresh().catch(() => {}), 30_000); }
