@@ -433,6 +433,9 @@ function openAddDialog(product, quantity = 1) {
   $("#cartCustomerInput").readOnly = Boolean(customer);
   $("#cartCustomerLockHint").hidden = !customer;
   $("#cartCustomerFeedback").textContent = "";
+  // Every new add flow starts with the reservation choice derived from the selected customer.
+  // A manual uncheck remains respected while this dialog stays open.
+  delete $("#cartProductReservation").dataset.reservationFor;
   updateDialogReservation();
   $("#cartCustomerDialog").hidden = false;
   window.setTimeout(() => (customer ? $("#cartProductQuantity") : $("#cartCustomerInput")).focus(), 0);
@@ -449,9 +452,17 @@ function updateDialogReservation() {
   const customer = resolveCustomerInput($("#cartCustomerInput"));
   const reservation = customer && state.pendingProduct ? reservationFor(customer.id, state.pendingProduct.model) : null;
   const wrap = $("#cartProductReservationWrap");
+  const toggle = $("#cartProductReservation");
   wrap.hidden = !reservation;
-  if (reservation) wrap.lastChild.textContent = ` משיכה משריון הלקוח · זמינות ${Number(reservation.quantity).toLocaleString("he-IL")} יח׳`;
-  else $("#cartProductReservation").checked = false;
+  if (reservation) {
+    const reservationFor = `${customer.id}:${modelKey(state.pendingProduct.model)}`;
+    if (toggle.dataset.reservationFor !== reservationFor) toggle.checked = true;
+    toggle.dataset.reservationFor = reservationFor;
+    wrap.lastChild.textContent = ` משיכה משריון הלקוח · זמינות ${Number(reservation.quantity).toLocaleString("he-IL")} יח׳`;
+  } else {
+    toggle.checked = false;
+    delete toggle.dataset.reservationFor;
+  }
 }
 
 function addPendingToCart() {
