@@ -461,15 +461,6 @@ h2 {
   font-weight: 800;
 }
 
-.dashboard-monthly-goal {
-  display: block;
-  margin-top: 5px;
-  color: #8dd8ca;
-  font-size: 0.67rem;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
 .dashboard-money-value:hover strong,
 .dashboard-money-value:focus-visible strong {
   text-decoration: underline;
@@ -483,6 +474,16 @@ h2 {
 
 .dashboard-stat.sales { border-color: rgba(32, 199, 168, 0.42); }
 .dashboard-stat.sales strong { color: #7ce7d3; }
+.dashboard-stat.sales-goal { border-color: rgba(45, 212, 191, 0.62); }
+.dashboard-stat.sales-goal strong { color: #8cf5df; }
+.dashboard-goal-details {
+  display: grid;
+  gap: 2px;
+  color: #91aaa3;
+  font-size: 0.67rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
 .dashboard-stat.today-orders { border-color: rgba(251, 191, 36, 0.48); }
 .dashboard-stat.today-orders strong { color: #fde68a; }
 .dashboard-stat.tomorrow-orders { border-color: rgba(129, 140, 248, 0.5); }
@@ -4382,6 +4383,8 @@ h2 {
 .dashboard-stat.sales { border-color: rgba(117, 197, 176, 0.48); }
 .dashboard-stat.sales strong,
 .sold-products-stat strong { color: var(--ps-accent); }
+.dashboard-stat.sales-goal { border-color: rgba(93, 218, 194, 0.62); }
+.dashboard-stat.sales-goal strong { color: #9ef4e5; }
 .dashboard-stat.today-orders,
 .dashboard-stat.orders,
 .dashboard-stat.collections { border-color: rgba(227, 194, 117, 0.48); }
@@ -5753,6 +5756,7 @@ body {
 .dashboard-stat.sunday-orders { --dashboard-icon: #56cf91; --dashboard-icon-wash: rgba(86, 207, 145, 0.13); }
 .dashboard-stat.today-sales,
 .dashboard-stat.sales { --dashboard-icon: #2fd7c1; --dashboard-icon-wash: rgba(47, 215, 193, 0.13); }
+.dashboard-stat.sales-goal { --dashboard-icon: #77e4d1; --dashboard-icon-wash: rgba(119, 228, 209, 0.16); }
 .dashboard-stat.orders { --dashboard-icon: #f5c960; --dashboard-icon-wash: rgba(245, 201, 96, 0.13); }
 .dashboard-stat.lifetime { --dashboard-icon: #6dc7ff; --dashboard-icon-wash: rgba(109, 199, 255, 0.13); }
 .dashboard-stat.reservations { --dashboard-icon: #b29bff; --dashboard-icon-wash: rgba(178, 155, 255, 0.13); }

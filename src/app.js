@@ -7657,7 +7657,8 @@ function renderDashboard() {
     dashboardTomorrowOrdersStat(tomorrowOrders.length, tomorrowRevenue),
     isSundayInIsrael(now) ? "" : dashboardSundayOrdersStat(sundayOrders.length, sundayRevenue, upcomingSundayKey),
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
-    dashboardMonthlySalesStat(monthRevenueAdjustment.grossValue),
+    dashboardMoneyStat("מכירות החודש", monthRevenueAdjustment.grossValue, "sales", "month"),
+    dashboardMonthlyGoalStat(monthRevenueAdjustment.grossValue),
     dashboardStat("הזמנות החודש", monthOrders.length.toLocaleString("he-IL"), "orders"),
     dashboardMoneyStat("מכירות השנה", yearRevenue, "lifetime", "year"),
     dashboardStat("שווי השריון", formatPrice(activeReservationValue), "reservations"),
@@ -8388,23 +8389,17 @@ function dashboardMoneyStat(label, grossValue, tone, period) {
   `;
 }
 
-function dashboardMonthlySalesStat(grossValue) {
-  const period = "month";
-  const excludeVat = dashboardVatExclusion[period];
-  const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
+function dashboardMonthlyGoalStat(grossValue) {
   const netValue = roundMoney(grossValue / (1 + VAT_RATE));
   const progress = MONTHLY_SALES_GOAL_EX_VAT > 0 ? roundMoney((netValue / MONTHLY_SALES_GOAL_EX_VAT) * 100) : 0;
-  const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
-  const goalLabel = `יעד ${formatPrice(MONTHLY_SALES_GOAL_EX_VAT)} ללא מע״מ · ${progress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}% מהיעד`;
+  const progressLabel = `${progress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
+  const summary = `${formatPrice(netValue)} מתוך ${formatPrice(MONTHLY_SALES_GOAL_EX_VAT)}`;
 
   return `
-    <div class="dashboard-stat sales dashboard-money-stat dashboard-monthly-sales-stat">
-      ${dashboardStatHeading("מכירות החודש", "sales")}
-      <button type="button" class="dashboard-money-value" data-toggle-dashboard-vat="${period}" aria-pressed="${excludeVat}">
-        <strong>${escapeHtml(formatPrice(displayValue))}</strong>
-        <small>${vatLabel}</small>
-      </button>
-      <small class="dashboard-monthly-goal">${escapeHtml(goalLabel)}</small>
+    <div class="dashboard-stat sales-goal dashboard-goal-stat">
+      ${dashboardStatHeading("יעד החודש", "sales-goal")}
+      <strong>${escapeHtml(progressLabel)}</strong>
+      <small class="dashboard-goal-details"><span>${escapeHtml(summary)}</span><span>ללא מע״מ</span></small>
     </div>
   `;
 }
@@ -8437,6 +8432,7 @@ function getDashboardIconName(tone) {
     "sunday-orders": "calendar",
     "today-sales": "bolt",
     sales: "trend",
+    "sales-goal": "target",
     orders: "receipt",
     lifetime: "chart",
     reservations: "reservations",
@@ -8463,6 +8459,7 @@ function dashboardIcon(name) {
     receipt: '<path d="M6 3h12v18l-2.5-1.5L12 21l-3.5-1.5L6 21zM9 8h6M9 12h6M9 16h4" />',
     release: '<path d="M4 7h11v10H4zM15 10h3l2 2v5h-5zM8 17v2M17 17v2M3 19h7M14 19h6M11 3v7M8 7l3 3 3-3" />',
     reservations: '<path d="m4 7 8-4 8 4-8 4zM4 7v10l8 4V11M20 7v10l-8 4" />',
+    target: '<circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v2M22 12h-2M12 22v-2M2 12h2" />',
     trend: '<path d="M4 19V5M4 19h16M7 15l3-3 3 2 6-7M15 7h4v4" />',
     wallet: '<path d="M4 7h15a2 2 0 0 1 2 2v10H4zM4 7V5a2 2 0 0 1 2-2h12M21 13h-6v4h6" />',
   };
