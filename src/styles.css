@@ -461,6 +461,15 @@ h2 {
   font-weight: 800;
 }
 
+.dashboard-monthly-goal {
+  display: block;
+  margin-top: 5px;
+  color: #8dd8ca;
+  font-size: 0.67rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .dashboard-money-value:hover strong,
 .dashboard-money-value:focus-visible strong {
   text-decoration: underline;

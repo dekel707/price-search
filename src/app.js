@@ -41,6 +41,7 @@ const MAX_RESULTS = 80;
 const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
+const MONTHLY_SALES_GOAL_EX_VAT = 1540000;
 const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_ORDER_IMPORT_OCR_PAGES = 8;
 const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
@@ -7656,13 +7657,7 @@ function renderDashboard() {
     dashboardTomorrowOrdersStat(tomorrowOrders.length, tomorrowRevenue),
     isSundayInIsrael(now) ? "" : dashboardSundayOrdersStat(sundayOrders.length, sundayRevenue, upcomingSundayKey),
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
-    dashboardMoneyStat(
-      "מכירות החודש",
-      monthRevenueAdjustment.grossValue,
-      "sales",
-      "month",
-      getMonthlySalesAdjustmentLabel(monthRevenueAdjustment),
-    ),
+    dashboardMonthlySalesStat(monthRevenueAdjustment.grossValue),
     dashboardStat("הזמנות החודש", monthOrders.length.toLocaleString("he-IL"), "orders"),
     dashboardMoneyStat("מכירות השנה", yearRevenue, "lifetime", "year"),
     dashboardStat("שווי השריון", formatPrice(activeReservationValue), "reservations"),
@@ -8378,7 +8373,7 @@ function dashboardSundayOrdersStat(orderCount, grossValue, sundayKey) {
   `;
 }
 
-function dashboardMoneyStat(label, grossValue, tone, period, note = "") {
+function dashboardMoneyStat(label, grossValue, tone, period) {
   const excludeVat = dashboardVatExclusion[period];
   const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
@@ -8389,7 +8384,27 @@ function dashboardMoneyStat(label, grossValue, tone, period, note = "") {
         <strong>${escapeHtml(formatPrice(displayValue))}</strong>
         <small>${vatLabel}</small>
       </button>
-      ${note ? `<small class="dashboard-adjustment-note">${escapeHtml(note)}</small>` : ""}
+    </div>
+  `;
+}
+
+function dashboardMonthlySalesStat(grossValue) {
+  const period = "month";
+  const excludeVat = dashboardVatExclusion[period];
+  const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
+  const netValue = roundMoney(grossValue / (1 + VAT_RATE));
+  const progress = MONTHLY_SALES_GOAL_EX_VAT > 0 ? roundMoney((netValue / MONTHLY_SALES_GOAL_EX_VAT) * 100) : 0;
+  const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
+  const goalLabel = `יעד ${formatPrice(MONTHLY_SALES_GOAL_EX_VAT)} ללא מע״מ · ${progress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}% מהיעד`;
+
+  return `
+    <div class="dashboard-stat sales dashboard-money-stat dashboard-monthly-sales-stat">
+      ${dashboardStatHeading("מכירות החודש", "sales")}
+      <button type="button" class="dashboard-money-value" data-toggle-dashboard-vat="${period}" aria-pressed="${excludeVat}">
+        <strong>${escapeHtml(formatPrice(displayValue))}</strong>
+        <small>${vatLabel}</small>
+      </button>
+      <small class="dashboard-monthly-goal">${escapeHtml(goalLabel)}</small>
     </div>
   `;
 }
