@@ -31,7 +31,7 @@ const EMPTY_STATE = {
   reservationSeedVersion: 0,
   reminders: [],
   collections: [],
-  settings: { whatsappNumber: "" },
+  settings: { whatsappNumber: "", monthlySalesAdjustment: null },
   updatedAt: null,
 };
 

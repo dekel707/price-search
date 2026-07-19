@@ -2211,6 +2211,27 @@ h2 {
   white-space: nowrap;
 }
 
+.dashboard-adjustment-note {
+  display: block;
+  margin-top: 5px;
+  color: #ffdb91;
+  font-size: 0.67rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.monthly-sales-adjustment-note {
+  margin: 0 14px 12px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 207, 112, 0.38);
+  border-radius: 10px;
+  background: rgba(101, 68, 14, 0.19);
+  color: #ffe3a8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .monthly-sales-money-toggle {
   display: grid;
   justify-items: start;

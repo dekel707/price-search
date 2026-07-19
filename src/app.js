@@ -436,7 +436,7 @@ let orderTombstones = [];
 let drafts = [];
 let customers = [];
 let specManifest = { items: {}, lookup: {} };
-let settings = { whatsappNumber: "", customerName: "", customerId: "" };
+let settings = { whatsappNumber: "", customerName: "", customerId: "", monthlySalesAdjustment: null };
 let lastPrices = {};
 let reservations = [];
 let reservationSeedVersion = 0;
@@ -7599,6 +7599,7 @@ function renderDashboard() {
   const todayRevenue = todayOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const monthOrders = orders.filter((order) => getOrderReportDateKey(order).startsWith(todayKey.slice(0, 7)));
   const monthRevenue = monthOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
+  const monthRevenueAdjustment = getMonthlySalesReportValue(todayKey.slice(0, 7), monthRevenue);
   const yearOrders = orders.filter((order) => getOrderReportDateKey(order).startsWith(todayKey.slice(0, 4)));
   const yearRevenue = yearOrders.reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0);
   const monthUnits = monthOrders.reduce(
@@ -7626,7 +7627,13 @@ function renderDashboard() {
     dashboardTomorrowOrdersStat(tomorrowOrders.length, tomorrowRevenue),
     isSundayInIsrael(now) ? "" : dashboardSundayOrdersStat(sundayOrders.length, sundayRevenue, upcomingSundayKey),
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
-    dashboardMoneyStat("מכירות החודש", monthRevenue, "sales", "month"),
+    dashboardMoneyStat(
+      "מכירות החודש",
+      monthRevenueAdjustment.grossValue,
+      "sales",
+      "month",
+      getMonthlySalesAdjustmentLabel(monthRevenueAdjustment),
+    ),
     dashboardStat("הזמנות החודש", monthOrders.length.toLocaleString("he-IL"), "orders"),
     dashboardMoneyStat("מכירות השנה", yearRevenue, "lifetime", "year"),
     dashboardStat("שווי השריון", formatPrice(activeReservationValue), "reservations"),
@@ -8342,7 +8349,7 @@ function dashboardSundayOrdersStat(orderCount, grossValue, sundayKey) {
   `;
 }
 
-function dashboardMoneyStat(label, grossValue, tone, period) {
+function dashboardMoneyStat(label, grossValue, tone, period, note = "") {
   const excludeVat = dashboardVatExclusion[period];
   const displayValue = excludeVat ? roundMoney(grossValue / (1 + VAT_RATE)) : grossValue;
   const vatLabel = excludeVat ? "ללא מע״מ" : "כולל מע״מ";
@@ -8353,6 +8360,7 @@ function dashboardMoneyStat(label, grossValue, tone, period) {
         <strong>${escapeHtml(formatPrice(displayValue))}</strong>
         <small>${vatLabel}</small>
       </button>
+      ${note ? `<small class="dashboard-adjustment-note">${escapeHtml(note)}</small>` : ""}
     </div>
   `;
 }
@@ -8966,6 +8974,39 @@ function renderMonthlySalesPanel() {
   dom.monthlySalesList.replaceChildren(...reports.map(renderMonthlySalesCard));
 }
 
+function normalizeMonthlySalesAdjustment(value) {
+  if (!value || typeof value !== "object") return null;
+  const monthKey = cleanString(value.monthKey);
+  const targetExVat = roundMoney(Number(value.targetExVat));
+  if (!/^\d{4}-\d{2}$/.test(monthKey) || !Number.isFinite(targetExVat) || targetExVat < 0) return null;
+  return {
+    monthKey,
+    targetExVat,
+    updatedAt: cleanString(value.updatedAt),
+    label: cleanString(value.label) || "התאמת מכר חודשית",
+  };
+}
+
+function getMonthlySalesReportValue(monthKey, actualGrossValue) {
+  const adjustment = normalizeMonthlySalesAdjustment(settings.monthlySalesAdjustment);
+  const actualGross = roundMoney(Number(actualGrossValue) || 0);
+  if (!adjustment || adjustment.monthKey !== monthKey) {
+    return { grossValue: actualGross, adjustmentGross: 0, adjustment: null };
+  }
+
+  const targetGross = roundMoney(adjustment.targetExVat * (1 + VAT_RATE));
+  return {
+    grossValue: targetGross,
+    adjustmentGross: roundMoney(targetGross - actualGross),
+    adjustment,
+  };
+}
+
+function getMonthlySalesAdjustmentLabel(value) {
+  if (!value?.adjustment) return "";
+  return `${value.adjustment.label} · יעד ${formatPrice(value.adjustment.targetExVat)} ללא מע״מ`;
+}
+
 function getMonthlySalesReports() {
   const reports = new Map();
 
@@ -9048,7 +9089,7 @@ function getMonthlySalesReports() {
     reports.set(monthKey, report);
   });
 
-  return [...reports.values()]
+  const monthlyReports = [...reports.values()]
     .map((report) => ({
       ...report,
       orderCount: report.orderIds.size,
@@ -9083,7 +9124,37 @@ function getMonthlySalesReports() {
       customerKeys: undefined,
       customers: undefined,
       days: undefined,
-    }))
+    }));
+
+  const adjustment = normalizeMonthlySalesAdjustment(settings.monthlySalesAdjustment);
+  if (adjustment && !monthlyReports.some((report) => report.monthKey === adjustment.monthKey)) {
+    monthlyReports.push({
+      monthKey: adjustment.monthKey,
+      label: formatMonthKey(adjustment.monthKey),
+      paidRevenue: 0,
+      quantity: 0,
+      reservationQuantity: 0,
+      orderCount: 0,
+      paidOrderCount: 0,
+      reservationOrderCount: 0,
+      customerCount: 0,
+      customerRows: [],
+      dayRows: [],
+      latestAt: adjustment.updatedAt || new Date().toISOString(),
+    });
+  }
+
+  return monthlyReports
+    .map((report) => {
+      const monthlyValue = getMonthlySalesReportValue(report.monthKey, report.paidRevenue);
+      return {
+        ...report,
+        actualPaidRevenue: report.paidRevenue,
+        paidRevenue: monthlyValue.grossValue,
+        manualAdjustmentGross: monthlyValue.adjustmentGross,
+        monthlySalesAdjustment: monthlyValue.adjustment,
+      };
+    })
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
 }
 
@@ -9147,6 +9218,13 @@ function renderMonthlySalesCard(report) {
   const breakdown = document.createElement("div");
   breakdown.className = "monthly-sales-breakdown";
 
+  const adjustmentNote = report.monthlySalesAdjustment
+    ? Object.assign(document.createElement("div"), {
+        className: "monthly-sales-adjustment-note",
+        textContent: `${getMonthlySalesAdjustmentLabel({ adjustment: report.monthlySalesAdjustment })} · התאמה של ${formatPrice(Math.abs(report.manualAdjustmentGross))} כולל מע״מ · ללא שיוך ללקוח, מוצר, מלאי או יום.`,
+      })
+    : null;
+
   const daysSection = document.createElement("section");
   daysSection.className = "monthly-sales-section monthly-sales-days-section";
   daysSection.innerHTML = `
@@ -9174,7 +9252,7 @@ function renderMonthlySalesCard(report) {
   customersSection.append(customers);
 
   breakdown.append(daysSection, customersSection);
-  card.append(summary, breakdown);
+  card.append(summary, ...(adjustmentNote ? [adjustmentNote] : []), breakdown);
   return card;
 }
 
@@ -12426,6 +12504,7 @@ function buildSharedState() {
     collections,
     settings: {
       whatsappNumber: settings.whatsappNumber || "",
+      monthlySalesAdjustment: normalizeMonthlySalesAdjustment(settings.monthlySalesAdjustment),
     },
   };
 }
@@ -12478,6 +12557,7 @@ function applySharedState(state) {
   settings = {
     ...settings,
     whatsappNumber: cleanString(state.settings?.whatsappNumber || settings.whatsappNumber),
+    monthlySalesAdjustment: normalizeMonthlySalesAdjustment(state.settings?.monthlySalesAdjustment),
   };
   if (settings.customerId && !customers.some((customer) => customer.id === settings.customerId)) {
     settings.customerId = "";
