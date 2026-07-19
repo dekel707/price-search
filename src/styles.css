@@ -6584,23 +6584,8 @@ body {
 
 .dashboard-goal-stat .dashboard-goal-details {
   align-self: end;
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 5px;
   direction: rtl;
   white-space: nowrap;
-}
-
-.dashboard-goal-stat .dashboard-goal-details span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dashboard-goal-stat .dashboard-goal-details span:last-child {
-  flex: 0 0 auto;
 }
 
 @media (max-width: 719px) {
@@ -6610,12 +6595,11 @@ body {
   }
 
   .dashboard-goal-stat > strong {
-    font-size: 1.16rem;
+    font-size: 1.04rem;
   }
 
   .dashboard-goal-stat .dashboard-goal-details {
-    gap: 4px;
-    font-size: 0.58rem;
+    font-size: 0.61rem;
     letter-spacing: -0.01em;
   }
 }
