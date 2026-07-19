@@ -88,6 +88,10 @@ export default async function handler(request, response) {
 
       if (databaseConfigured) {
         const currentDatabaseState = await readOrMigrateDatabaseState();
+        // Older open browser tabs do not know about the monthly adjustment
+        // setting yet. Preserve it when those tabs save an otherwise valid
+        // business update, instead of silently clearing the documented total.
+        payload.settings = mergeStateSettings(currentDatabaseState.state?.settings, payload.settings);
         let dailyBackup = null;
         if (hasBlobStorageCredentials()) {
           try {
@@ -179,6 +183,7 @@ export default async function handler(request, response) {
           throw new Error("live_state_backup_unavailable");
         }
         currentPayload = normalizeState(JSON.parse(await streamToText(currentStored.stream)));
+        payload.settings = mergeStateSettings(currentPayload.settings, payload.settings);
       }
 
       const blockedOrderRemovals = currentState
@@ -411,6 +416,23 @@ function normalizeState(value) {
       ...(state.settings && typeof state.settings === "object" ? state.settings : {}),
     },
     updatedAt: typeof state.updatedAt === "string" ? state.updatedAt : null,
+  };
+}
+
+function mergeStateSettings(currentSettings, incomingSettings) {
+  const current = currentSettings && typeof currentSettings === "object" ? currentSettings : {};
+  const incoming = incomingSettings && typeof incomingSettings === "object" ? incomingSettings : {};
+  const currentMonthlyAdjustment = current.monthlySalesAdjustment;
+  const incomingMonthlyAdjustment = incoming.monthlySalesAdjustment;
+
+  return {
+    ...incoming,
+    monthlySalesAdjustment:
+      incomingMonthlyAdjustment && typeof incomingMonthlyAdjustment === "object"
+        ? incomingMonthlyAdjustment
+        : currentMonthlyAdjustment && typeof currentMonthlyAdjustment === "object"
+          ? currentMonthlyAdjustment
+          : null,
   };
 }
 
