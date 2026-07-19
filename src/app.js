@@ -8393,13 +8393,13 @@ function dashboardMonthlyGoalStat(grossValue) {
   const netValue = roundMoney(grossValue / (1 + VAT_RATE));
   const progress = MONTHLY_SALES_GOAL_EX_VAT > 0 ? roundMoney((netValue / MONTHLY_SALES_GOAL_EX_VAT) * 100) : 0;
   const progressLabel = `${progress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
-  const summary = `${formatPrice(netValue)} מתוך ${formatPrice(MONTHLY_SALES_GOAL_EX_VAT)}`;
+  const goalLabel = `יעד: ${formatPrice(MONTHLY_SALES_GOAL_EX_VAT)} · ללא מע״מ`;
 
   return `
     <div class="dashboard-stat sales-goal dashboard-goal-stat">
       ${dashboardStatHeading("יעד החודש", "sales-goal")}
-      <strong>${escapeHtml(progressLabel)}</strong>
-      <small class="dashboard-goal-details"><span>${escapeHtml(summary)}</span><span>ללא מע״מ</span></small>
+      <strong>${escapeHtml(`${progressLabel} מהיעד`)}</strong>
+      <small class="dashboard-goal-details">${escapeHtml(goalLabel)}</small>
     </div>
   `;
 }
