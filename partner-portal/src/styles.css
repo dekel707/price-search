@@ -120,6 +120,11 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
 .portal-floating-cart:hover { border-color: #a7eee4; background: linear-gradient(135deg,rgba(20,111,90,.99),rgba(11,58,56,.99)); transform: translateY(-2px); }
 .portal-floating-cart-count { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #d7fff7; color: #073d37; font-size: .92rem; font-weight: 950; }
 .portal-floating-cart-copy { display: grid; min-width: 0; gap: 2px; }.portal-floating-cart-copy strong { overflow: hidden; color: #f3fffc; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }.portal-floating-cart-copy small { overflow: hidden; color: #c0eee5; font-size: .71rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }.portal-floating-cart-arrow { color: #8ff5e2; font-size: 1.2rem; font-weight: 900; }
+.portal-action-toast { position: fixed; inset: auto 18px 20px auto; z-index: 120; display: flex; max-width: min(390px,calc(100vw - 36px)); align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid rgba(86,224,169,.58); border-radius: 14px; background: linear-gradient(145deg,rgba(19,82,62,.97),rgba(10,39,33,.98)); box-shadow: 0 16px 36px rgba(0,0,0,.34),inset 0 1px 0 rgba(229,255,244,.08); color: #eafff3; direction: rtl; font-size: .84rem; font-weight: 850; line-height: 1.4; opacity: 0; pointer-events: none; transform: translateY(12px); transition: opacity 180ms ease,transform 180ms ease; }
+.portal-action-toast.visible { opacity: 1; transform: translateY(0); }
+.portal-action-toast.error { border-color: rgba(248,113,113,.62); background: linear-gradient(145deg,rgba(111,31,42,.98),rgba(62,20,30,.98)); color: #fff0f1; }
+.portal-action-toast-icon { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border: 1px solid rgba(151,255,205,.58); border-radius: 50%; background: rgba(44,191,124,.2); color: #b9ffda; font-size: .86rem; font-weight: 950; }
+.portal-action-toast.error .portal-action-toast-icon { border-color: rgba(254,202,202,.62); background: rgba(239,68,68,.18); color: #fee2e2; }
 
 .inline-add-field { display: grid; gap: 5px; }
 .inline-add-field span { color: #b9c9d9; font-size: .78rem; font-weight: 800; }
@@ -231,4 +236,8 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
   .cart-header-actions button { flex: 1; }
   .portal-floating-cart { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); min-width: 182px; padding: 8px 10px 8px 8px; }
   .portal-floating-cart-count { width: 31px; height: 31px; font-size: .84rem; }
+}
+
+@media (max-width: 640px) {
+  .portal-action-toast { inset: auto 12px 14px 12px; max-width: none; min-height: 48px; padding: 10px 12px; border-radius: 12px; font-size: .78rem; }
 }

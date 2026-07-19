@@ -5,6 +5,7 @@ const state = { user: null, products: [], customers: [], reservations: [], order
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 2 });
 const DEMO_EXPIRES_AT = "2026-07-20T22:00:00.000Z";
+let actionToastTimer;
 const DEMO_DATA = {
   products: [
     { model: "RF488", skuKey: "RF488", name: "מקרר 4 דלתות 488 ל׳", category: "מקרר", colors: ["נירוסטה"], price: 3490, stockQuantity: 6, technical: { facts: ["No Frost", "קו אפס", "מנוע אינוורטר"], dimensionsCm: { widthCm: 83, heightCm: 178, depthCm: 70 }, capacities: { totalLiters: 488, freezerLiters: 160 }, performance: { energyRating: "E" } }, documents: [] },
@@ -38,6 +39,23 @@ const ADVANCED_DEPTH_RANGES = [["up-to-50", "עד 50 ס״מ", 0, 50], ["51-to-60
 const ADVANCED_FEATURES = [["zero-line", "↔ קו אפס", (facts) => /קו\s*(אפס|0)|zero\s*-?\s*line/.test(facts)], ["no-frost", "❄ No Frost", (facts) => /no\s*frost|frost\s*no/.test(facts)], ["inverter", "ϟ מנוע אינוורטר", (facts) => /inverter|אינוורטר/.test(facts)], ["4k", "✦ 4K", (facts) => /\b4k\b|\buhd\b/.test(facts)], ["smart", "◉ Smart TV", (facts) => /smart/.test(facts)], ["wifi", "⌁ Wi‑Fi", (facts) => /wi\s*-?\s*fi|wifi/.test(facts)], ["heat-pump", "♨ Heat Pump", (facts) => /heat\s*pump|משאבת חום/.test(facts)], ["induction", "◎ אינדוקציה", (facts) => /אינדוקציה/.test(facts)]];
 
 function isDemoMode() { return state.user?.role === "demo"; }
+function showActionToast(message, tone = "success") {
+  const toast = $("#portalActionToast");
+  const text = $("#portalActionToastMessage");
+  const icon = $("#portalActionToastIcon");
+  if (!message || !toast || !text || !icon) return;
+  if (actionToastTimer) window.clearTimeout(actionToastTimer);
+  text.textContent = message;
+  icon.textContent = tone === "error" ? "!" : "✓";
+  toast.classList.toggle("error", tone === "error");
+  toast.hidden = false;
+  toast.classList.remove("visible");
+  window.requestAnimationFrame(() => toast.classList.add("visible"));
+  actionToastTimer = window.setTimeout(() => {
+    toast.classList.remove("visible");
+    window.setTimeout(() => { if (!toast.classList.contains("visible")) toast.hidden = true; }, 180);
+  }, 3800);
+}
 function demoIsAvailable() { return Date.now() < Date.parse(DEMO_EXPIRES_AT); }
 function cloneDemoData() { return JSON.parse(JSON.stringify(DEMO_DATA)); }
 function demoExpiryLabel() { return new Date(DEMO_EXPIRES_AT).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" }); }
@@ -476,6 +494,7 @@ function addPendingToCart() {
   closeAddDialog();
   renderCart();
   $("#orderSearchStatus").textContent = `${product.model} נוסף לסל עבור ${customer.name}. אפשר להמשיך להוסיף מוצרים או לפתוח את בועת הסל.`;
+  showActionToast(`${product.model} נוסף לסל.`);
 }
 
 function renderCart() {
@@ -547,13 +566,16 @@ async function deleteOrder(orderId) {
     if (state.editingOrderId === orderId) cancelEdit();
     renderData();
     $("#orderActionMessage").textContent = "ההזמנה נמחקה מהתצוגה הנוכחית.";
+    showActionToast("ההזמנה נמחקה.");
     return;
   }
   try {
     await api("?action=delete-order", { method: "POST", body: JSON.stringify({ orderId }) });
     if (state.editingOrderId === orderId) cancelEdit();
     await refresh();
-  } catch (error) { $("#orderActionMessage").textContent = `המחיקה לא הושלמה: ${error.message}`; }
+    $("#orderActionMessage").textContent = "ההזמנה נמחקה.";
+    showActionToast("ההזמנה נמחקה.");
+  } catch (error) { $("#orderActionMessage").textContent = `המחיקה לא הושלמה: ${error.message}`; showActionToast("המחיקה לא הושלמה.", "error"); }
 }
 
 function clearCart(message = "") {
@@ -562,6 +584,7 @@ function clearCart(message = "") {
   clearActiveCustomer();
   $("#cartMessage").textContent = message;
   renderCart();
+  if (message) showActionToast(message);
 }
 
 function cancelEdit() { clearCart("עריכת ההזמנה בוטלה והסל נוקה."); }
@@ -613,6 +636,7 @@ function sendReservationsToWhatsApp(customerId) {
   if (!customer || !phone || !entries.length) return;
   const text = [isDemoMode() ? "שריון עבור " + customer.name : `שריון עבור ${customer.name}`, "", ...entries.map((item) => `${item.sku || item.skuKey} · ${item.description || ""} — ${Number(item.quantity).toLocaleString("he-IL")} יח׳`)].filter(Boolean).join("\n");
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  showActionToast("הודעת השריון נפתחה ב‑WhatsApp.");
   if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. הנתונים הם דמיוניים ולא נשמרו במערכת.";
 }
 
@@ -661,6 +685,7 @@ function openOrderWhatsApp(order, targetWindow = null) {
   const url = `https://wa.me/${ORDER_WHATSAPP_PHONE}?text=${encodeURIComponent(whatsappText({ customerName: order.customer_name, items: order.items, createdAt: order.created_at }))}`;
   if (targetWindow && !targetWindow.closed) targetWindow.location.href = url;
   else window.open(url, "_blank", "noopener,noreferrer");
+  showActionToast("ההודעה נפתחה ב‑WhatsApp.");
   if (isDemoMode()) $("#orderActionMessage").textContent = "נפתחה טיוטת WhatsApp לבדיקה. שליחה מתבצעת רק אם לוחצים שלח בתוך WhatsApp.";
   return true;
 }
@@ -703,10 +728,12 @@ async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
     }
     if (openWhatsApp) openOrderWhatsApp(savedOrder, draftWindow);
     $("#cartMessage").textContent = `${editing ? "השינויים נשמרו" : "ההזמנה נשמרה"}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? " ונפתחה לשליחה ב‑WhatsApp." : ""}`;
+    showActionToast(openWhatsApp ? "ההזמנה נשמרה ונפתחה ב‑WhatsApp." : (editing ? "השינויים בהזמנה נשמרו." : "ההזמנה נשמרה."));
     return savedOrder;
   } catch (error) {
     if (draftWindow && !draftWindow.closed) draftWindow.close();
     $("#cartMessage").textContent = `ההזמנה לא נשמרה: ${error.message}`;
+    showActionToast("ההזמנה לא נשמרה.", "error");
     return null;
   } finally {
     submit.disabled = false;
@@ -779,8 +806,36 @@ $("#closeCartCustomerDialog").addEventListener("click", closeAddDialog);
 $("#cartCustomerDialog").addEventListener("click", (event) => { if (event.target === $("#cartCustomerDialog")) closeAddDialog(); });
 $("#cartCustomerInput").addEventListener("input", updateDialogReservation);
 $("#cartCustomerInput").addEventListener("change", updateDialogReservation);
-$("#cartItems").addEventListener("click", (event) => { const button = event.target.closest("[data-remove]"); if (!button) return; state.cart.splice(Number(button.dataset.remove), 1); renderCart(); });
-$("#cartItems").addEventListener("change", (event) => { const quantity = event.target.closest("[data-cart-quantity]"); if (quantity) { const item = state.cart[Number(quantity.dataset.cartQuantity)]; if (item) item.quantity = Number(quantity.value) || 1; renderCart(); return; } const price = event.target.closest("[data-cart-price]"); if (price) { const item = state.cart[Number(price.dataset.cartPrice)]; if (item && Number.isFinite(Number(price.value)) && Number(price.value) >= 0) item.price = Number(price.value); renderCart(); return; } const toggle = event.target.closest("[data-cart-reservation]"); if (toggle) { const item = state.cart[Number(toggle.dataset.cartReservation)]; if (item) item.fromReservation = toggle.checked; renderCart(); } });
+$("#cartItems").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove]");
+  if (!button) return;
+  const [removed] = state.cart.splice(Number(button.dataset.remove), 1);
+  renderCart();
+  if (removed) showActionToast(`${removed.model} הוסר מהסל.`);
+});
+$("#cartItems").addEventListener("change", (event) => {
+  const quantity = event.target.closest("[data-cart-quantity]");
+  if (quantity) {
+    const item = state.cart[Number(quantity.dataset.cartQuantity)];
+    if (item) item.quantity = Number(quantity.value) || 1;
+    renderCart();
+    return;
+  }
+  const price = event.target.closest("[data-cart-price]");
+  if (price) {
+    const item = state.cart[Number(price.dataset.cartPrice)];
+    if (item && Number.isFinite(Number(price.value)) && Number(price.value) >= 0) item.price = Number(price.value);
+    renderCart();
+    return;
+  }
+  const toggle = event.target.closest("[data-cart-reservation]");
+  if (toggle) {
+    const item = state.cart[Number(toggle.dataset.cartReservation)];
+    if (item) item.fromReservation = toggle.checked;
+    renderCart();
+    showActionToast(toggle.checked ? "המוצר יסומן למשיכה משריון." : "המוצר יחויב לפי מחירון.");
+  }
+});
 $("#reservationList").addEventListener("click", (event) => { const button = event.target.closest("[data-send-reservations]"); if (button) sendReservationsToWhatsApp(button.dataset.sendReservations); });
 $("#reservationList").addEventListener("toggle", (event) => { const details = event.target.closest?.("[data-reservation-customer]"); if (!details) return; if (details.open) state.openReservationCustomers.add(details.dataset.reservationCustomer); else state.openReservationCustomers.delete(details.dataset.reservationCustomer); }, true);
 $("#orderList").addEventListener("click", (event) => { const show = event.target.closest("[data-show-order]"); const send = event.target.closest("[data-send-order]"); const edit = event.target.closest("[data-edit-order]"); const remove = event.target.closest("[data-delete-order]"); if (show) showOrder(state.orders.find((item) => item.id === show.dataset.showOrder)); if (send) openOrderWhatsApp(state.orders.find((item) => item.id === send.dataset.sendOrder)); if (edit) editOrder(state.orders.find((item) => item.id === edit.dataset.editOrder)); if (remove) openDeleteDialog(remove.dataset.deleteOrder); });
