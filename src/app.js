@@ -43,6 +43,7 @@ const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
 const MONTHLY_SALES_GOAL_EX_VAT = 1540000;
+const CLOUD_LIVE_REFRESH_INTERVAL_MS = 10_000;
 const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_ORDER_IMPORT_OCR_PAGES = 8;
 const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
@@ -495,6 +496,8 @@ let pendingCloudSave = null;
 const cloudSaveResults = new Map();
 let cloudRetryTimer = null;
 let cloudRetryAttempt = 0;
+let cloudLiveRefreshTimer = null;
+let cloudLiveRefreshInFlight = false;
 let appStarted = false;
 let israelClockTimer = null;
 let actionToastTimer = null;
@@ -592,6 +595,7 @@ async function startApp() {
   loadZmanim();
   registerServiceWorker();
   hydrateCloudState();
+  startCloudLiveRefresh();
 }
 
 function startIsraelClock() {
@@ -1522,7 +1526,7 @@ async function loadSpecManifest() {
   }
 }
 
-async function hydrateCloudState() {
+async function hydrateCloudState(options = {}) {
   if (CLOUD_SYNC_DISABLED) return;
 
   try {
@@ -1533,7 +1537,21 @@ async function hydrateCloudState() {
     }
     if (!response.ok) throw new Error(`Cloud state failed: ${response.status}`);
 
-    cloudStateVersion = response.headers.get("x-state-version") || "";
+    const remoteStateVersion = response.headers.get("x-state-version") || "";
+    if (
+      options.onlyIfChanged &&
+      cloudHydrated &&
+      remoteStateVersion &&
+      cloudStateVersion &&
+      remoteStateVersion === cloudStateVersion
+    ) {
+      cloudSyncState = "synced";
+      markCloudSyncRecovered();
+      renderMetadata();
+      return false;
+    }
+
+    cloudStateVersion = remoteStateVersion;
     const state = await response.json();
     if (hasCloudState(state)) {
       applySharedState(state);
@@ -1551,7 +1569,7 @@ async function hydrateCloudState() {
         cloudSaveAgain = false;
         queueCloudSave(0);
       }
-      return;
+      return true;
     }
 
     cloudHydrated = true;
@@ -1560,12 +1578,40 @@ async function hydrateCloudState() {
     renderMetadata();
     if (resumePendingCloudSave()) return;
     queueCloudSave(0);
+    return true;
   } catch (error) {
     console.warn("Cloud sync is unavailable", error);
     cloudHydrated = true;
     cloudSyncState = "offline";
     renderMetadata();
     scheduleCloudRetry();
+    return false;
+  }
+}
+
+function startCloudLiveRefresh() {
+  if (CLOUD_SYNC_DISABLED || cloudLiveRefreshTimer) return;
+  cloudLiveRefreshTimer = window.setInterval(refreshCloudStateInBackground, CLOUD_LIVE_REFRESH_INTERVAL_MS);
+  window.addEventListener("focus", refreshCloudStateInBackground);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshCloudStateInBackground();
+  });
+}
+
+function isSafeToRefreshCloudState() {
+  if (CLOUD_SYNC_DISABLED || document.hidden || cloudLiveRefreshInFlight || cloudSaveInFlight) return false;
+  if (pendingCloudSave || readPendingCloudSave()) return false;
+  const activeElement = document.activeElement;
+  return !["INPUT", "TEXTAREA", "SELECT"].includes(activeElement?.tagName);
+}
+
+async function refreshCloudStateInBackground() {
+  if (!isSafeToRefreshCloudState()) return;
+  cloudLiveRefreshInFlight = true;
+  try {
+    await hydrateCloudState({ onlyIfChanged: true });
+  } finally {
+    cloudLiveRefreshInFlight = false;
   }
 }
 
@@ -9142,11 +9188,40 @@ function getMonthlySalesReportValue(monthKey, actualGrossValue) {
   }
 
   const targetGross = roundMoney(adjustment.targetExVat * (1 + VAT_RATE));
+  const baselineGross = getMonthlySalesAdjustmentBaselineGross(monthKey, adjustment);
+  // Older data contains one manual alignment for the month. It represents the
+  // sales total at the moment of the alignment, not a permanent frozen total.
+  // Keep its difference as a fixed historical correction, so every new order
+  // (including tomorrow and Eitan orders) moves the dashboard immediately.
+  if (baselineGross !== null) {
+    const adjustmentGross = roundMoney(targetGross - baselineGross);
+    return {
+      grossValue: roundMoney(actualGross + adjustmentGross),
+      adjustmentGross,
+      adjustment,
+    };
+  }
+
+  // A malformed legacy adjustment without a timestamp keeps its previous,
+  // conservative display until it can be corrected explicitly; this avoids
+  // accidentally adding an old month twice.
   return {
     grossValue: targetGross,
     adjustmentGross: roundMoney(targetGross - actualGross),
     adjustment,
   };
+}
+
+function getMonthlySalesAdjustmentBaselineGross(monthKey, adjustment) {
+  const capturedAt = new Date(adjustment?.updatedAt).getTime();
+  if (!Number.isFinite(capturedAt)) return null;
+
+  return roundMoney(
+    orders
+      .filter((order) => getOrderReportDateKey(order).startsWith(monthKey))
+      .filter((order) => new Date(order.createdAt).getTime() <= capturedAt)
+      .reduce((sum, order) => sum + getPaidSalesTotal(order.items), 0),
+  );
 }
 
 function getMonthlySalesAdjustmentLabel(value) {
