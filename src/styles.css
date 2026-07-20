@@ -3521,6 +3521,21 @@ h2 {
   font-weight: 900;
 }
 
+.order-source-badge {
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.order-source-badge.eitan {
+  border: 1px solid rgba(188, 164, 255, 0.6);
+  background: linear-gradient(135deg, rgba(108, 81, 177, 0.58), rgba(59, 42, 103, 0.42));
+  color: #eee7ff;
+}
+
 .order-details-type {
   color: #ffe19a;
 }

@@ -6,6 +6,7 @@
   "scripts": {
     "generate:specs": "node scripts/generate-spec-manifest.mjs",
     "test:order-safety": "node scripts/verify-order-safety.mjs",
+    "test:whatsapp-order-save": "node scripts/verify-whatsapp-order-save.mjs",
     "test:order-schedule": "node scripts/verify-order-schedule.mjs",
     "test:future-stock": "node scripts/verify-future-stock-flow.mjs",
     "test:delete-feedback": "node scripts/verify-delete-feedback.mjs",

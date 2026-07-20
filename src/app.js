@@ -483,6 +483,7 @@ let cloudSaveAgain = false;
 let cloudSyncState = CLOUD_SYNC_DISABLED ? "local" : "syncing";
 let cloudStateVersion = "";
 let pendingCloudSave = null;
+const cloudSaveResults = new Map();
 let cloudRetryTimer = null;
 let cloudRetryAttempt = 0;
 let appStarted = false;
@@ -714,7 +715,6 @@ function bindEvents() {
         renderTomorrowOrders();
       }
       if (button.dataset.tab === "reminders") remindersDateFilter = "";
-      if (button.dataset.tab === "eitan-orders") loadEitanOrders();
       setActiveTab(button.dataset.tab);
     });
   });
@@ -1356,8 +1356,8 @@ function bindEvents() {
   dom.futureStockOrdersSearch.addEventListener("input", renderFutureStockOrders);
   dom.futureStockOrdersList.addEventListener("click", handleFutureStockOrderActionClick);
   dom.orderSearch.addEventListener("input", renderOrders);
-  dom.refreshEitanOrders.addEventListener("click", () => loadEitanOrders());
-  dom.eitanOrdersList.addEventListener("click", handleEitanOrderAction);
+  dom.refreshEitanOrders?.addEventListener("click", () => loadEitanOrders());
+  dom.eitanOrdersList?.addEventListener("click", handleEitanOrderAction);
   dom.completedOrderSearch.addEventListener("input", renderCompletedOrders);
   dom.tomorrowOrderSearch.addEventListener("input", renderTomorrowOrders);
   dom.soldProductsSearch.addEventListener("input", renderSoldProductsPanel);
@@ -2532,7 +2532,6 @@ function render() {
   renderCart();
   renderDrafts();
   renderFutureStockOrders();
-  renderEitanOrdersPanel();
   renderOrders();
   renderCompletedOrders();
   renderTomorrowOrders();
@@ -10634,7 +10633,7 @@ function restoreOrderReservations(order) {
   sortReservations();
 }
 
-function sendCurrentOrderToWhatsApp(event) {
+async function sendCurrentOrderToWhatsApp(event) {
   const url = createWhatsAppUrl(cart);
   if (!url) {
     event.preventDefault();
@@ -10642,24 +10641,65 @@ function sendCurrentOrderToWhatsApp(event) {
   }
 
   event.preventDefault();
-  if (editingDraftId || dom.saveAsDraft.checked) {
+  const savingDraft = Boolean(editingDraftId || dom.saveAsDraft.checked);
+  const savingReservationOrder = orderType === "reservation";
+  let savedOrder = null;
+  if (savingDraft) {
     const draft = saveDraftOrder({
-      status: isFutureStockDraft(drafts.find((item) => item.id === editingDraftId))
-        ? "הזמנת המלאי העתידי נשמרה וההודעה נפתחה בוואטסאפ. היא לא נכנסה להזמנות."
-        : "הטיוטה נשמרה וההודעה נפתחה בוואטסאפ. היא לא נכנסה להזמנות.",
+      status: "שומר את הטיוטה בענן לפני פתיחת WhatsApp…",
     });
     if (!draft) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    savedOrder = draft;
+  } else {
+    savedOrder = saveOrder({ status: "שומר את ההזמנה בענן לפני פתיחת WhatsApp…" });
+    if (!savedOrder) return;
+  }
+
+  // Open a harmless blank tab while this is still a direct click, so mobile
+  // browsers do not block the eventual WhatsApp navigation after the save
+  // confirmation arrives. It is closed immediately when saving is not proven.
+  const whatsappWindow = window.open("about:blank", "_blank");
+  if (whatsappWindow) {
+    try {
+      whatsappWindow.opener = null;
+      whatsappWindow.document.title = "שומר הזמנה…";
+      whatsappWindow.document.body.textContent = "שומר את ההזמנה בענן לפני פתיחת WhatsApp…";
+    } catch {
+      // A browser may restrict a newly opened tab; the final navigation still
+      // has a normal fallback below.
+    }
+  }
+
+  const saveId = pendingCloudSave?.id || readPendingCloudSave()?.id || "";
+  const savedInCloud = await confirmCloudSaveBeforeExternalAction(saveId);
+  if (!savedInCloud) {
+    if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
+    const kind = savedOrder && isFutureStockDraft(savedOrder) ? "הטיוטה" : savingDraft ? "הטיוטה" : "ההזמנה";
+    const message = `${kind} לא נפתחה ב‑WhatsApp כי לא התקבל אישור שמירה בענן. לא נשלחה הודעה בלי הזמנה שמורה.`;
+    dom.status.textContent = message;
+    showActionToast(message);
     return;
   }
 
-  const status =
-    orderType === "reservation"
-      ? "הזמנת השריון נשמרה, היתרות עודכנו וההודעה נפתחה בוואטסאפ."
-      : "ההזמנה נשמרה ונפתחה לשליחה בוואטסאפ.";
-  const order = saveOrder({ status });
-  if (!order) return;
-  window.open(url, "_blank", "noopener,noreferrer");
+  if (whatsappWindow && !whatsappWindow.closed) {
+    whatsappWindow.location.replace(url);
+  } else {
+    const fallbackWindow = window.open(url, "_blank", "noopener,noreferrer");
+    if (!fallbackWindow) {
+      const message = "ההזמנה נשמרה בענן, אך הדפדפן חסם את חלון WhatsApp. אפשר לפתוח אותה מכפתור WhatsApp שבהזמנה.";
+      dom.status.textContent = message;
+      showActionToast(message);
+      return;
+    }
+  }
+
+  const message = savingDraft
+    ? "הטיוטה נשמרה בענן ונפתחה לשליחה ב‑WhatsApp. היא לא נכנסה להזמנות."
+    : savingReservationOrder
+      ? "הזמנת השריון נשמרה בענן, היתרות עודכנו וההודעה נפתחה ב‑WhatsApp."
+      : "ההזמנה נשמרה בענן ונפתחה לשליחה ב‑WhatsApp.";
+  dom.status.textContent = message;
+  showActionToast(message);
 }
 
 function renderCart() {
@@ -11228,6 +11268,10 @@ function renderDraftCard(draft) {
   return card;
 }
 
+function isEitanPartnerOrder(order) {
+  return cleanString(order?.id).startsWith("eitan-");
+}
+
 function renderOrderCard(order, options = {}) {
   const card = document.createElement("article");
   card.className = "order-card";
@@ -11251,6 +11295,9 @@ function renderOrderCard(order, options = {}) {
     timeStyle: "short",
   });
   const reportLabel = getOrderReportLabel(order);
+  const eitanSourceLabel = isEitanPartnerOrder(order)
+    ? '<span class="order-source-badge eitan">הזמנת איתן</span>'
+    : "";
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const reservationUsage = getOrderReservationUsage(order);
   const summary = order.items
@@ -11276,6 +11323,7 @@ function renderOrderCard(order, options = {}) {
     ${reservationUsage ? `<span class="order-reservation-badge ${reservationUsage.partial ? "partial" : "full"}">${getOrderActionIcon("package")}<span>${reservationUsage.label}</span></span>` : ""}
     ${customerLine}
     ${reportLabel ? `<span class="order-report-badge">${escapeHtml(reportLabel)}</span>` : ""}
+    ${eitanSourceLabel}
     <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>${escapeHtml(formatPrice(order.total))}</b></div>
     <small class="order-card-summary">${escapeHtml(summary)}</small>
   `;
@@ -12361,6 +12409,44 @@ function queueCloudSave(request = {}) {
   schedulePendingCloudSave(delay);
 }
 
+function rememberCloudSaveResult(id, saved) {
+  if (!id) return;
+  cloudSaveResults.set(id, Boolean(saved));
+  while (cloudSaveResults.size > 16) {
+    cloudSaveResults.delete(cloudSaveResults.keys().next().value);
+  }
+}
+
+function pause(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+// A WhatsApp message is an external action: it must never be opened before
+// the matching order has an affirmative cloud-save response. The regular
+// background retry remains in place for all other edits, while this short
+// confirmation wait prevents an order from existing only in a WhatsApp chat.
+async function confirmCloudSaveBeforeExternalAction(saveId, timeout = 12_000) {
+  if (CLOUD_SYNC_DISABLED) return true;
+  if (!saveId) return false;
+
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (cloudSaveResults.has(saveId)) return cloudSaveResults.get(saveId);
+    if (cloudSyncState === "conflict") return false;
+
+    if (!cloudSaveInFlight) {
+      await saveSharedStateNow();
+      if (cloudSaveResults.has(saveId)) return cloudSaveResults.get(saveId);
+      await pause(180);
+      continue;
+    }
+
+    await pause(90);
+  }
+
+  return cloudSaveResults.get(saveId) === true;
+}
+
 function normalizeCloudSaveRequest(request) {
   if (typeof request === "number") {
     return { delay: Math.max(0, request), action: "state-change" };
@@ -12451,6 +12537,7 @@ async function saveSharedStateNow() {
     });
 
     if (response.status === 401) {
+      rememberCloudSaveResult(envelope.id, false);
       lockApp("יש להתחבר מחדש כדי לשמור נתונים.");
       return;
     }
@@ -12461,6 +12548,7 @@ async function saveSharedStateNow() {
       // envelope: clear that envelope and reload the current cloud version.
       // Recent missing orders are merged by the API before this branch, so no
       // saved order is silently discarded here.
+      rememberCloudSaveResult(envelope.id, false);
       clearPendingCloudSave(envelope.id);
       cloudSaveAgain = false;
       cloudSyncState = "syncing";
@@ -12478,10 +12566,12 @@ async function saveSharedStateNow() {
     if (savedState?.recoveredConflict?.orderCount) {
       const count = Number(savedState.recoveredConflict.orderCount).toLocaleString("he-IL");
       dom.status.textContent = `${count} הזמנה/ות חדשות נשמרו אוטומטית למרות שמסך ישן היה פתוח. הנתונים נטענים מחדש מהענן.`;
+      rememberCloudSaveResult(envelope.id, true);
       clearPendingCloudSave(envelope.id);
       await hydrateCloudState();
       return;
     }
+    rememberCloudSaveResult(envelope.id, true);
     clearPendingCloudSave(envelope.id);
     if (envelope.resume) {
       await hydrateCloudState();
