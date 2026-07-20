@@ -11122,6 +11122,9 @@ function renderPromotionBuilder() {
   productSearch.placeholder = "חפש דגם או שם מוצר…";
   productSearch.value = promotionProductSearchQuery;
   productSearch.autocomplete = "off";
+  productSearch.inputMode = "search";
+  productSearch.enterKeyHint = "search";
+  productSearch.spellcheck = false;
   productSearch.dataset.promotionProductSearch = "";
   productSearch.setAttribute("aria-label", "חיפוש מוצר לבניית המבצע");
   itemsTools.append(productSearch);
@@ -11228,6 +11231,7 @@ function getPromotionBuilderProducts(selectedSkuKey = "") {
 
 function renderPromotionProductPicker() {
   const picker = document.createElement("section");
+  picker.id = "promotionProductPicker";
   picker.className = "promotion-product-picker";
   const header = document.createElement("div");
   header.className = "promotion-product-picker-header";
@@ -11275,6 +11279,12 @@ function renderPromotionProductPicker() {
 
   picker.append(header, results);
   return picker;
+}
+
+function refreshPromotionProductPicker() {
+  const currentPicker = dom.promotionBuilder?.querySelector("#promotionProductPicker");
+  if (!currentPicker) return;
+  currentPicker.replaceWith(renderPromotionProductPicker());
 }
 
 function renderPromotionBuilderItem(item, index) {
@@ -11359,8 +11369,10 @@ function handlePromotionBuilderInput(event) {
   const input = event.target;
   if (input.matches("[data-promotion-product-search]")) {
     promotionProductSearchQuery = cleanString(input.value);
-    renderPromotionBuilder();
-    focusPromotionProductSearch();
+    // Do not replace the search field while someone is typing. On mobile that
+    // caused the keyboard to lose its mode and the page to jump back to the
+    // beginning of the builder after every character.
+    refreshPromotionProductPicker();
     return;
   }
   const field = input.dataset.promotionField;
