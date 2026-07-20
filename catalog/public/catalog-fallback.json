@@ -51,7 +51,13 @@
           "כולל מעמד: 713x200x469 מ\"מ"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-32UIL900.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-43UIL900",
@@ -102,7 +108,13 @@
           "כולל מעמד: 957x207x613 מ\"מ"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-43UIL900.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-50UILQ950",
@@ -150,7 +162,13 @@
           "כולל מעמד: 1112x234x693"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-50UILQ950.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-55UILQ950",
@@ -196,7 +214,13 @@
           "כולל מעמד: 1228x255x765 מ\"מ"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-55UILQ950.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-65Q10X",
@@ -251,7 +275,13 @@
           "כולל מעמד: 1445x299x903"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-65Q10X.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-75UILQ950",
@@ -313,7 +343,13 @@
           "מ\"מ"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-75UILQ950.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-B957E",
@@ -3901,7 +3937,13 @@
           "תבנית להכנת קרח"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF493GBE.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF500BK",
@@ -3951,7 +3993,13 @@
           "* דלת זכוכית קיימת רק בגימור שחור/לבן בלבד"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF500BK.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF513XBF",
@@ -4246,7 +4294,13 @@
           "* דלת זכוכית קיימת רק בגימור שחור/לבן בלבד"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF515W.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF516WBF",
@@ -4657,7 +4711,13 @@
           "* דלת זכוכית קיימת רק בגימור שחור/לבן בלבד"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF600BK.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF615W",
@@ -4821,7 +4881,13 @@
           "דגם FJ-NF655BGE"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF655BGE.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF676LBM",
@@ -5101,7 +5167,13 @@
           "שחור מט"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF696RBM.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF70X",
@@ -5581,7 +5653,13 @@
           "נירוסטה מושחרת"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF838RDXE.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NF888BME",
@@ -5688,7 +5766,13 @@
           "תבנית להכנת קרח"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-NF949RXE.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-NFRT325BK",
@@ -5830,7 +5914,13 @@
           "תאורה הניתנת לכיבוי/הדלקה"
         ]
       },
-      "documents": []
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-V65TE.pdf"
+        }
+      ]
     },
     {
       "model": "FJ-WC118",
