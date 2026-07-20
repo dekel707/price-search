@@ -288,6 +288,13 @@ const dom = {
   deleteArrival: document.querySelector("#deleteArrival"),
   cancelArrival: document.querySelector("#cancelArrival"),
   cancelArrivalTop: document.querySelector("#cancelArrivalTop"),
+  promotionWhatsAppDialog: document.querySelector("#promotionWhatsAppDialog"),
+  promotionWhatsAppForm: document.querySelector("#promotionWhatsAppForm"),
+  promotionWhatsAppTitle: document.querySelector("#promotionWhatsAppTitle"),
+  promotionWhatsAppOptions: document.querySelector("#promotionWhatsAppOptions"),
+  promotionWhatsAppPreview: document.querySelector("#promotionWhatsAppPreview"),
+  cancelPromotionWhatsApp: document.querySelector("#cancelPromotionWhatsApp"),
+  cancelPromotionWhatsAppTop: document.querySelector("#cancelPromotionWhatsAppTop"),
   whatsappNumber: document.querySelector("#whatsappNumber"),
   customerSearch: document.querySelector("#customerSearch"),
   customerForm: document.querySelector("#customerForm"),
@@ -453,6 +460,8 @@ let promotions = [];
 let promotionDraft = createEmptyPromotionDraft();
 let promotionProductSearchQuery = "";
 let promotionProductTargetIndex = null;
+let pendingPromotionWhatsAppId = "";
+let pendingPromotionWhatsAppOptions = {};
 let orderCompletionMigrationVersion = 0;
 let orderOpenRestoreMigrationVersion = 0;
 let openCollectionDetails = new Set();
@@ -924,6 +933,12 @@ function bindEvents() {
       return;
     }
 
+    const whatsappButton = event.target.closest("[data-send-promotion-whatsapp]");
+    if (whatsappButton) {
+      openPromotionWhatsAppDialog(whatsappButton.dataset.sendPromotionWhatsapp);
+      return;
+    }
+
     const cartButton = event.target.closest("[data-add-promotion-to-cart]");
     if (cartButton) addPromotionToCart(cartButton.dataset.addPromotionToCart);
   });
@@ -981,11 +996,19 @@ function bindEvents() {
   dom.arrivalDialog.addEventListener("click", (event) => {
     if (event.target === dom.arrivalDialog) closeArrivalDialog();
   });
+  dom.promotionWhatsAppForm.addEventListener("submit", sendPromotionToWhatsApp);
+  dom.promotionWhatsAppOptions.addEventListener("change", updatePromotionWhatsAppOptions);
+  dom.cancelPromotionWhatsApp.addEventListener("click", closePromotionWhatsAppDialog);
+  dom.cancelPromotionWhatsAppTop.addEventListener("click", closePromotionWhatsAppDialog);
+  dom.promotionWhatsAppDialog.addEventListener("click", (event) => {
+    if (event.target === dom.promotionWhatsAppDialog) closePromotionWhatsAppDialog();
+  });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !dom.cartCustomerDialog.hidden) closeCartCustomerDialog();
     if (event.key === "Escape" && !dom.orderImportDialog.hidden) closeOrderImportDialog();
     if (event.key === "Escape" && !dom.noteDialog.hidden) closeNoteDialog();
     if (event.key === "Escape" && !dom.arrivalDialog.hidden) closeArrivalDialog();
+    if (event.key === "Escape" && !dom.promotionWhatsAppDialog.hidden) closePromotionWhatsAppDialog();
   });
   dom.customersList.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-customer]");
@@ -11711,12 +11734,13 @@ function renderPromotionCard(promotion) {
   add.dataset.addPromotionToCart = promotion.id;
   add.textContent = isBundlePromotion(promotion) ? "הוסף חבילה לסל" : "הוסף מבצע לסל";
   add.disabled = !promotion.active;
-  const whatsapp = document.createElement("a");
+  const whatsapp = document.createElement("button");
+  whatsapp.type = "button";
   whatsapp.className = "whatsapp-button";
-  whatsapp.target = "_blank";
-  whatsapp.rel = "noreferrer";
-  whatsapp.textContent = "שלח מבצע ב‑WhatsApp";
-  updateWhatsAppLink(whatsapp, createPromotionWhatsAppUrl(promotion));
+  whatsapp.dataset.sendPromotionWhatsapp = promotion.id;
+  whatsapp.textContent = "בחר ושלח ב‑WhatsApp";
+  whatsapp.disabled = !normalizePhone(settings.whatsappNumber);
+  whatsapp.title = whatsapp.disabled ? "יש להגדיר מספר WhatsApp בהגדרות" : "בחר מה יופיע בהודעת המבצע";
   const edit = document.createElement("button");
   edit.type = "button";
   edit.className = "secondary-button";
@@ -12508,10 +12532,10 @@ function createWhatsAppUrl(items, order = null) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(createOrderMessage(items, order))}`;
 }
 
-function createPromotionWhatsAppUrl(promotion) {
+function createPromotionWhatsAppUrl(promotion, options = {}) {
   const phone = normalizePhone(settings.whatsappNumber);
   if (!phone || !promotion?.items?.length) return "";
-  return `https://wa.me/${phone}?text=${encodeURIComponent(createPromotionMessage(promotion))}`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(createPromotionMessage(promotion, options))}`;
 }
 
 function updateWhatsAppLink(link, url) {
@@ -12543,24 +12567,136 @@ function createOrderMessage(items, order = null) {
   return lines.join("\n");
 }
 
-function createPromotionMessage(promotion) {
-  const lines = [`מבצע: ${cleanString(promotion.name)}`];
-  if (cleanString(promotion.description)) lines.push(cleanString(promotion.description));
+function getPromotionWhatsAppOptionDefinitions(promotion) {
   const bundle = isBundlePromotion(promotion);
-  if (bundle) lines.push(`באנדל · מחיר לחבילה: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
-  lines.push("");
+  return [
+    { key: "promotionName", label: "שם המבצע", hint: "כותרת ההודעה", defaultValue: true },
+    ...(cleanString(promotion?.description)
+      ? [{ key: "promotionDescription", label: "טקסט המבצע", hint: "המשפט שמופיע מתחת לכותרת", defaultValue: true }]
+      : []),
+    { key: "quantity", label: "כמות", hint: "לדוגמה: 2 יחידות", defaultValue: true },
+    { key: "model", label: "דגם", hint: "מק״ט או דגם", defaultValue: true },
+    { key: "productDescription", label: "תיאור מוצר", hint: "שם או תיאור קצר", defaultValue: true },
+    ...(!bundle ? [{ key: "unitPrice", label: "מחיר ליחידה", hint: "מחיר מבצע לכל פריט", defaultValue: true }] : []),
+    { key: "total", label: bundle ? "מחיר חבילה" : "סה״כ מבצע", hint: "המחיר הכולל", defaultValue: true },
+  ];
+}
+
+function normalizePromotionWhatsAppOptions(promotion, values = {}) {
+  return Object.fromEntries(
+    getPromotionWhatsAppOptionDefinitions(promotion).map(({ key, defaultValue }) => [
+      key,
+      typeof values[key] === "boolean" ? values[key] : defaultValue,
+    ]),
+  );
+}
+
+function createPromotionMessage(promotion, options = {}) {
+  const values = normalizePromotionWhatsAppOptions(promotion, options);
+  const lines = [];
+  if (values.promotionName) lines.push(`מבצע: ${cleanString(promotion.name)}`);
+  if (values.promotionDescription && cleanString(promotion.description)) lines.push(cleanString(promotion.description));
+  const bundle = isBundlePromotion(promotion);
+  if (lines.length) lines.push("");
+  const itemLines = [];
   promotion.items.forEach((item) => {
     const quantity = parseQuantity(item.quantity);
-    const model = cleanString(item.sku || item.skuKey || item.description) || "פריט";
+    const model = cleanString(item.sku || item.skuKey);
     const description = cleanString(item.description);
-    const itemTitle = description && description !== model ? ` · ${description}` : "";
-    lines.push(bundle
-      ? `• ${quantity} ${formatQuantityUnit(quantity)} (${model})${itemTitle}`
-      : `• ${quantity} ${formatQuantityUnit(quantity)} (${model})${itemTitle} — ${formatPlainPrice(item.unitPrice)} ש״ח ליח׳`);
+    const parts = [];
+    if (values.quantity) parts.push(`${quantity} ${formatQuantityUnit(quantity)}`);
+    if (values.model && model) parts.push(`(${model})`);
+    if (values.productDescription && description && description !== model) parts.push(description);
+    if (!parts.length) return;
+    const itemPrice = !bundle && values.unitPrice ? ` — ${formatPlainPrice(item.unitPrice)} ש״ח ליח׳` : "";
+    itemLines.push(`• ${parts.join(" · ")}${itemPrice}`);
   });
-  lines.push("");
-  lines.push(`${bundle ? "מחיר חבילה" : "סה״כ מבצע"}: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
+  if (itemLines.length) lines.push(...itemLines);
+  if (values.total) {
+    if (lines.length) lines.push("");
+    lines.push(`${bundle ? "מחיר חבילה" : "סה״כ מבצע"}: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
+  }
   return lines.join("\n");
+}
+
+function renderPromotionWhatsAppDialog() {
+  const promotion = promotions.find((item) => item.id === pendingPromotionWhatsAppId);
+  if (!promotion) return;
+  pendingPromotionWhatsAppOptions = normalizePromotionWhatsAppOptions(promotion, pendingPromotionWhatsAppOptions);
+  dom.promotionWhatsAppTitle.textContent = `מה יופיע במבצע „${promotion.name}”?`;
+  const options = getPromotionWhatsAppOptionDefinitions(promotion).map((definition) => {
+    const option = document.createElement("label");
+    option.className = "promotion-message-option";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = pendingPromotionWhatsAppOptions[definition.key];
+    input.dataset.promotionWhatsappOption = definition.key;
+    const copy = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = definition.label;
+    const hint = document.createElement("small");
+    hint.textContent = definition.hint;
+    copy.append(title, hint);
+    option.append(input, copy);
+    return option;
+  });
+  dom.promotionWhatsAppOptions.replaceChildren(...options);
+  updatePromotionWhatsAppPreview();
+}
+
+function updatePromotionWhatsAppPreview() {
+  const promotion = promotions.find((item) => item.id === pendingPromotionWhatsAppId);
+  if (!promotion) return;
+  dom.promotionWhatsAppPreview.textContent = createPromotionMessage(promotion, pendingPromotionWhatsAppOptions) || "בחר לפחות פרט אחד שיופיע בהודעה.";
+}
+
+function openPromotionWhatsAppDialog(promotionId) {
+  const promotion = promotions.find((item) => item.id === promotionId);
+  if (!promotion) return;
+  if (!normalizePhone(settings.whatsappNumber)) {
+    const message = "יש להגדיר מספר WhatsApp בהגדרות לפני שליחת מבצע.";
+    dom.status.textContent = message;
+    showActionToast(message, "error");
+    return;
+  }
+  pendingPromotionWhatsAppId = promotion.id;
+  pendingPromotionWhatsAppOptions = normalizePromotionWhatsAppOptions(promotion);
+  renderPromotionWhatsAppDialog();
+  dom.promotionWhatsAppDialog.hidden = false;
+  document.body.classList.add("dialog-open");
+  window.setTimeout(() => dom.promotionWhatsAppOptions.querySelector("input")?.focus(), 0);
+}
+
+function closePromotionWhatsAppDialog() {
+  pendingPromotionWhatsAppId = "";
+  pendingPromotionWhatsAppOptions = {};
+  dom.promotionWhatsAppDialog.hidden = true;
+  document.body.classList.remove("dialog-open");
+}
+
+function updatePromotionWhatsAppOptions(event) {
+  const input = event.target.closest("[data-promotion-whatsapp-option]");
+  if (!input) return;
+  pendingPromotionWhatsAppOptions[input.dataset.promotionWhatsappOption] = input.checked;
+  updatePromotionWhatsAppPreview();
+}
+
+function sendPromotionToWhatsApp(event) {
+  event.preventDefault();
+  const promotion = promotions.find((item) => item.id === pendingPromotionWhatsAppId);
+  if (!promotion) return;
+  const url = createPromotionWhatsAppUrl(promotion, pendingPromotionWhatsAppOptions);
+  if (!url) {
+    const message = "לא ניתן לפתוח WhatsApp — בדוק שהוגדר מספר ושנבחר תוכן להודעה.";
+    dom.status.textContent = message;
+    showActionToast(message, "error");
+    return;
+  }
+  closePromotionWhatsAppDialog();
+  window.open(url, "_blank", "noopener,noreferrer");
+  const message = `נפתחה הודעת WhatsApp עבור המבצע „${promotion.name}”.`;
+  dom.status.textContent = message;
+  showActionToast(message);
 }
 
 function formatQuantityUnit(quantity) {
