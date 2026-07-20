@@ -451,6 +451,7 @@ let collections = [];
 let promotions = [];
 let promotionDraft = createEmptyPromotionDraft();
 let promotionProductSearchQuery = "";
+let promotionProductTargetIndex = null;
 let orderCompletionMigrationVersion = 0;
 let orderOpenRestoreMigrationVersion = 0;
 let openCollectionDetails = new Set();
@@ -830,6 +831,41 @@ function bindEvents() {
     if (product) openArrivalDialog(product);
   });
   dom.promotionsPanel.addEventListener("click", (event) => {
+    const selectProductButton = event.target.closest("[data-select-promotion-product]");
+    if (selectProductButton) {
+      const product = products.find((item) => item.skuKey === selectProductButton.dataset.selectPromotionProduct);
+      if (!product) return;
+
+      const targetIndex = promotionProductTargetIndex;
+      if (Number.isInteger(targetIndex) && promotionDraft.items[targetIndex]) {
+        promotionDraft.items[targetIndex] = createPromotionItemFromProduct(product, promotionDraft.items[targetIndex]);
+      } else {
+        promotionDraft.items.push(createPromotionItemFromProduct(product));
+      }
+      promotionProductTargetIndex = null;
+      promotionProductSearchQuery = "";
+      renderPromotionsPanel();
+      focusPromotionProductSearch();
+      return;
+    }
+
+    const changeItemProductButton = event.target.closest("[data-change-promotion-item]");
+    if (changeItemProductButton) {
+      const index = Number(changeItemProductButton.dataset.changePromotionItem);
+      if (!Number.isInteger(index) || !promotionDraft.items[index]) return;
+      promotionProductTargetIndex = index;
+      promotionProductSearchQuery = "";
+      renderPromotionsPanel();
+      focusPromotionProductSearch();
+      return;
+    }
+
+    if (event.target.closest("[data-cancel-promotion-product-change]")) {
+      promotionProductTargetIndex = null;
+      renderPromotionsPanel();
+      return;
+    }
+
     const addItemButton = event.target.closest("[data-add-promotion-item]");
     if (addItemButton) {
       promotionDraft.items.push(createEmptyPromotionItem());
@@ -841,6 +877,7 @@ function bindEvents() {
     if (removeItemButton) {
       const index = Number(removeItemButton.dataset.removePromotionItem);
       if (Number.isInteger(index)) promotionDraft.items.splice(index, 1);
+      promotionProductTargetIndex = null;
       renderPromotionsPanel();
       return;
     }
@@ -852,6 +889,8 @@ function bindEvents() {
 
     if (event.target.closest("[data-reset-promotion]")) {
       promotionDraft = createEmptyPromotionDraft();
+      promotionProductSearchQuery = "";
+      promotionProductTargetIndex = null;
       renderPromotionsPanel();
       return;
     }
@@ -861,6 +900,8 @@ function bindEvents() {
       const promotion = promotions.find((item) => item.id === editButton.dataset.editPromotion);
       if (promotion) {
         promotionDraft = createPromotionDraft(promotion);
+        promotionProductSearchQuery = "";
+        promotionProductTargetIndex = null;
         renderPromotionsPanel();
         dom.promotionBuilder.scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -10818,6 +10859,17 @@ function createEmptyPromotionItem() {
   return { skuKey: "", sku: "", description: "", listPrice: 0, quantity: 1, unitPrice: 0 };
 }
 
+function createPromotionItemFromProduct(product, existingItem = null) {
+  return {
+    skuKey: product.skuKey,
+    sku: product.sku,
+    description: product.description,
+    listPrice: product.price,
+    quantity: parseQuantity(existingItem?.quantity ?? 1),
+    unitPrice: product.price,
+  };
+}
+
 function createEmptyPromotionDraft() {
   return {
     id: "",
@@ -10917,13 +10969,10 @@ function renderPromotionBuilder() {
   productSearch.autocomplete = "off";
   productSearch.dataset.promotionProductSearch = "";
   productSearch.setAttribute("aria-label", "חיפוש מוצר לבניית המבצע");
-  const addItem = document.createElement("button");
-  addItem.type = "button";
-  addItem.className = "secondary-button promotion-add-item";
-  addItem.dataset.addPromotionItem = "";
-  addItem.textContent = "הוסף מוצר";
-  itemsTools.append(productSearch, addItem);
+  itemsTools.append(productSearch);
   itemsHeading.append(itemsTitle, itemsTools);
+
+  const productPicker = renderPromotionProductPicker();
 
   const items = document.createElement("div");
   items.className = "promotion-builder-items";
@@ -10950,7 +10999,7 @@ function renderPromotionBuilder() {
   save.textContent = editing ? "שמור שינויים" : "שמור מבצע";
   actions.append(reset, save);
 
-  builder.append(header, fields, itemsHeading, items, actions);
+  builder.append(header, fields, itemsHeading, productPicker, items, actions);
   dom.promotionBuilder.replaceChildren(builder);
 }
 
@@ -10983,22 +11032,77 @@ function getPromotionBuilderProducts(selectedSkuKey = "") {
     .sort((a, b) => `${a.sku} ${a.description}`.localeCompare(`${b.sku} ${b.description}`, "he"));
 }
 
+function renderPromotionProductPicker() {
+  const picker = document.createElement("section");
+  picker.className = "promotion-product-picker";
+  const header = document.createElement("div");
+  header.className = "promotion-product-picker-header";
+  const hint = document.createElement("p");
+  const targetIndex = promotionProductTargetIndex;
+  const changingItem = Number.isInteger(targetIndex) ? promotionDraft.items[targetIndex] : null;
+  hint.textContent = changingItem
+    ? `בחר מוצר חלופי עבור ${changingItem.sku || "השורה הזו"}`
+    : "בחר מוצר מהרשימה כדי להוסיף אותו לסט.";
+  header.append(hint);
+  if (changingItem) {
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "text-button promotion-cancel-product-change";
+    cancel.dataset.cancelPromotionProductChange = "";
+    cancel.textContent = "בטל החלפה";
+    header.append(cancel);
+  }
+
+  const results = document.createElement("div");
+  results.className = "promotion-product-results";
+  const matchingProducts = getPromotionBuilderProducts(changingItem?.skuKey).slice(0, promotionProductSearchQuery ? 18 : 12);
+  if (!matchingProducts.length) {
+    const empty = document.createElement("p");
+    empty.className = "promotion-product-results-empty";
+    empty.textContent = "לא נמצאו מוצרים מתאימים. נסה דגם, מותג או חלק משם המוצר.";
+    results.append(empty);
+  } else {
+    matchingProducts.forEach((product) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "promotion-product-result";
+      button.dataset.selectPromotionProduct = product.skuKey;
+      button.setAttribute("aria-label", `הוסף למבצע: ${product.sku} ${product.description}`);
+      const model = document.createElement("strong");
+      model.textContent = product.sku;
+      const description = document.createElement("span");
+      description.textContent = product.description || "ללא תיאור";
+      const price = document.createElement("small");
+      price.textContent = `מחירון ${formatPrice(product.price)}`;
+      button.append(model, description, price);
+      results.append(button);
+    });
+  }
+
+  picker.append(header, results);
+  return picker;
+}
+
 function renderPromotionBuilderItem(item, index) {
   const row = document.createElement("article");
   row.className = "promotion-builder-item";
   const top = document.createElement("div");
   top.className = "promotion-builder-item-top";
 
-  const productLabel = document.createElement("label");
-  productLabel.className = "field-wrap promotion-product-field";
+  const productField = document.createElement("div");
+  productField.className = "field-wrap promotion-product-field";
   const productTitle = document.createElement("span");
   productTitle.textContent = "דגם";
-  const productSelect = document.createElement("select");
-  productSelect.dataset.promotionItemProduct = String(index);
-  productSelect.append(createOption("", "בחר מוצר מהמחירון", !item.skuKey));
-  getPromotionBuilderProducts(item.skuKey)
-    .forEach((product) => productSelect.append(createOption(product.skuKey, `${product.sku} · ${product.description}`, product.skuKey === item.skuKey)));
-  productLabel.append(productTitle, productSelect);
+  const productButton = document.createElement("button");
+  productButton.type = "button";
+  productButton.className = "promotion-selected-product";
+  productButton.dataset.changePromotionItem = String(index);
+  const productModel = document.createElement("strong");
+  productModel.textContent = item.sku || "בחר מוצר מהרשימה";
+  const productDescription = document.createElement("small");
+  productDescription.textContent = item.skuKey ? item.description || "ללא תיאור" : "לחץ כדי לחפש ולהוסיף דגם";
+  productButton.append(productModel, productDescription);
+  productField.append(productTitle, productButton);
 
   const quantity = createPromotionNumberField("כמות", "promotionItemQuantity", index, item.quantity, 1, 1);
   const price = createPromotionNumberField("מחיר מבצע ליח׳", "promotionItemPrice", index, item.unitPrice, 0, 0.01);
@@ -11007,7 +11111,7 @@ function renderPromotionBuilderItem(item, index) {
   remove.className = "danger-button promotion-remove-item";
   remove.dataset.removePromotionItem = String(index);
   remove.textContent = "הסר";
-  top.append(productLabel, quantity, price, remove);
+  top.append(productField, quantity, price, remove);
 
   const details = document.createElement("p");
   details.className = "promotion-builder-item-details";
@@ -11039,13 +11143,7 @@ function handlePromotionBuilderInput(event) {
   if (input.matches("[data-promotion-product-search]")) {
     promotionProductSearchQuery = cleanString(input.value);
     renderPromotionBuilder();
-    window.setTimeout(() => {
-      const refreshed = dom.promotionBuilder.querySelector("[data-promotion-product-search]");
-      if (refreshed) {
-        refreshed.focus();
-        refreshed.setSelectionRange(refreshed.value.length, refreshed.value.length);
-      }
-    }, 0);
+    focusPromotionProductSearch();
     return;
   }
   const field = input.dataset.promotionField;
@@ -11066,6 +11164,16 @@ function handlePromotionBuilderInput(event) {
     promotionDraft.items[priceIndex].unitPrice = Math.max(0, parsePrice(input.value) ?? 0);
     updatePromotionBuilderTotal();
   }
+}
+
+function focusPromotionProductSearch() {
+  window.setTimeout(() => {
+    const refreshed = dom.promotionBuilder.querySelector("[data-promotion-product-search]");
+    if (refreshed) {
+      refreshed.focus();
+      refreshed.setSelectionRange(refreshed.value.length, refreshed.value.length);
+    }
+  }, 0);
 }
 
 function handlePromotionBuilderChange(event) {
@@ -11125,6 +11233,7 @@ function savePromotionFromBuilder() {
   savePromotions();
   promotionDraft = createEmptyPromotionDraft();
   promotionProductSearchQuery = "";
+  promotionProductTargetIndex = null;
   renderPromotionsPanel();
   const message = editing ? "המבצע עודכן ונשמר בענן." : "המבצע נשמר בענן ומוכן להוספה לסל.";
   dom.status.textContent = message;
