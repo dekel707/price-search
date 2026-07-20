@@ -684,24 +684,6 @@ async function releaseMainApproval(sql, orderId) {
   });
 }
 
-async function seedDemo(sql, session) {
-  requireRole(session, "owner");
-  const existing = await sql`SELECT count(*)::int AS count FROM partner_customers`;
-  if (existing[0].count) throw new Error("demo_seed_only_available_for_empty_portal");
-  return sql.begin(async (tx) => {
-    const beforeBackup = await createBackup(tx, "before-demo-seed");
-    const customerId = crypto.randomUUID();
-    const reservationId = crypto.randomUUID();
-    await tx`INSERT INTO partner_customers (id, name, phone) VALUES (${customerId}, 'לקוח בדיקה — איתן', '0500000000')`;
-    await tx`INSERT INTO partner_reservations (id, customer_id, product_model, initial_quantity, remaining_quantity) VALUES (${reservationId}, ${customerId}, 'DEMO-488', 3, 3)`;
-    await tx`INSERT INTO partner_reservation_ledger (id, reservation_id, quantity_delta, action, actor) VALUES (${crypto.randomUUID()}, ${reservationId}, 3, 'owner_seed', 'owner')`;
-    await tx`INSERT INTO partner_aging (id, customer_id, outstanding_amount, notes) VALUES (${crypto.randomUUID()}, ${customerId}, 1250, 'נתון בדיקה בלבד')`;
-    await recordAudit(tx, "owner", "demo_seed_created", { customerId, reservationId });
-    const afterBackup = await createBackup(tx, "after-demo-seed");
-    return { customerId, reservationId, beforeBackup, afterBackup };
-  });
-}
-
 function isCronAuthorized(request, config) {
   const expected = `Bearer ${config.cronSecret}`;
   const actual = request.headers.authorization || "";
@@ -850,7 +832,6 @@ export default async function handler(request, response) {
     }
     if (request.method === "POST" && action === "save-entity") return sendJson(response, 201, { ok: true, ...(await saveEntity(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "approve-order") return sendJson(response, 200, { ok: true, ...(await approveOrder(sql, session, await readJsonBody(request))) });
-    if (request.method === "POST" && action === "seed-demo") return sendJson(response, 201, { ok: true, ...(await seedDemo(sql, session)) });
     return sendJson(response, 404, { error: "not_found" });
   } catch (error) {
     const status = error.statusCode || (error.message === "partner_portal_not_configured" ? 503 : 400);
