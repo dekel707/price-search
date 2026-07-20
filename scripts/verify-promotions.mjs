@@ -27,5 +27,8 @@ assert.match(app, /promotionName: promotion\.name/, "bundle lines must retain th
 assert.match(app, /function createPromotionWhatsAppUrl\(promotion\)/, "promotions need a WhatsApp sharing flow");
 assert.match(app, /function createPromotionMessage\(promotion\)/, "the WhatsApp copy must be built from the full bundle");
 assert.match(app, /סה״כ סט:/, "the promotion message must include the bundle total");
+assert.match(app, /createPromotionTextField\("שם המבצע", "name"/, "the builder name must map to the saved name field");
+assert.match(app, /function getPromotionBuilderProducts\(selectedSkuKey/, "the builder must support focused product filtering");
+assert.match(app, /data-promotion-product-search/, "a product-name/model search control must be available in the builder");
 
 console.log("Promotion workspace safety checks passed.");

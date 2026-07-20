@@ -8358,6 +8358,30 @@ body {
 
 .promotion-items-heading > strong { color: #dbe6ed; }
 
+.promotion-items-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.promotion-product-search {
+  min-width: min(270px, 42vw);
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--workspace-tone) 32%, transparent);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(4, 8, 14, 0.56);
+  color: #edf4f8;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.promotion-product-search:focus {
+  border-color: color-mix(in srgb, var(--workspace-tone) 72%, #eaf2f8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--workspace-tone) 12%, transparent);
+}
+
 .promotion-add-item { min-width: 116px; }
 
 .promotion-builder-items,
@@ -8454,6 +8478,9 @@ body {
   .promotion-items-heading { align-items: flex-start; }
   .promotion-builder-header,
   .promotion-card-header { flex-direction: column; }
+  .promotion-items-heading { flex-direction: column; }
+  .promotion-items-tools { width: 100%; }
+  .promotion-product-search { min-width: 0; width: 100%; }
   .promotion-builder-total,
   .promotion-card-total { font-size: 1rem; }
   .promotion-card-items li { display: grid; gap: 4px; }

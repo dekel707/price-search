@@ -12,8 +12,9 @@ const senderStart = app.indexOf("async function sendCurrentOrderToWhatsApp");
 const senderEnd = app.indexOf("function renderCart()", senderStart);
 const sender = app.slice(senderStart, senderEnd);
 assert.ok(sender.includes("const savedInCloud = await confirmCloudSaveBeforeExternalAction(saveId);"), "WhatsApp must wait for the order save");
-assert.ok(sender.indexOf("const savedInCloud = await confirmCloudSaveBeforeExternalAction(saveId);") < sender.indexOf("whatsappWindow.location.replace(url)"), "WhatsApp navigation must occur only after the save wait");
+assert.ok(sender.indexOf("const savedInCloud = await confirmCloudSaveBeforeExternalAction(saveId);") < sender.indexOf("window.location.assign(url)"), "WhatsApp navigation must occur only after the save wait");
 assert.match(sender, /לא נשלחה הודעה בלי הזמנה שמורה/, "a failed save must explicitly keep WhatsApp closed");
-assert.match(sender, /window\.open\("about:blank", "_blank"\)/, "the mobile-safe popup must be opened only as a temporary blank window");
+assert.doesNotMatch(sender, /window\.open\("about:blank", "_blank"\)/, "the mobile flow must not show a blank popup while the order saves");
+assert.match(sender, /window\.location\.assign\(url\)/, "the saved order must open WhatsApp directly in the current tab");
 
 console.log("WhatsApp order-save confirmation checks passed.");

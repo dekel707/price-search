@@ -450,6 +450,7 @@ let reminders = [];
 let collections = [];
 let promotions = [];
 let promotionDraft = createEmptyPromotionDraft();
+let promotionProductSearchQuery = "";
 let orderCompletionMigrationVersion = 0;
 let orderOpenRestoreMigrationVersion = 0;
 let openCollectionDetails = new Set();
@@ -10733,42 +10734,14 @@ async function sendCurrentOrderToWhatsApp(event) {
     if (!savedOrder) return;
   }
 
-  // Open a harmless blank tab while this is still a direct click, so mobile
-  // browsers do not block the eventual WhatsApp navigation after the save
-  // confirmation arrives. It is closed immediately when saving is not proven.
-  const whatsappWindow = window.open("about:blank", "_blank");
-  if (whatsappWindow) {
-    try {
-      whatsappWindow.opener = null;
-      whatsappWindow.document.title = "שומר הזמנה…";
-      whatsappWindow.document.body.textContent = "שומר את ההזמנה בענן לפני פתיחת WhatsApp…";
-    } catch {
-      // A browser may restrict a newly opened tab; the final navigation still
-      // has a normal fallback below.
-    }
-  }
-
   const saveId = pendingCloudSave?.id || readPendingCloudSave()?.id || "";
   const savedInCloud = await confirmCloudSaveBeforeExternalAction(saveId);
   if (!savedInCloud) {
-    if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
     const kind = savedOrder && isFutureStockDraft(savedOrder) ? "הטיוטה" : savingDraft ? "הטיוטה" : "ההזמנה";
     const message = `${kind} לא נפתחה ב‑WhatsApp כי לא התקבל אישור שמירה בענן. לא נשלחה הודעה בלי הזמנה שמורה.`;
     dom.status.textContent = message;
     showActionToast(message);
     return;
-  }
-
-  if (whatsappWindow && !whatsappWindow.closed) {
-    whatsappWindow.location.replace(url);
-  } else {
-    const fallbackWindow = window.open(url, "_blank", "noopener,noreferrer");
-    if (!fallbackWindow) {
-      const message = "ההזמנה נשמרה בענן, אך הדפדפן חסם את חלון WhatsApp. אפשר לפתוח אותה מכפתור WhatsApp שבהזמנה.";
-      dom.status.textContent = message;
-      showActionToast(message);
-      return;
-    }
   }
 
   const message = savingDraft
@@ -10778,6 +10751,10 @@ async function sendCurrentOrderToWhatsApp(event) {
       : "ההזמנה נשמרה בענן ונפתחה לשליחה ב‑WhatsApp.";
   dom.status.textContent = message;
   showActionToast(message);
+  // Navigating the current tab avoids the transient blank popup that appeared
+  // on mobile, while the affirmative cloud-save check above still guarantees
+  // that no WhatsApp message opens before the order exists in the cloud.
+  window.location.assign(url);
 }
 
 function renderCart() {
@@ -10910,8 +10887,8 @@ function renderPromotionBuilder() {
 
   const fields = document.createElement("div");
   fields.className = "promotion-builder-fields";
-  const nameField = createPromotionTextField("שם המבצע", "promotion-name", promotionDraft.name, "למשל: סט מייבשים 8/9/10 ק״ג", true);
-  const descriptionField = createPromotionTextField("טקסט קצר ללקוח (אופציונלי)", "promotion-description", promotionDraft.description, "למשל: שלושה מייבשים במחיר מיוחד", false, true);
+  const nameField = createPromotionTextField("שם המבצע", "name", promotionDraft.name, "למשל: סט מייבשים 8/9/10 ק״ג", true);
+  const descriptionField = createPromotionTextField("טקסט קצר ללקוח (אופציונלי)", "description", promotionDraft.description, "למשל: שלושה מייבשים במחיר מיוחד", false, true);
   const activeLabel = document.createElement("label");
   activeLabel.className = "promotion-active-toggle";
   const activeInput = document.createElement("input");
@@ -10927,12 +10904,23 @@ function renderPromotionBuilder() {
   itemsHeading.className = "promotion-items-heading";
   const itemsTitle = document.createElement("strong");
   itemsTitle.textContent = "פריטי הסט";
+  const itemsTools = document.createElement("div");
+  itemsTools.className = "promotion-items-tools";
+  const productSearch = document.createElement("input");
+  productSearch.type = "search";
+  productSearch.className = "promotion-product-search";
+  productSearch.placeholder = "חפש דגם או שם מוצר…";
+  productSearch.value = promotionProductSearchQuery;
+  productSearch.autocomplete = "off";
+  productSearch.dataset.promotionProductSearch = "";
+  productSearch.setAttribute("aria-label", "חיפוש מוצר לבניית המבצע");
   const addItem = document.createElement("button");
   addItem.type = "button";
   addItem.className = "secondary-button promotion-add-item";
   addItem.dataset.addPromotionItem = "";
   addItem.textContent = "הוסף מוצר";
-  itemsHeading.append(itemsTitle, addItem);
+  itemsTools.append(productSearch, addItem);
+  itemsHeading.append(itemsTitle, itemsTools);
 
   const items = document.createElement("div");
   items.className = "promotion-builder-items";
@@ -10980,6 +10968,18 @@ function createPromotionTextField(labelText, field, value, placeholder, required
   return label;
 }
 
+function getPromotionBuilderProducts(selectedSkuKey = "") {
+  const query = normalizeSearch(promotionProductSearchQuery);
+  return products
+    .filter((product) => product.skuKey && product.skuKey !== getSkuKey(GENERAL_PRODUCT.sku))
+    .filter((product) => {
+      if (!query || product.skuKey === selectedSkuKey) return true;
+      return normalizeSearch(`${product.sku} ${product.description}`).includes(query);
+    })
+    .slice()
+    .sort((a, b) => `${a.sku} ${a.description}`.localeCompare(`${b.sku} ${b.description}`, "he"));
+}
+
 function renderPromotionBuilderItem(item, index) {
   const row = document.createElement("article");
   row.className = "promotion-builder-item";
@@ -10993,10 +10993,7 @@ function renderPromotionBuilderItem(item, index) {
   const productSelect = document.createElement("select");
   productSelect.dataset.promotionItemProduct = String(index);
   productSelect.append(createOption("", "בחר מוצר מהמחירון", !item.skuKey));
-  products
-    .filter((product) => product.skuKey && product.skuKey !== getSkuKey(GENERAL_PRODUCT.sku))
-    .slice()
-    .sort((a, b) => `${a.sku} ${a.description}`.localeCompare(`${b.sku} ${b.description}`, "he"))
+  getPromotionBuilderProducts(item.skuKey)
     .forEach((product) => productSelect.append(createOption(product.skuKey, `${product.sku} · ${product.description}`, product.skuKey === item.skuKey)));
   productLabel.append(productTitle, productSelect);
 
@@ -11036,6 +11033,18 @@ function createPromotionNumberField(labelText, dataName, index, value, min, step
 
 function handlePromotionBuilderInput(event) {
   const input = event.target;
+  if (input.matches("[data-promotion-product-search]")) {
+    promotionProductSearchQuery = cleanString(input.value);
+    renderPromotionBuilder();
+    window.setTimeout(() => {
+      const refreshed = dom.promotionBuilder.querySelector("[data-promotion-product-search]");
+      if (refreshed) {
+        refreshed.focus();
+        refreshed.setSelectionRange(refreshed.value.length, refreshed.value.length);
+      }
+    }, 0);
+    return;
+  }
   const field = input.dataset.promotionField;
   if (field) {
     promotionDraft[field] = field === "active" ? Boolean(input.checked) : cleanString(input.value);
@@ -11091,7 +11100,7 @@ function savePromotionFromBuilder() {
   const items = normalizePromotionItems(promotionDraft.items);
   if (!name) {
     dom.status.textContent = "יש לתת שם למבצע.";
-    dom.promotionBuilder.querySelector('[data-promotion-field="promotion-name"]')?.focus();
+    dom.promotionBuilder.querySelector('[data-promotion-field="name"]')?.focus();
     return;
   }
   if (!items.length) {
@@ -11112,6 +11121,7 @@ function savePromotionFromBuilder() {
   promotions = normalizePromotions([promotion, ...promotions.filter((item) => item.id !== promotion.id)]);
   savePromotions();
   promotionDraft = createEmptyPromotionDraft();
+  promotionProductSearchQuery = "";
   renderPromotionsPanel();
   const message = editing ? "המבצע עודכן ונשמר בענן." : "המבצע נשמר בענן ומוכן להוספה לסל.";
   dom.status.textContent = message;
