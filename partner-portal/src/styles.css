@@ -68,11 +68,6 @@ input:focus,select:focus { border-color: rgba(67,213,193,.82); background: rgba(
   gap: 16px;
 }
 
-.demo-login-button { width: 100%; border-color: rgba(244,201,93,.4); background: rgba(244,201,93,.1); color: #ffe19a; }
-.demo-login-hint { margin: -4px 0 0; padding: 10px 11px; border: 1px solid rgba(244,201,93,.22); border-radius: 10px; background: rgba(244,201,93,.06); color: #f6df9e; font-size: .78rem; font-weight: 700; line-height: 1.45; }
-.portal-demo .owner-status { border-color: rgba(244,201,93,.42); background: rgba(244,201,93,.1); color: #ffe19a; }
-.portal-demo .owner-status::before { background: #f4c95d; box-shadow: 0 0 10px rgba(244,201,93,.9); }
-
 .topbar-actions {
   display: flex;
   align-items: center;
