@@ -30,5 +30,8 @@ assert.match(app, /סה״כ סט:/, "the promotion message must include the bund
 assert.match(app, /createPromotionTextField\("שם המבצע", "name"/, "the builder name must map to the saved name field");
 assert.match(app, /function getPromotionBuilderProducts\(selectedSkuKey/, "the builder must support focused product filtering");
 assert.match(app, /data-promotion-product-search/, "a product-name/model search control must be available in the builder");
+assert.match(app, /function renderPromotionProductPicker\(\)/, "the builder must render a clear product picker beneath the search");
+assert.match(app, /data-select-promotion-product/, "search results must let the user add a product directly to the promotion");
+assert.match(app, /data-change-promotion-item/, "a selected promotion item must remain replaceable without a long native dropdown");
 
 console.log("Promotion workspace safety checks passed.");
