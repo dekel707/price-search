@@ -11,6 +11,9 @@ const [html, app, stateApi, styles] = await Promise.all([
 assert.match(html, /data-tab="promotions"/, "the promotions tab must be available in the main navigation");
 assert.match(html, /data-tab-panel="promotions"/, "the promotions workspace panel must be present");
 assert.match(html, /id="promotionBuilder"/, "the promotion builder must have a stable mount point");
+assert.match(html, /id="promotionWhatsAppDialog"/, "promotion sharing must open a review dialog before WhatsApp");
+assert.match(html, /id="promotionWhatsAppOptions"/, "the sharing dialog must expose compact content choices");
+assert.match(html, /id="promotionWhatsAppPreview"/, "the sharing dialog must show a live text preview");
 
 assert.match(app, /const PROMOTIONS_KEY = "price-search-promotions-v1"/, "promotions need their own local key");
 assert.match(app, /function normalizePromotions\(value\)/, "cloud promotion data must be normalized");
@@ -37,8 +40,11 @@ assert.match(app, /function updateBundleCartQuantity\(/, "changing a package cou
 assert.match(app, /cartBundleQuantity/, "the cart must expose package quantity controls");
 assert.match(app, /function getCartLineTotal\(/, "order totals must respect fixed package totals");
 assert.match(app, /הבאנדל .* הוסר מהסל/, "removing a bundle component must remove the entire bundle");
-assert.match(app, /function createPromotionWhatsAppUrl\(promotion\)/, "promotions need a WhatsApp sharing flow");
-assert.match(app, /function createPromotionMessage\(promotion\)/, "the WhatsApp copy must be built from the full bundle");
+assert.match(app, /function createPromotionWhatsAppUrl\(promotion, options = \{\}\)/, "promotion sharing must support a chosen message format");
+assert.match(app, /function createPromotionMessage\(promotion, options = \{\}\)/, "the WhatsApp copy must be configurable");
+assert.match(app, /function getPromotionWhatsAppOptionDefinitions\(promotion\)/, "the promotion message must expose model, description, price and total choices");
+assert.match(app, /function openPromotionWhatsAppDialog\(promotionId\)/, "sending a promotion must review the message before opening WhatsApp");
+assert.match(app, /function sendPromotionToWhatsApp\(event\)/, "the reviewed promotion message must open WhatsApp only after confirmation");
 assert.match(app, /מחיר חבילה/, "the promotion message must include the package total");
 assert.match(app, /createPromotionTextField\("שם המבצע", "name"/, "the builder name must map to the saved name field");
 assert.match(app, /function getPromotionBuilderProducts\(selectedSkuKey/, "the builder must support focused product filtering");
@@ -67,6 +73,9 @@ assert.match(styles, /\/\* Promotions use the same readable action halo as the o
 assert.match(styles, /\.promotions-panel \.promotion-builder-actions \.file-button\s*\{[\s\S]*?linear-gradient/, "the primary save action needs a distinct colored treatment");
 assert.match(styles, /\.promotions-panel \.promotion-card-actions \.whatsapp-button\s*\{[\s\S]*?0 0 16px rgba\(43, 215, 116, 0\.31\)/, "the WhatsApp action needs its green halo");
 assert.match(styles, /\.promotions-panel \.promotion-card-actions \.danger-button\s*\{[\s\S]*?0 0 16px rgba\(231, 59, 94, 0\.28\)/, "the delete action needs its red halo");
+assert.match(styles, /\.promotion-message-options\s*\{/, "WhatsApp content options need a compact boxed layout");
+assert.match(styles, /\.promotion-message-option input:checked \+ span\s*\{/, "selected WhatsApp details need a clear visual state");
+assert.match(styles, /\.promotion-whatsapp-preview pre\s*\{[\s\S]*?white-space: pre-wrap;/, "the WhatsApp review must preserve readable message lines");
 assert.match(styles, /\.bundle-promotion-cart-line\s*\{/, "bundle lines need a clear cart treatment");
 assert.match(styles, /\.bundle-promotion-builder-item \.promotion-builder-item-top/, "bundle-builder rows need a compact layout without per-item pricing");
 
