@@ -63,6 +63,7 @@
         <button class="tab-button" type="button" data-tab="ai-assistant">עוזר AI</button>
         <button class="tab-button" type="button" data-tab="dashboard">דאשבורד</button>
         <button class="tab-button" type="button" data-tab="cart">סל</button>
+        <button class="tab-button" type="button" data-tab="promotions">מבצעים</button>
         <button class="tab-button" type="button" data-tab="sold-products">מוצרים נמכרים</button>
         <button class="tab-button" type="button" data-tab="customer-sales">לקוחות מובילים</button>
         <button class="tab-button" type="button" data-tab="monthly-sales">מכר חודשי</button>
@@ -325,6 +326,22 @@
               <a class="whatsapp-button disabled" id="sendWhatsApp" href="#" target="_blank" rel="noreferrer">שלח וואטסאפ</a>
             </div>
           </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="promotions">
+        <section class="promotions-panel" aria-label="מבצעים">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">סטים ומחירי מבצע</p>
+              <h2>מבצעים</h2>
+            </div>
+            <div class="cart-summary" id="promotionsSummary">0 מבצעים</div>
+          </div>
+
+          <p class="promotions-intro">בנה סט לפי דגמים, כמויות ומחירי מבצע. המבצע אינו משנה מחירון או מלאי; בלחיצה הוא נכנס לסל כהזמנה רגילה.</p>
+          <div class="promotion-builder" id="promotionBuilder"></div>
+          <div class="promotions-list" id="promotionsList" aria-live="polite"></div>
         </section>
       </section>
 

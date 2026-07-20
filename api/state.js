@@ -17,7 +17,7 @@ import {
 } from "./_state-backups.js";
 
 const EMPTY_STATE = {
-  version: 5,
+  version: 6,
   products: [],
   meta: null,
   categories: [],
@@ -31,6 +31,7 @@ const EMPTY_STATE = {
   reservationSeedVersion: 0,
   reminders: [],
   collections: [],
+  promotions: [],
   settings: { whatsappNumber: "", monthlySalesAdjustment: null },
   updatedAt: null,
 };
@@ -81,7 +82,9 @@ export default async function handler(request, response) {
     }
 
     if (request.method === "POST") {
-      const payload = normalizeState(await readJsonBody(request));
+      const incomingState = await readJsonBody(request);
+      const includesPromotions = Object.prototype.hasOwnProperty.call(incomingState && typeof incomingState === "object" ? incomingState : {}, "promotions");
+      const payload = normalizeState(incomingState);
       payload.updatedAt = new Date().toISOString();
       const expectedVersion = getRequestHeader(request, "x-state-version");
       const action = getSafeActionName(getRequestHeader(request, "x-state-action"));
@@ -92,6 +95,11 @@ export default async function handler(request, response) {
         // setting yet. Preserve it when those tabs save an otherwise valid
         // business update, instead of silently clearing the documented total.
         payload.settings = mergeStateSettings(currentDatabaseState.state?.settings, payload.settings);
+        // A browser tab that was opened before the promotions workspace was
+        // deployed has no `promotions` property at all. Preserve the live
+        // collection in that case, so an otherwise valid order/customer save
+        // from that tab cannot erase configured promotion bundles.
+        if (!includesPromotions) payload.promotions = normalizeState(currentDatabaseState.state).promotions;
         let dailyBackup = null;
         if (hasBlobStorageCredentials()) {
           try {
@@ -184,6 +192,7 @@ export default async function handler(request, response) {
         }
         currentPayload = normalizeState(JSON.parse(await streamToText(currentStored.stream)));
         payload.settings = mergeStateSettings(currentPayload.settings, payload.settings);
+        if (!includesPromotions) payload.promotions = currentPayload.promotions;
       }
 
       const blockedOrderRemovals = currentState
@@ -395,7 +404,7 @@ function normalizeState(value) {
   return {
     ...EMPTY_STATE,
     ...state,
-    version: 5,
+    version: 6,
     products: Array.isArray(state.products) ? state.products : [],
     meta: state.meta && typeof state.meta === "object" ? state.meta : null,
     categories: Array.isArray(state.categories) ? state.categories : [],
@@ -411,6 +420,7 @@ function normalizeState(value) {
       : 0,
     reminders: Array.isArray(state.reminders) ? state.reminders : [],
     collections: Array.isArray(state.collections) ? state.collections : [],
+    promotions: Array.isArray(state.promotions) ? state.promotions : [],
     settings: {
       ...EMPTY_STATE.settings,
       ...(state.settings && typeof state.settings === "object" ? state.settings : {}),

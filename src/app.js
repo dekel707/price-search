@@ -30,6 +30,7 @@ const RESERVATIONS_KEY = "price-search-reservations-v1";
 const RESERVATION_SEED_KEY = "price-search-reservation-seed-v1";
 const REMINDERS_KEY = "price-search-reminders-v1";
 const COLLECTIONS_KEY = "price-search-collections-v1";
+const PROMOTIONS_KEY = "price-search-promotions-v1";
 const ACTIVE_TAB_KEY = "price-search-active-tab-v1";
 const ORDER_TYPE_KEY = "price-search-order-type-v1";
 const ORDER_REPORT_TOMORROW_KEY = "price-search-order-report-tomorrow-v1";
@@ -399,6 +400,10 @@ const dom = {
   saveAsDraft: document.querySelector("#saveAsDraft"),
   saveOrder: document.querySelector("#saveOrder"),
   sendWhatsApp: document.querySelector("#sendWhatsApp"),
+  promotionsPanel: document.querySelector('[data-tab-panel="promotions"]'),
+  promotionsSummary: document.querySelector("#promotionsSummary"),
+  promotionBuilder: document.querySelector("#promotionBuilder"),
+  promotionsList: document.querySelector("#promotionsList"),
   draftSearch: document.querySelector("#draftSearch"),
   draftsSummary: document.querySelector("#draftsSummary"),
   draftsList: document.querySelector("#draftsList"),
@@ -443,6 +448,8 @@ let reservations = [];
 let reservationSeedVersion = 0;
 let reminders = [];
 let collections = [];
+let promotions = [];
+let promotionDraft = createEmptyPromotionDraft();
 let orderCompletionMigrationVersion = 0;
 let orderOpenRestoreMigrationVersion = 0;
 let openCollectionDetails = new Set();
@@ -552,6 +559,7 @@ async function startApp() {
     count: products.length,
   };
 
+  promotions = readPromotions();
   reservations = readReservations();
   reminders = readReminders();
   collections = readCollections();
@@ -820,6 +828,61 @@ function bindEvents() {
     const product = products.find((item) => item.skuKey === arrivalButton.dataset.editProductArrival);
     if (product) openArrivalDialog(product);
   });
+  dom.promotionsPanel.addEventListener("click", (event) => {
+    const addItemButton = event.target.closest("[data-add-promotion-item]");
+    if (addItemButton) {
+      promotionDraft.items.push(createEmptyPromotionItem());
+      renderPromotionsPanel();
+      return;
+    }
+
+    const removeItemButton = event.target.closest("[data-remove-promotion-item]");
+    if (removeItemButton) {
+      const index = Number(removeItemButton.dataset.removePromotionItem);
+      if (Number.isInteger(index)) promotionDraft.items.splice(index, 1);
+      renderPromotionsPanel();
+      return;
+    }
+
+    if (event.target.closest("[data-save-promotion]")) {
+      savePromotionFromBuilder();
+      return;
+    }
+
+    if (event.target.closest("[data-reset-promotion]")) {
+      promotionDraft = createEmptyPromotionDraft();
+      renderPromotionsPanel();
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit-promotion]");
+    if (editButton) {
+      const promotion = promotions.find((item) => item.id === editButton.dataset.editPromotion);
+      if (promotion) {
+        promotionDraft = createPromotionDraft(promotion);
+        renderPromotionsPanel();
+        dom.promotionBuilder.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
+
+    const toggleButton = event.target.closest("[data-toggle-promotion]");
+    if (toggleButton) {
+      togglePromotion(toggleButton.dataset.togglePromotion);
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-promotion]");
+    if (deleteButton) {
+      deletePromotion(deleteButton.dataset.deletePromotion);
+      return;
+    }
+
+    const cartButton = event.target.closest("[data-add-promotion-to-cart]");
+    if (cartButton) addPromotionToCart(cartButton.dataset.addPromotionToCart);
+  });
+  dom.promotionsPanel.addEventListener("input", handlePromotionBuilderInput);
+  dom.promotionsPanel.addEventListener("change", handlePromotionBuilderChange);
   dom.customerSearch.addEventListener("input", renderCustomersPanel);
   dom.customerSalesSearch.addEventListener("input", renderCustomerSalesPanel);
   dom.customerForm.addEventListener("submit", saveCustomerFromForm);
@@ -2525,6 +2588,7 @@ function render() {
   renderReservationsPanel();
   renderRemindersPanel();
   renderCollectionsPanel();
+  renderPromotionsPanel();
   renderDashboard();
   renderSoldProductsPanel();
   renderCustomerSalesPanel();
@@ -2601,6 +2665,7 @@ function setActiveTab(tab) {
   renderTabs();
   renderFloatingCart();
   if (tab === "advanced-search") renderAdvancedSearch();
+  if (tab === "promotions") renderPromotionsPanel();
 }
 
 function handleDashboardAction(action) {
@@ -9875,6 +9940,7 @@ function upsertCartLine(product, quantity, options) {
     options.unitPrice,
     options.priceSource,
     bonusType,
+    options.promotionId,
   );
   const existing = cart.find((line) => line.lineKey === lineKey);
   if (existing) {
@@ -9882,6 +9948,8 @@ function upsertCartLine(product, quantity, options) {
     existing.unitPrice = options.unitPrice;
     existing.priceSource = options.priceSource;
     existing.bonusType = bonusType;
+    existing.promotionId = cleanString(options.promotionId);
+    existing.promotionName = cleanString(options.promotionName);
     return;
   }
 
@@ -9894,23 +9962,33 @@ function upsertCartLine(product, quantity, options) {
     unitPrice: options.unitPrice,
     priceSource: options.priceSource,
     bonusType,
+    promotionId: cleanString(options.promotionId),
+    promotionName: cleanString(options.promotionName),
     quantity,
     fromReservation: Boolean(options.fromReservation),
   });
 }
 
-function createCartLineKey(skuKey, fromReservation, unitPrice = 0, priceSource = "list", bonusType = "") {
+function createCartLineKey(skuKey, fromReservation, unitPrice = 0, priceSource = "list", bonusType = "", promotionId = "") {
   const normalizedSku = getSkuKey(skuKey);
   if (fromReservation) return `${normalizedSku}::reservation`;
   const normalizedPrice = roundMoney(Math.max(0, Number(unitPrice) || 0)).toFixed(2);
-  return `${normalizedSku}::cash::${normalizePriceSource(priceSource)}::${normalizedPrice}::${normalizeBonusType(bonusType)}`;
+  const promotionKey = normalizePriceSource(priceSource) === "promotion" ? cleanString(promotionId) || "promotion" : "";
+  return `${normalizedSku}::cash::${normalizePriceSource(priceSource)}::${normalizedPrice}::${normalizeBonusType(bonusType)}::${promotionKey}`;
 }
 
 function mergeCartLines(lines) {
   const merged = new Map();
   lines.forEach((line) => {
     const bonusType = normalizeBonusType(line.bonusType);
-    const lineKey = createCartLineKey(line.skuKey, line.fromReservation, line.unitPrice, line.priceSource, bonusType);
+    const lineKey = createCartLineKey(
+      line.skuKey,
+      line.fromReservation,
+      line.unitPrice,
+      line.priceSource,
+      bonusType,
+      line.promotionId,
+    );
     const existing = merged.get(lineKey);
     if (existing) {
       existing.quantity += line.quantity;
@@ -10756,6 +10834,420 @@ function renderCart() {
   }
 }
 
+function createEmptyPromotionItem() {
+  return { skuKey: "", sku: "", description: "", listPrice: 0, quantity: 1, unitPrice: 0 };
+}
+
+function createEmptyPromotionDraft() {
+  return {
+    id: "",
+    name: "",
+    description: "",
+    active: true,
+    items: [],
+    createdAt: "",
+  };
+}
+
+function createPromotionDraft(promotion) {
+  if (!promotion) return createEmptyPromotionDraft();
+  return {
+    id: cleanString(promotion.id),
+    name: cleanString(promotion.name),
+    description: cleanString(promotion.description),
+    active: promotion.active !== false,
+    items: (promotion.items || []).map((item) => ({ ...item })),
+    createdAt: promotion.createdAt || "",
+  };
+}
+
+function getPromotionTotal(promotion) {
+  return roundMoney(
+    (promotion?.items || []).reduce(
+      (sum, item) => sum + parseQuantity(item.quantity) * Math.max(0, parsePrice(item.unitPrice) ?? 0),
+      0,
+    ),
+  );
+}
+
+function renderPromotionsPanel() {
+  if (!dom.promotionsPanel) return;
+  const activeCount = promotions.filter((promotion) => promotion.active).length;
+  dom.promotionsSummary.textContent = activeCount
+    ? `${activeCount.toLocaleString("he-IL")} פעילים · ${promotions.length.toLocaleString("he-IL")} סה״כ`
+    : promotions.length
+      ? `${promotions.length.toLocaleString("he-IL")} לא פעילים`
+      : "עדיין אין מבצעים";
+  renderPromotionBuilder();
+
+  if (!promotions.length) {
+    dom.promotionsList.replaceChildren(emptyState("עדיין לא הוגדרו מבצעים. בנה סט חדש למעלה — הוא לא ישנה מחירים או מלאי."));
+    return;
+  }
+
+  dom.promotionsList.replaceChildren(...promotions.map(renderPromotionCard));
+}
+
+function renderPromotionBuilder() {
+  const editing = Boolean(promotionDraft.id);
+  const builder = document.createElement("section");
+  builder.className = "promotion-builder-card";
+
+  const header = document.createElement("div");
+  header.className = "promotion-builder-header";
+  const headerCopy = document.createElement("div");
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = editing ? "עריכת מבצע קיים" : "מבצע חדש";
+  const title = document.createElement("h3");
+  title.textContent = editing ? "עדכון סט ומחירים" : "בנה סט מבצע";
+  headerCopy.append(eyebrow, title);
+  const total = document.createElement("strong");
+  total.className = "promotion-builder-total";
+  total.id = "promotionBuilderTotal";
+  total.textContent = `סה״כ סט ${formatPrice(getPromotionTotal(promotionDraft))}`;
+  header.append(headerCopy, total);
+
+  const fields = document.createElement("div");
+  fields.className = "promotion-builder-fields";
+  const nameField = createPromotionTextField("שם המבצע", "promotion-name", promotionDraft.name, "למשל: סט מייבשים 8/9/10 ק״ג", true);
+  const descriptionField = createPromotionTextField("טקסט קצר ללקוח (אופציונלי)", "promotion-description", promotionDraft.description, "למשל: שלושה מייבשים במחיר מיוחד", false, true);
+  const activeLabel = document.createElement("label");
+  activeLabel.className = "promotion-active-toggle";
+  const activeInput = document.createElement("input");
+  activeInput.type = "checkbox";
+  activeInput.dataset.promotionField = "active";
+  activeInput.checked = promotionDraft.active;
+  const activeText = document.createElement("span");
+  activeText.innerHTML = "<strong>מבצע פעיל</strong><small>מבצע כבוי נשמר אך אי אפשר להוסיף אותו לסל.</small>";
+  activeLabel.append(activeInput, activeText);
+  fields.append(nameField, descriptionField, activeLabel);
+
+  const itemsHeading = document.createElement("div");
+  itemsHeading.className = "promotion-items-heading";
+  const itemsTitle = document.createElement("strong");
+  itemsTitle.textContent = "פריטי הסט";
+  const addItem = document.createElement("button");
+  addItem.type = "button";
+  addItem.className = "secondary-button promotion-add-item";
+  addItem.dataset.addPromotionItem = "";
+  addItem.textContent = "הוסף מוצר";
+  itemsHeading.append(itemsTitle, addItem);
+
+  const items = document.createElement("div");
+  items.className = "promotion-builder-items";
+  if (!promotionDraft.items.length) {
+    const hint = document.createElement("p");
+    hint.className = "promotion-empty-items";
+    hint.textContent = "הוסף דגם, כמות ומחיר מבצע לכל פריט בסט.";
+    items.append(hint);
+  } else {
+    promotionDraft.items.forEach((item, index) => items.append(renderPromotionBuilderItem(item, index)));
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "promotion-builder-actions";
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "secondary-button";
+  reset.dataset.resetPromotion = "";
+  reset.textContent = editing ? "בטל עריכה" : "נקה";
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "file-button";
+  save.dataset.savePromotion = "";
+  save.textContent = editing ? "שמור שינויים" : "שמור מבצע";
+  actions.append(reset, save);
+
+  builder.append(header, fields, itemsHeading, items, actions);
+  dom.promotionBuilder.replaceChildren(builder);
+}
+
+function createPromotionTextField(labelText, field, value, placeholder, required = false, multiline = false) {
+  const label = document.createElement("label");
+  label.className = "field-wrap";
+  const text = document.createElement("span");
+  text.textContent = labelText;
+  const input = document.createElement(multiline ? "textarea" : "input");
+  if (!multiline) input.type = "text";
+  input.value = value;
+  input.placeholder = placeholder;
+  input.autocomplete = "off";
+  input.required = required;
+  input.dataset.promotionField = field;
+  if (multiline) input.rows = 2;
+  label.append(text, input);
+  return label;
+}
+
+function renderPromotionBuilderItem(item, index) {
+  const row = document.createElement("article");
+  row.className = "promotion-builder-item";
+  const top = document.createElement("div");
+  top.className = "promotion-builder-item-top";
+
+  const productLabel = document.createElement("label");
+  productLabel.className = "field-wrap promotion-product-field";
+  const productTitle = document.createElement("span");
+  productTitle.textContent = "דגם";
+  const productSelect = document.createElement("select");
+  productSelect.dataset.promotionItemProduct = String(index);
+  productSelect.append(createOption("", "בחר מוצר מהמחירון", !item.skuKey));
+  products
+    .filter((product) => product.skuKey && product.skuKey !== getSkuKey(GENERAL_PRODUCT.sku))
+    .slice()
+    .sort((a, b) => `${a.sku} ${a.description}`.localeCompare(`${b.sku} ${b.description}`, "he"))
+    .forEach((product) => productSelect.append(createOption(product.skuKey, `${product.sku} · ${product.description}`, product.skuKey === item.skuKey)));
+  productLabel.append(productTitle, productSelect);
+
+  const quantity = createPromotionNumberField("כמות", "promotionItemQuantity", index, item.quantity, 1, 1);
+  const price = createPromotionNumberField("מחיר מבצע ליח׳", "promotionItemPrice", index, item.unitPrice, 0, 0.01);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "danger-button promotion-remove-item";
+  remove.dataset.removePromotionItem = String(index);
+  remove.textContent = "הסר";
+  top.append(productLabel, quantity, price, remove);
+
+  const details = document.createElement("p");
+  details.className = "promotion-builder-item-details";
+  details.textContent = item.skuKey
+    ? `${item.description || "ללא תיאור"} · סה״כ לשורה ${formatPrice(parseQuantity(item.quantity) * Math.max(0, parsePrice(item.unitPrice) ?? 0))}`
+    : "בחר דגם כדי להגדיר אותו כחלק מהסט.";
+  row.append(top, details);
+  return row;
+}
+
+function createPromotionNumberField(labelText, dataName, index, value, min, step) {
+  const label = document.createElement("label");
+  label.className = "field-wrap compact-field";
+  const text = document.createElement("span");
+  text.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(min);
+  input.step = String(step);
+  input.inputMode = step < 1 ? "decimal" : "numeric";
+  input.value = String(value ?? "");
+  input.dataset[dataName] = String(index);
+  label.append(text, input);
+  return label;
+}
+
+function handlePromotionBuilderInput(event) {
+  const input = event.target;
+  const field = input.dataset.promotionField;
+  if (field) {
+    promotionDraft[field] = field === "active" ? Boolean(input.checked) : cleanString(input.value);
+    return;
+  }
+
+  const quantityIndex = Number(input.dataset.promotionItemQuantity);
+  if (Number.isInteger(quantityIndex) && promotionDraft.items[quantityIndex]) {
+    promotionDraft.items[quantityIndex].quantity = parseQuantity(input.value);
+    updatePromotionBuilderTotal();
+    return;
+  }
+
+  const priceIndex = Number(input.dataset.promotionItemPrice);
+  if (Number.isInteger(priceIndex) && promotionDraft.items[priceIndex]) {
+    promotionDraft.items[priceIndex].unitPrice = Math.max(0, parsePrice(input.value) ?? 0);
+    updatePromotionBuilderTotal();
+  }
+}
+
+function handlePromotionBuilderChange(event) {
+  const select = event.target.closest("[data-promotion-item-product]");
+  if (select) {
+    const index = Number(select.dataset.promotionItemProduct);
+    const product = products.find((item) => item.skuKey === select.value);
+    if (Number.isInteger(index) && promotionDraft.items[index] && product) {
+      promotionDraft.items[index] = {
+        skuKey: product.skuKey,
+        sku: product.sku,
+        description: product.description,
+        listPrice: product.price,
+        quantity: parseQuantity(promotionDraft.items[index].quantity),
+        unitPrice: product.price,
+      };
+      renderPromotionsPanel();
+    }
+    return;
+  }
+
+  if (event.target.dataset.promotionField === "active") {
+    promotionDraft.active = Boolean(event.target.checked);
+  }
+}
+
+function updatePromotionBuilderTotal() {
+  const total = dom.promotionBuilder.querySelector("#promotionBuilderTotal");
+  if (total) total.textContent = `סה״כ סט ${formatPrice(getPromotionTotal(promotionDraft))}`;
+}
+
+function savePromotionFromBuilder() {
+  if (!requireCloudReadyForMutation("לשמור מבצע")) return;
+  const name = cleanString(promotionDraft.name);
+  const items = normalizePromotionItems(promotionDraft.items);
+  if (!name) {
+    dom.status.textContent = "יש לתת שם למבצע.";
+    dom.promotionBuilder.querySelector('[data-promotion-field="promotion-name"]')?.focus();
+    return;
+  }
+  if (!items.length) {
+    dom.status.textContent = "יש להוסיף לפחות מוצר אחד עם מחיר מבצע.";
+    return;
+  }
+  const now = new Date().toISOString();
+  const promotion = {
+    id: promotionDraft.id || `promotion-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    description: cleanString(promotionDraft.description),
+    active: promotionDraft.active !== false,
+    items,
+    createdAt: promotionDraft.createdAt || now,
+    updatedAt: now,
+  };
+  const editing = Boolean(promotionDraft.id);
+  promotions = normalizePromotions([promotion, ...promotions.filter((item) => item.id !== promotion.id)]);
+  savePromotions();
+  promotionDraft = createEmptyPromotionDraft();
+  renderPromotionsPanel();
+  const message = editing ? "המבצע עודכן ונשמר בענן." : "המבצע נשמר בענן ומוכן להוספה לסל.";
+  dom.status.textContent = message;
+  showActionToast(message);
+}
+
+function togglePromotion(promotionId) {
+  if (!requireCloudReadyForMutation("לעדכן מבצע")) return;
+  const promotion = promotions.find((item) => item.id === promotionId);
+  if (!promotion) return;
+  promotion.active = !promotion.active;
+  promotion.updatedAt = new Date().toISOString();
+  savePromotions();
+  renderPromotionsPanel();
+  const message = promotion.active ? "המבצע הופעל." : "המבצע הושהה ולא ניתן להוספה לסל.";
+  dom.status.textContent = message;
+  showActionToast(message);
+}
+
+function deletePromotion(promotionId) {
+  const promotion = promotions.find((item) => item.id === promotionId);
+  if (!promotion || !requireCloudReadyForMutation("למחוק מבצע")) return;
+  if (!window.confirm(`למחוק את המבצע „${promotion.name}“?`)) return;
+  promotions = promotions.filter((item) => item.id !== promotionId);
+  if (promotionDraft.id === promotionId) promotionDraft = createEmptyPromotionDraft();
+  savePromotions();
+  renderPromotionsPanel();
+  announceDeletion(`המבצע „${promotion.name}“ נמחק.`);
+}
+
+function addPromotionToCart(promotionId) {
+  const promotion = promotions.find((item) => item.id === promotionId);
+  if (!promotion) return;
+  if (!promotion.active) {
+    dom.status.textContent = "המבצע מושבת. הפעל אותו לפני הוספה לסל.";
+    return;
+  }
+  const missing = [];
+  let addedQuantity = 0;
+  promotion.items.forEach((item) => {
+    const product = products.find((candidate) => candidate.skuKey === item.skuKey);
+    if (!product) {
+      missing.push(item.sku || item.skuKey);
+      return;
+    }
+    const quantity = parseQuantity(item.quantity);
+    upsertCartLine(product, quantity, {
+      fromReservation: false,
+      unitPrice: Math.max(0, parsePrice(item.unitPrice) ?? 0),
+      priceSource: "promotion",
+      promotionId: promotion.id,
+      promotionName: promotion.name,
+    });
+    addedQuantity += quantity;
+  });
+  if (!addedQuantity) {
+    dom.status.textContent = "לא נוספו פריטים: הדגמים של המבצע אינם נמצאים במחירון הנוכחי.";
+    return;
+  }
+  cart = orderCartLines(cart);
+  saveCart();
+  render();
+  setActiveTab("cart");
+  const message = `התווסף לסל: ${promotion.name} · ${addedQuantity.toLocaleString("he-IL")} פריטים במחיר מבצע.`;
+  dom.status.textContent = missing.length ? `${message} ${missing.length} דגם/ים חסרים לא נוספו.` : message;
+  showActionToast(dom.status.textContent);
+}
+
+function renderPromotionCard(promotion) {
+  const card = document.createElement("article");
+  card.className = "promotion-card";
+  card.classList.toggle("promotion-card-inactive", !promotion.active);
+  const header = document.createElement("div");
+  header.className = "promotion-card-header";
+  const copy = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = promotion.name;
+  const meta = document.createElement("p");
+  meta.textContent = promotion.active ? "מבצע פעיל · מוכן לסל" : "מבצע מושבת";
+  copy.append(title, meta);
+  const total = document.createElement("strong");
+  total.className = "promotion-card-total";
+  total.textContent = formatPrice(getPromotionTotal(promotion));
+  header.append(copy, total);
+
+  const description = document.createElement("p");
+  description.className = "promotion-card-description";
+  description.textContent = promotion.description;
+  description.hidden = !promotion.description;
+
+  const items = document.createElement("ul");
+  items.className = "promotion-card-items";
+  promotion.items.forEach((item) => {
+    const line = document.createElement("li");
+    const model = document.createElement("strong");
+    model.textContent = `${parseQuantity(item.quantity)} ${formatQuantityUnit(parseQuantity(item.quantity))} · ${item.sku || item.skuKey}`;
+    const detail = document.createElement("span");
+    detail.textContent = `${item.description || "ללא תיאור"} · ${formatPrice(item.unitPrice)} ליח׳`;
+    line.append(model, detail);
+    items.append(line);
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "promotion-card-actions";
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "file-button";
+  add.dataset.addPromotionToCart = promotion.id;
+  add.textContent = "הוסף סט לסל";
+  add.disabled = !promotion.active;
+  const whatsapp = document.createElement("a");
+  whatsapp.className = "whatsapp-button";
+  whatsapp.target = "_blank";
+  whatsapp.rel = "noreferrer";
+  whatsapp.textContent = "שלח מבצע ב‑WhatsApp";
+  updateWhatsAppLink(whatsapp, createPromotionWhatsAppUrl(promotion));
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.className = "secondary-button";
+  edit.dataset.editPromotion = promotion.id;
+  edit.textContent = "ערוך";
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "secondary-button";
+  toggle.dataset.togglePromotion = promotion.id;
+  toggle.textContent = promotion.active ? "השהה" : "הפעל";
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "danger-button";
+  remove.dataset.deletePromotion = promotion.id;
+  remove.textContent = "מחק";
+  actions.append(add, whatsapp, edit, toggle, remove);
+  card.append(header, description, items, actions);
+  return card;
+}
+
 function renderEmptyCartAction(customerName) {
   const node = document.createElement("div");
   node.className = "empty-cart-action";
@@ -10879,9 +11371,14 @@ function renderCartLine(line) {
   bonusBadge.textContent = `${getBonusOrderItemLabel(line)} · יחידה ללא עלות`;
   bonusBadge.hidden = !isBonusOrderItem(line);
 
+  const promotionBadge = document.createElement("div");
+  promotionBadge.className = "promotion-cart-badge";
+  promotionBadge.textContent = `מחיר מבצע${line.promotionName ? ` · ${line.promotionName}` : ""}`;
+  promotionBadge.hidden = line.priceSource !== "promotion";
+
   header.append(title, remove);
   controls.append(quantity, price);
-  row.append(header, controls, reservationBadge, displayBadge, bonusBadge, quickPrices);
+  row.append(header, controls, reservationBadge, displayBadge, bonusBadge, promotionBadge, quickPrices);
   return row;
 }
 
@@ -11509,6 +12006,12 @@ function createWhatsAppUrl(items, order = null) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(createOrderMessage(items, order))}`;
 }
 
+function createPromotionWhatsAppUrl(promotion) {
+  const phone = normalizePhone(settings.whatsappNumber);
+  if (!phone || !promotion?.items?.length) return "";
+  return `https://wa.me/${phone}?text=${encodeURIComponent(createPromotionMessage(promotion))}`;
+}
+
 function updateWhatsAppLink(link, url) {
   if (!url) {
     link.href = "#";
@@ -11538,6 +12041,22 @@ function createOrderMessage(items, order = null) {
   return lines.join("\n");
 }
 
+function createPromotionMessage(promotion) {
+  const lines = [`מבצע: ${cleanString(promotion.name)}`];
+  if (cleanString(promotion.description)) lines.push(cleanString(promotion.description));
+  lines.push("");
+  promotion.items.forEach((item) => {
+    const quantity = parseQuantity(item.quantity);
+    const model = cleanString(item.sku || item.skuKey || item.description) || "פריט";
+    const description = cleanString(item.description);
+    const itemTitle = description && description !== model ? ` · ${description}` : "";
+    lines.push(`• ${quantity} ${formatQuantityUnit(quantity)} (${model})${itemTitle} — ${formatPlainPrice(item.unitPrice)} ש״ח ליח׳`);
+  });
+  lines.push("");
+  lines.push(`סה״כ סט: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
+  return lines.join("\n");
+}
+
 function formatQuantityUnit(quantity) {
   return quantity === 1 ? "יחידה" : "יחידות";
 }
@@ -11547,7 +12066,8 @@ function formatOrderLine(item) {
   if (item.fromReservation || item.priceSource === "reservation") return `${prefix} · משריון`;
   if (isBonusOrderItem(item)) return `${prefix} · ${getBonusOrderItemLabel(item)} · 0 ש״ח`;
   const line = `${prefix} לפי ${formatOrderPrice(item)}`;
-  return item.priceSource === "display" ? `${line} · הנחת תצוגה 15%` : line;
+  if (item.priceSource === "display") return `${line} · הנחת תצוגה 15%`;
+  return item.priceSource === "promotion" ? `${line} · מחיר מבצע` : line;
 }
 
 function formatOrderPrice(item) {
@@ -12256,6 +12776,7 @@ function duplicateOrderToCart(orderId) {
       const priceSource = wasFromReservation
         ? "list"
         : item.priceSource === "display" || item.priceSource === "list" || item.priceSource === "bonus"
+          || item.priceSource === "promotion"
           ? item.priceSource
           : "custom";
       return {
@@ -12373,6 +12894,11 @@ function saveCollections(options = { sync: true }) {
   if (options.sync) queueCloudSave();
 }
 
+function savePromotions(options = { sync: true }) {
+  localStorage.setItem(PROMOTIONS_KEY, JSON.stringify(promotions));
+  if (options.sync) queueCloudSave({ action: "promotion-save" });
+}
+
 function persistSharedStateLocally() {
   saveProductData();
   localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
@@ -12386,6 +12912,7 @@ function persistSharedStateLocally() {
   localStorage.setItem(RESERVATION_SEED_KEY, JSON.stringify(reservationSeedVersion));
   localStorage.setItem(REMINDERS_KEY, JSON.stringify(reminders));
   localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+  localStorage.setItem(PROMOTIONS_KEY, JSON.stringify(promotions));
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
@@ -12604,6 +13131,7 @@ function hasCloudState(state) {
       (Array.isArray(state.reservations) && state.reservations.length) ||
       (Array.isArray(state.reminders) && state.reminders.length) ||
       (Array.isArray(state.collections) && state.collections.length) ||
+      (Array.isArray(state.promotions) && state.promotions.length) ||
       Object.keys(state.annotations || {}).length ||
       Object.keys(state.lastPrices || {}).length ||
       cleanString(state.settings?.whatsappNumber),
@@ -12633,6 +13161,7 @@ function buildSharedState() {
     reservationSeedVersion,
     reminders,
     collections,
+    promotions,
     settings: {
       whatsappNumber: settings.whatsappNumber || "",
       monthlySalesAdjustment: normalizeMonthlySalesAdjustment(settings.monthlySalesAdjustment),
@@ -12683,6 +13212,7 @@ function applySharedState(state) {
   reservationSeedVersion = shouldSeedReservations ? RESERVATION_SEED_VERSION : cloudSeedVersion;
   reminders = normalizeReminders(state.reminders);
   collections = normalizeCollections(state.collections);
+  promotions = normalizePromotions(state.promotions);
   const migratedCollectionReminders = migrateCollectionDueDatesToReminders({ sync: false });
 
   settings = {
@@ -12724,13 +13254,15 @@ function readCart() {
       const priceSource = fromReservation ? "reservation" : normalizePriceSource(line.priceSource);
       const bonusType = normalizeBonusType(line.bonusType);
       return {
-        lineKey: createCartLineKey(skuKey, fromReservation, unitPrice, priceSource, bonusType),
+        lineKey: createCartLineKey(skuKey, fromReservation, unitPrice, priceSource, bonusType, line.promotionId),
         skuKey,
         sku: cleanString(line.sku),
         description: cleanString(line.description),
         listPrice: parsePrice(line.listPrice) ?? 0,
         unitPrice,
         priceSource,
+        promotionId: cleanString(line.promotionId),
+        promotionName: cleanString(line.promotionName),
         bonusType,
         quantity: parseQuantity(line.quantity),
         fromReservation,
@@ -12779,6 +13311,8 @@ function normalizeOrders(value) {
             listPrice: parsePrice(line.listPrice) ?? 0,
             unitPrice: parsePrice(line.unitPrice) ?? 0,
             priceSource: normalizePriceSource(line.priceSource),
+            promotionId: cleanString(line.promotionId),
+            promotionName: cleanString(line.promotionName),
             bonusType: normalizeBonusType(line.bonusType),
             quantity: parseQuantity(line.quantity),
             lineTotal: parsePrice(line.lineTotal) ?? 0,
@@ -12921,6 +13455,57 @@ function readReminders() {
 
 function readCollections() {
   return normalizeCollections(readJson(COLLECTIONS_KEY));
+}
+
+function readPromotions() {
+  return normalizePromotions(readJson(PROMOTIONS_KEY));
+}
+
+function normalizePromotions(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") return null;
+      const id = cleanString(item.id) || `promotion-imported-${index}`;
+      if (seen.has(id)) return null;
+      seen.add(id);
+      const name = cleanString(item.name);
+      const items = normalizePromotionItems(item.items);
+      if (!name || !items.length) return null;
+      return {
+        id,
+        name,
+        description: cleanString(item.description),
+        active: item.active !== false,
+        items,
+        createdAt: item.createdAt || new Date().toISOString(),
+        updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.active) - Number(a.active) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+function normalizePromotionItems(value) {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const skuKey = getSkuKey(item.skuKey || item.sku);
+      const product = products.find((candidate) => candidate.skuKey === skuKey);
+      const unitPrice = parsePrice(item.unitPrice);
+      if (!skuKey || unitPrice === null) return null;
+      return {
+        skuKey,
+        sku: cleanString(product?.sku || item.sku || skuKey),
+        description: cleanString(product?.description || item.description),
+        listPrice: parsePrice(product?.price ?? item.listPrice) ?? 0,
+        quantity: parseQuantity(item.quantity),
+        unitPrice: Math.max(0, unitPrice),
+      };
+    })
+    .filter((item) => item && item.description);
 }
 
 function normalizeCollections(value) {
@@ -13209,7 +13794,7 @@ function formatPlainPrice(price) {
 }
 
 function normalizePriceSource(value) {
-  return ["list", "last", "custom", "display", "reservation", "bonus"].includes(value) ? value : "custom";
+  return ["list", "last", "custom", "display", "reservation", "bonus", "promotion"].includes(value) ? value : "custom";
 }
 
 function normalizeBonusType(value) {
