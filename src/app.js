@@ -1354,6 +1354,16 @@ function bindEvents() {
 
   });
   const handleCartFieldInput = (event) => {
+    const bundleQuantityInput = event.target.closest("[data-cart-bundle-quantity]");
+    if (bundleQuantityInput) {
+      updateBundleCartQuantity(
+        bundleQuantityInput.dataset.cartBundleQuantity,
+        parseQuantity(bundleQuantityInput.value),
+        { render: false },
+      );
+      return;
+    }
+
     const quantityInput = event.target.closest("[data-cart-quantity]");
     if (quantityInput) {
       updateCartLine(
@@ -1374,6 +1384,12 @@ function bindEvents() {
     }
   };
   const handleCartFieldChange = (event) => {
+    const bundleQuantityInput = event.target.closest("[data-cart-bundle-quantity]");
+    if (bundleQuantityInput) {
+      updateBundleCartQuantity(bundleQuantityInput.dataset.cartBundleQuantity, parseQuantity(bundleQuantityInput.value));
+      return;
+    }
+
     const quantityInput = event.target.closest("[data-cart-quantity]");
     if (quantityInput) {
       updateCartLine(quantityInput.dataset.cartQuantity, { quantity: parseQuantity(quantityInput.value) });
@@ -10058,6 +10074,7 @@ function upsertCartLine(product, quantity, options) {
     options.priceSource,
     bonusType,
     options.promotionId,
+    options.promotionType,
   );
   const existing = cart.find((line) => line.lineKey === lineKey);
   if (existing) {
@@ -10067,6 +10084,7 @@ function upsertCartLine(product, quantity, options) {
     existing.bonusType = bonusType;
     existing.promotionId = cleanString(options.promotionId);
     existing.promotionName = cleanString(options.promotionName);
+    existing.promotionType = normalizePromotionType(options.promotionType);
     return;
   }
 
@@ -10081,16 +10099,19 @@ function upsertCartLine(product, quantity, options) {
     bonusType,
     promotionId: cleanString(options.promotionId),
     promotionName: cleanString(options.promotionName),
+    promotionType: normalizePromotionType(options.promotionType),
     quantity,
     fromReservation: Boolean(options.fromReservation),
   });
 }
 
-function createCartLineKey(skuKey, fromReservation, unitPrice = 0, priceSource = "list", bonusType = "", promotionId = "") {
+function createCartLineKey(skuKey, fromReservation, unitPrice = 0, priceSource = "list", bonusType = "", promotionId = "", promotionType = "unit") {
   const normalizedSku = getSkuKey(skuKey);
   if (fromReservation) return `${normalizedSku}::reservation`;
   const normalizedPrice = roundMoney(Math.max(0, Number(unitPrice) || 0)).toFixed(2);
-  const promotionKey = normalizePriceSource(priceSource) === "promotion" ? cleanString(promotionId) || "promotion" : "";
+  const promotionKey = normalizePriceSource(priceSource) === "promotion"
+    ? `${cleanString(promotionId) || "promotion"}::${normalizePromotionType(promotionType)}`
+    : "";
   return `${normalizedSku}::cash::${normalizePriceSource(priceSource)}::${normalizedPrice}::${normalizeBonusType(bonusType)}::${promotionKey}`;
 }
 
@@ -10105,10 +10126,18 @@ function mergeCartLines(lines) {
       line.priceSource,
       bonusType,
       line.promotionId,
+      line.promotionType,
     );
     const existing = merged.get(lineKey);
     if (existing) {
       existing.quantity += line.quantity;
+      if (isBundlePromotionCartLine(existing)) {
+        existing.promotionBundleQuantity = parseQuantity(existing.promotionBundleQuantity) + parseQuantity(line.promotionBundleQuantity);
+        existing.promotionBundleLineTotal = roundMoney(
+          (parsePrice(existing.promotionBundleLineTotal) ?? 0) + (parsePrice(line.promotionBundleLineTotal) ?? 0),
+        );
+        existing.unitPrice = roundMoney(existing.promotionBundleLineTotal / Math.max(1, existing.quantity));
+      }
     } else {
       merged.set(lineKey, { ...line, bonusType, lineKey });
     }
@@ -10369,6 +10398,31 @@ function renderCartCustomerFeedback() {
   dom.cartCustomerFeedback.textContent = details ? `נבחר: ${details}` : "לקוח קיים.";
 }
 
+function updateBundleCartQuantity(lineKey, quantity, options = { render: true }) {
+  const sourceLine = cart.find((line) => line.lineKey === lineKey);
+  if (!sourceLine || !isBundlePromotionCartLine(sourceLine)) return;
+  const bundleId = sourceLine.promotionBundleId;
+  const nextBundleQuantity = parseQuantity(quantity);
+  const updatedLines = cart.map((line) => {
+    if (!isBundlePromotionCartLine(line) || line.promotionBundleId !== bundleId) return line;
+    const itemQuantity = parseQuantity(line.promotionBundleItemQuantity);
+    const bundleUnitTotal = Math.max(0, parsePrice(line.promotionBundleUnitTotal) ?? 0);
+    const nextQuantity = nextBundleQuantity * itemQuantity;
+    const nextLineTotal = roundMoney(bundleUnitTotal * nextBundleQuantity);
+    return {
+      ...line,
+      quantity: nextQuantity,
+      promotionBundleQuantity: nextBundleQuantity,
+      promotionBundleLineTotal: nextLineTotal,
+      unitPrice: roundMoney(nextLineTotal / Math.max(1, nextQuantity)),
+    };
+  });
+  cart = orderCartLines(updatedLines);
+  saveCart();
+  if (options.render === false) renderCartSummary();
+  else renderCart();
+}
+
 function updateCartLine(lineKey, patch, options = { render: true }) {
   const updatedLines = cart
     .map((line) => {
@@ -10402,7 +10456,10 @@ function updateCartLine(lineKey, patch, options = { render: true }) {
 function removeCartLine(lineKey) {
   const removedLine = cart.find((line) => line.lineKey === lineKey);
   if (!removedLine) return;
-  cart = cart.filter((line) => line.lineKey !== lineKey);
+  const isBundle = isBundlePromotionCartLine(removedLine);
+  cart = isBundle
+    ? cart.filter((line) => !isBundlePromotionCartLine(line) || line.promotionBundleId !== removedLine.promotionBundleId)
+    : cart.filter((line) => line.lineKey !== lineKey);
   if (!cart.length) {
     editingOrderId = "";
     editingDraftId = "";
@@ -10421,7 +10478,9 @@ function removeCartLine(lineKey) {
   } else {
     render();
   }
-  announceDeletion(`${removedLine.description || removedLine.sku || "המוצר"} הוסר מהסל.`);
+  announceDeletion(isBundle
+    ? `הבאנדל „${removedLine.promotionName || "מבצע"}“ הוסר מהסל.`
+    : `${removedLine.description || removedLine.sku || "המוצר"} הוסר מהסל.`);
 }
 
 function clearCart() {
@@ -10546,7 +10605,7 @@ function saveDraftOrder(options = {}) {
     draftReminderDate: originalDraft?.draftReminderDate || "",
     items: cart.map((line) => ({
       ...line,
-      lineTotal: roundMoney(line.quantity * line.unitPrice),
+      lineTotal: getCartLineTotal(line),
     })),
   };
   draft.total = getOrderTotal(draft.items);
@@ -10628,7 +10687,7 @@ function saveOrder(options = {}) {
     orderType,
     items: cart.map((line) => ({
       ...line,
-      lineTotal: roundMoney(line.quantity * line.unitPrice),
+      lineTotal: getCartLineTotal(line),
     })),
   };
   order.total = getOrderTotal(order.items);
@@ -10934,6 +10993,14 @@ function createEmptyPromotionItem() {
   return { skuKey: "", sku: "", description: "", listPrice: 0, quantity: 1, unitPrice: 0 };
 }
 
+function normalizePromotionType(value) {
+  return value === "bundle" ? "bundle" : "unit";
+}
+
+function isBundlePromotion(promotion) {
+  return normalizePromotionType(promotion?.type) === "bundle";
+}
+
 function createPromotionItemFromProduct(product, existingItem = null) {
   return {
     skuKey: product.skuKey,
@@ -10950,6 +11017,8 @@ function createEmptyPromotionDraft() {
     id: "",
     name: "",
     description: "",
+    type: "unit",
+    bundlePrice: "",
     active: true,
     items: [],
     createdAt: "",
@@ -10962,6 +11031,8 @@ function createPromotionDraft(promotion) {
     id: cleanString(promotion.id),
     name: cleanString(promotion.name),
     description: cleanString(promotion.description),
+    type: normalizePromotionType(promotion.type),
+    bundlePrice: Math.max(0, parsePrice(promotion.bundlePrice) ?? 0),
     active: promotion.active !== false,
     items: (promotion.items || []).map((item) => ({ ...item })),
     createdAt: promotion.createdAt || "",
@@ -10969,12 +11040,17 @@ function createPromotionDraft(promotion) {
 }
 
 function getPromotionTotal(promotion) {
+  if (isBundlePromotion(promotion)) return roundMoney(Math.max(0, parsePrice(promotion.bundlePrice) ?? 0));
   return roundMoney(
     (promotion?.items || []).reduce(
       (sum, item) => sum + parseQuantity(item.quantity) * Math.max(0, parsePrice(item.unitPrice) ?? 0),
       0,
     ),
   );
+}
+
+function getPromotionTotalLabel(promotion) {
+  return `${isBundlePromotion(promotion) ? "מחיר חבילה" : "סה״כ פריטים"} ${formatPrice(getPromotionTotal(promotion))}`;
 }
 
 function renderPromotionsPanel() {
@@ -11012,13 +11088,17 @@ function renderPromotionBuilder() {
   const total = document.createElement("strong");
   total.className = "promotion-builder-total";
   total.id = "promotionBuilderTotal";
-  total.textContent = `סה״כ סט ${formatPrice(getPromotionTotal(promotionDraft))}`;
+  total.textContent = getPromotionTotalLabel(promotionDraft);
   header.append(headerCopy, total);
 
   const fields = document.createElement("div");
   fields.className = "promotion-builder-fields";
   const nameField = createPromotionTextField("שם המבצע", "name", promotionDraft.name, "למשל: סט מייבשים 8/9/10 ק״ג", true);
   const descriptionField = createPromotionTextField("טקסט קצר ללקוח (אופציונלי)", "description", promotionDraft.description, "למשל: שלושה מייבשים במחיר מיוחד", false, true);
+  const typeField = createPromotionTypeField(promotionDraft.type);
+  const bundlePriceField = isBundlePromotion(promotionDraft)
+    ? createPromotionStandaloneNumberField("מחיר מיוחד לכל החבילה", "bundlePrice", promotionDraft.bundlePrice, 0, 0.01)
+    : null;
   const activeLabel = document.createElement("label");
   activeLabel.className = "promotion-active-toggle";
   const activeInput = document.createElement("input");
@@ -11028,12 +11108,12 @@ function renderPromotionBuilder() {
   const activeText = document.createElement("span");
   activeText.innerHTML = "<strong>מבצע פעיל</strong><small>מבצע כבוי נשמר אך אי אפשר להוסיף אותו לסל.</small>";
   activeLabel.append(activeInput, activeText);
-  fields.append(nameField, descriptionField, activeLabel);
+  fields.append(nameField, descriptionField, typeField, ...(bundlePriceField ? [bundlePriceField] : []), activeLabel);
 
   const itemsHeading = document.createElement("div");
   itemsHeading.className = "promotion-items-heading";
   const itemsTitle = document.createElement("strong");
-  itemsTitle.textContent = "פריטי הסט";
+  itemsTitle.textContent = isBundlePromotion(promotionDraft) ? "פריטי החבילה" : "פריטי המבצע";
   const itemsTools = document.createElement("div");
   itemsTools.className = "promotion-items-tools";
   const productSearch = document.createElement("input");
@@ -11054,7 +11134,9 @@ function renderPromotionBuilder() {
   if (!promotionDraft.items.length) {
     const hint = document.createElement("p");
     hint.className = "promotion-empty-items";
-    hint.textContent = "הוסף דגם, כמות ומחיר מבצע לכל פריט בסט.";
+    hint.textContent = isBundlePromotion(promotionDraft)
+      ? "הוסף את המוצרים וכמות כל מוצר בכל חבילה. המחיר למעלה חל על החבילה כולה."
+      : "הוסף דגם, כמות ומחיר מבצע לכל פריט.";
     items.append(hint);
   } else {
     promotionDraft.items.forEach((item, index) => items.append(renderPromotionBuilderItem(item, index)));
@@ -11091,6 +11173,43 @@ function createPromotionTextField(labelText, field, value, placeholder, required
   input.required = required;
   input.dataset.promotionField = field;
   if (multiline) input.rows = 2;
+  label.append(text, input);
+  return label;
+}
+
+function createPromotionTypeField(value) {
+  const label = document.createElement("label");
+  label.className = "field-wrap promotion-type-field";
+  const text = document.createElement("span");
+  text.textContent = "סוג מבצע";
+  const select = document.createElement("select");
+  select.dataset.promotionField = "type";
+  [
+    ["unit", "מחיר לכל מוצר"],
+    ["bundle", "באנדל · מחיר לחבילה"],
+  ].forEach(([optionValue, labelText]) => {
+    const option = document.createElement("option");
+    option.value = optionValue;
+    option.textContent = labelText;
+    option.selected = normalizePromotionType(value) === optionValue;
+    select.append(option);
+  });
+  label.append(text, select);
+  return label;
+}
+
+function createPromotionStandaloneNumberField(labelText, field, value, min, step) {
+  const label = document.createElement("label");
+  label.className = "field-wrap promotion-bundle-price-field";
+  const text = document.createElement("span");
+  text.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(min);
+  input.step = String(step);
+  input.inputMode = step < 1 ? "decimal" : "numeric";
+  input.value = String(value ?? "");
+  input.dataset.promotionField = field;
   label.append(text, input);
   return label;
 }
@@ -11161,6 +11280,7 @@ function renderPromotionProductPicker() {
 function renderPromotionBuilderItem(item, index) {
   const row = document.createElement("article");
   row.className = "promotion-builder-item";
+  row.classList.toggle("bundle-promotion-builder-item", isBundlePromotion(promotionDraft));
 
   const marker = document.createElement("div");
   marker.className = "promotion-item-marker";
@@ -11190,19 +11310,30 @@ function renderPromotionBuilderItem(item, index) {
   productButton.append(productModel, productDescription);
   productField.append(productTitle, productButton);
 
-  const quantity = createPromotionNumberField("כמות", "promotionItemQuantity", index, item.quantity, 1, 1);
-  const price = createPromotionNumberField("מחיר מבצע ליח׳", "promotionItemPrice", index, item.unitPrice, 0, 0.01);
+  const quantity = createPromotionNumberField(
+    isBundlePromotion(promotionDraft) ? "כמות בכל חבילה" : "כמות",
+    "promotionItemQuantity",
+    index,
+    item.quantity,
+    1,
+    1,
+  );
+  const price = isBundlePromotion(promotionDraft)
+    ? null
+    : createPromotionNumberField("מחיר מבצע ליח׳", "promotionItemPrice", index, item.unitPrice, 0, 0.01);
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "danger-button promotion-remove-item";
   remove.dataset.removePromotionItem = String(index);
   remove.textContent = "הסר";
-  top.append(productField, quantity, price, remove);
+  top.append(productField, quantity, ...(price ? [price] : []), remove);
 
   const details = document.createElement("p");
   details.className = "promotion-builder-item-details";
   details.textContent = item.skuKey
-    ? `${item.description || "ללא תיאור"} · סה״כ לשורה ${formatPrice(parseQuantity(item.quantity) * Math.max(0, parsePrice(item.unitPrice) ?? 0))}`
+    ? isBundlePromotion(promotionDraft)
+      ? `${item.description || "ללא תיאור"} · ${parseQuantity(item.quantity).toLocaleString("he-IL")} יח׳ בכל חבילה`
+      : `${item.description || "ללא תיאור"} · סה״כ לשורה ${formatPrice(parseQuantity(item.quantity) * Math.max(0, parsePrice(item.unitPrice) ?? 0))}`
     : "בחר דגם כדי להגדיר אותו כחלק מהסט.";
   row.append(marker, top, details);
   return row;
@@ -11234,6 +11365,16 @@ function handlePromotionBuilderInput(event) {
   }
   const field = input.dataset.promotionField;
   if (field) {
+    if (field === "type") {
+      promotionDraft.type = normalizePromotionType(input.value);
+      renderPromotionsPanel();
+      return;
+    }
+    if (field === "bundlePrice") {
+      promotionDraft.bundlePrice = Math.max(0, parsePrice(input.value) ?? 0);
+      updatePromotionBuilderTotal();
+      return;
+    }
     promotionDraft[field] = field === "active" ? Boolean(input.checked) : cleanString(input.value);
     return;
   }
@@ -11283,25 +11424,38 @@ function handlePromotionBuilderChange(event) {
 
   if (event.target.dataset.promotionField === "active") {
     promotionDraft.active = Boolean(event.target.checked);
+    return;
+  }
+
+  if (event.target.dataset.promotionField === "type") {
+    promotionDraft.type = normalizePromotionType(event.target.value);
+    renderPromotionsPanel();
   }
 }
 
 function updatePromotionBuilderTotal() {
   const total = dom.promotionBuilder.querySelector("#promotionBuilderTotal");
-  if (total) total.textContent = `סה״כ סט ${formatPrice(getPromotionTotal(promotionDraft))}`;
+  if (total) total.textContent = getPromotionTotalLabel(promotionDraft);
 }
 
 function savePromotionFromBuilder() {
   if (!requireCloudReadyForMutation("לשמור מבצע")) return;
   const name = cleanString(promotionDraft.name);
+  const type = normalizePromotionType(promotionDraft.type);
   const items = normalizePromotionItems(promotionDraft.items);
+  const parsedBundlePrice = parsePrice(promotionDraft.bundlePrice);
+  const bundlePrice = Math.max(0, parsedBundlePrice ?? 0);
   if (!name) {
     dom.status.textContent = "יש לתת שם למבצע.";
     dom.promotionBuilder.querySelector('[data-promotion-field="name"]')?.focus();
     return;
   }
   if (!items.length) {
-    dom.status.textContent = "יש להוסיף לפחות מוצר אחד עם מחיר מבצע.";
+    dom.status.textContent = "יש להוסיף לפחות מוצר אחד למבצע.";
+    return;
+  }
+  if (type === "bundle" && (parsedBundlePrice === null || parsedBundlePrice <= 0)) {
+    dom.status.textContent = "יש להגדיר מחיר חיובי לחבילה.";
     return;
   }
   const now = new Date().toISOString();
@@ -11309,6 +11463,8 @@ function savePromotionFromBuilder() {
     id: promotionDraft.id || `promotion-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name,
     description: cleanString(promotionDraft.description),
+    type,
+    bundlePrice: type === "bundle" ? bundlePrice : 0,
     active: promotionDraft.active !== false,
     items,
     createdAt: promotionDraft.createdAt || now,
@@ -11357,6 +11513,12 @@ function addPromotionToCart(promotionId) {
     dom.status.textContent = "המבצע מושבת. הפעל אותו לפני הוספה לסל.";
     return;
   }
+
+  if (isBundlePromotion(promotion)) {
+    addBundlePromotionToCart(promotion);
+    return;
+  }
+
   const missing = [];
   let addedQuantity = 0;
   promotion.items.forEach((item) => {
@@ -11372,6 +11534,7 @@ function addPromotionToCart(promotionId) {
       priceSource: "promotion",
       promotionId: promotion.id,
       promotionName: promotion.name,
+      promotionType: "unit",
     });
     addedQuantity += quantity;
   });
@@ -11388,6 +11551,109 @@ function addPromotionToCart(promotionId) {
   showActionToast(dom.status.textContent);
 }
 
+function isBundlePromotionCartLine(line) {
+  return line?.priceSource === "promotion"
+    && line?.promotionType === "bundle"
+    && Boolean(cleanString(line.promotionBundleId || line.promotionId));
+}
+
+function getBundleLineShares(promotion) {
+  const groupedItems = new Map();
+  (promotion.items || []).forEach((item) => {
+    const skuKey = getSkuKey(item.skuKey || item.sku);
+    if (!skuKey) return;
+    const existing = groupedItems.get(skuKey);
+    if (existing) {
+      existing.quantity = parseQuantity(existing.quantity) + parseQuantity(item.quantity);
+      return;
+    }
+    groupedItems.set(skuKey, { ...item, skuKey, quantity: parseQuantity(item.quantity) });
+  });
+  const items = [...groupedItems.values()].map((item) => ({
+    item,
+    quantity: parseQuantity(item.quantity),
+    weight: Math.max(0, Number(item.listPrice) || 0) * parseQuantity(item.quantity),
+  }));
+  const fallbackWeight = items.reduce((sum, entry) => sum + entry.quantity, 0) || 1;
+  const weightedTotal = items.reduce((sum, entry) => sum + entry.weight, 0);
+  const totalWeight = weightedTotal || fallbackWeight;
+  const weightedItems = items.map((entry) => ({ ...entry, allocationWeight: weightedTotal ? entry.weight : entry.quantity }));
+  const lastPayingIndex = weightedItems.reduce((last, entry, index) => (entry.allocationWeight > 0 ? index : last), weightedItems.length - 1);
+  let remainingCents = Math.round(getPromotionTotal(promotion) * 100);
+  let remainingWeight = totalWeight;
+  return weightedItems.map((entry, index) => {
+    const weight = entry.allocationWeight;
+    const cents = index === lastPayingIndex
+      ? remainingCents
+      : weight > 0
+        ? Math.max(0, Math.min(remainingCents, Math.round(remainingCents * (weight / Math.max(1, remainingWeight)))))
+        : 0;
+    remainingCents -= cents;
+    remainingWeight -= weight;
+    return { ...entry, lineTotal: roundMoney(cents / 100) };
+  });
+}
+
+function addBundlePromotionToCart(promotion) {
+  const shares = getBundleLineShares(promotion);
+  const prepared = shares.map(({ item }) => ({ item, product: products.find((candidate) => candidate.skuKey === item.skuKey) }));
+  const missing = prepared.filter(({ product }) => !product).map(({ item }) => item.sku || item.skuKey);
+  if (missing.length) {
+    dom.status.textContent = `החבילה לא נוספה: ${missing.join(", ")} אינם נמצאים במחירון הנוכחי.`;
+    showActionToast(dom.status.textContent, "error");
+    return;
+  }
+
+  let addedQuantity = 0;
+  prepared.forEach(({ item, product }, index) => {
+    const share = shares[index];
+    const perBundleQuantity = parseQuantity(item.quantity);
+    const existing = cart.find((line) => isBundlePromotionCartLine(line)
+      && line.promotionBundleId === promotion.id
+      && line.skuKey === product.skuKey);
+    if (existing) {
+      const nextBundleQuantity = parseQuantity(existing.promotionBundleQuantity) + 1;
+      const bundleUnitTotal = Math.max(0, parsePrice(existing.promotionBundleUnitTotal) ?? share.lineTotal);
+      const nextQuantity = nextBundleQuantity * parseQuantity(existing.promotionBundleItemQuantity || perBundleQuantity);
+      existing.promotionBundleQuantity = nextBundleQuantity;
+      existing.quantity = nextQuantity;
+      existing.promotionBundleLineTotal = roundMoney(bundleUnitTotal * nextBundleQuantity);
+      existing.unitPrice = roundMoney(existing.promotionBundleLineTotal / Math.max(1, nextQuantity));
+    } else {
+      const lineKey = createCartLineKey(product.skuKey, false, roundMoney(share.lineTotal / Math.max(1, perBundleQuantity)), "promotion", "", promotion.id, "bundle");
+      cart.push({
+        lineKey,
+        skuKey: product.skuKey,
+        sku: product.sku,
+        description: product.description,
+        listPrice: product.price,
+        unitPrice: roundMoney(share.lineTotal / Math.max(1, perBundleQuantity)),
+        priceSource: "promotion",
+        bonusType: "",
+        promotionId: promotion.id,
+        promotionName: promotion.name,
+        promotionType: "bundle",
+        promotionBundleId: promotion.id,
+        promotionBundleQuantity: 1,
+        promotionBundleItemQuantity: perBundleQuantity,
+        promotionBundlePrice: getPromotionTotal(promotion),
+        promotionBundleUnitTotal: share.lineTotal,
+        promotionBundleLineTotal: share.lineTotal,
+        quantity: perBundleQuantity,
+        fromReservation: false,
+      });
+    }
+    addedQuantity += perBundleQuantity;
+  });
+  cart = orderCartLines(cart);
+  saveCart();
+  render();
+  setActiveTab("cart");
+  const message = `התווספה חבילה אחת לסל: ${promotion.name} · ${addedQuantity.toLocaleString("he-IL")} פריטים · ${formatPrice(getPromotionTotal(promotion))}.`;
+  dom.status.textContent = message;
+  showActionToast(message);
+}
+
 function renderPromotionCard(promotion) {
   const card = document.createElement("article");
   card.className = "promotion-card";
@@ -11398,11 +11664,12 @@ function renderPromotionCard(promotion) {
   const title = document.createElement("h3");
   title.textContent = promotion.name;
   const meta = document.createElement("p");
-  meta.textContent = promotion.active ? "מבצע פעיל · מוכן לסל" : "מבצע מושבת";
+  const promotionKind = isBundlePromotion(promotion) ? "באנדל · מחיר לחבילה" : "מחיר נפרד לכל מוצר";
+  meta.textContent = promotion.active ? `${promotionKind} · מוכן לסל` : `${promotionKind} · מבצע מושבת`;
   copy.append(title, meta);
   const total = document.createElement("strong");
   total.className = "promotion-card-total";
-  total.textContent = formatPrice(getPromotionTotal(promotion));
+  total.textContent = getPromotionTotalLabel(promotion);
   header.append(copy, total);
 
   const description = document.createElement("p");
@@ -11417,7 +11684,9 @@ function renderPromotionCard(promotion) {
     const model = document.createElement("strong");
     model.textContent = `${parseQuantity(item.quantity)} ${formatQuantityUnit(parseQuantity(item.quantity))} · ${item.sku || item.skuKey}`;
     const detail = document.createElement("span");
-    detail.textContent = `${item.description || "ללא תיאור"} · ${formatPrice(item.unitPrice)} ליח׳`;
+    detail.textContent = isBundlePromotion(promotion)
+      ? `${item.description || "ללא תיאור"} · ${parseQuantity(item.quantity).toLocaleString("he-IL")} יח׳ בכל חבילה`
+      : `${item.description || "ללא תיאור"} · ${formatPrice(item.unitPrice)} ליח׳`;
     line.append(model, detail);
     items.append(line);
   });
@@ -11428,7 +11697,7 @@ function renderPromotionCard(promotion) {
   add.type = "button";
   add.className = "file-button";
   add.dataset.addPromotionToCart = promotion.id;
-  add.textContent = "הוסף סט לסל";
+  add.textContent = isBundlePromotion(promotion) ? "הוסף חבילה לסל" : "הוסף מבצע לסל";
   add.disabled = !promotion.active;
   const whatsapp = document.createElement("a");
   whatsapp.className = "whatsapp-button";
@@ -11503,10 +11772,12 @@ function renderCartLine(line) {
   const selectedCustomer = getSelectedCustomer();
   const reservation = getCustomerReservation(selectedCustomer, line.skuKey);
   const reservationAvailable = (reservation?.quantity || 0) + getEditingReservationAllowance(selectedCustomer, line.skuKey);
+  const bundleLine = isBundlePromotionCartLine(line);
   const row = document.createElement("article");
   row.className = "cart-line";
   row.classList.toggle("reservation-cart-line", Boolean(line.fromReservation));
   row.classList.toggle("bonus-cart-line", isBonusOrderItem(line));
+  row.classList.toggle("bundle-promotion-cart-line", bundleLine);
 
   const header = document.createElement("div");
   header.className = "cart-line-header";
@@ -11524,13 +11795,15 @@ function renderCartLine(line) {
   const controls = document.createElement("div");
   controls.className = "cart-controls";
 
-  const quantity = createNumberField("כמות", line.quantity, {
+  const quantity = createNumberField(bundleLine ? "כמות חבילות" : "כמות", bundleLine ? line.promotionBundleQuantity : line.quantity, {
     min: 1,
     step: 1,
-    attr: "cartQuantity",
+    attr: bundleLine ? "cartBundleQuantity" : "cartQuantity",
     key: line.lineKey,
   });
-  const price = line.fromReservation
+  const price = bundleLine
+    ? createBundlePromotionPriceField(line)
+    : line.fromReservation
     ? createReservationPriceField()
     : isBonusOrderItem(line)
       ? createBonusPriceField(line)
@@ -11544,7 +11817,7 @@ function renderCartLine(line) {
   const quickPrices = document.createElement("div");
   quickPrices.className = "quick-prices";
 
-  if (!line.fromReservation && !isBonusOrderItem(line)) {
+  if (!bundleLine && !line.fromReservation && !isBonusOrderItem(line)) {
     const listButton = document.createElement("button");
     listButton.type = "button";
     listButton.dataset.useListPrice = line.lineKey;
@@ -11581,13 +11854,22 @@ function renderCartLine(line) {
 
   const promotionBadge = document.createElement("div");
   promotionBadge.className = "promotion-cart-badge";
-  promotionBadge.textContent = `מחיר מבצע${line.promotionName ? ` · ${line.promotionName}` : ""}`;
+  promotionBadge.textContent = bundleLine
+    ? `באנדל${line.promotionName ? ` · ${line.promotionName}` : ""} · ${parseQuantity(line.promotionBundleQuantity).toLocaleString("he-IL")} חבילות · ${formatPrice(line.promotionBundlePrice)} לחבילה`
+    : `מחיר מבצע${line.promotionName ? ` · ${line.promotionName}` : ""}`;
   promotionBadge.hidden = line.priceSource !== "promotion";
 
   header.append(title, remove);
   controls.append(quantity, price);
   row.append(header, controls, reservationBadge, displayBadge, bonusBadge, promotionBadge, quickPrices);
   return row;
+}
+
+function createBundlePromotionPriceField(line) {
+  const field = document.createElement("div");
+  field.className = "field-wrap compact-field bundle-promotion-price-field";
+  field.innerHTML = `<span>מחיר החבילה</span><strong>${escapeHtml(formatPrice(line.promotionBundlePrice))}</strong>`;
+  return field;
 }
 
 function createDisplayDiscountButton(listPrice) {
@@ -12252,16 +12534,20 @@ function createOrderMessage(items, order = null) {
 function createPromotionMessage(promotion) {
   const lines = [`מבצע: ${cleanString(promotion.name)}`];
   if (cleanString(promotion.description)) lines.push(cleanString(promotion.description));
+  const bundle = isBundlePromotion(promotion);
+  if (bundle) lines.push(`באנדל · מחיר לחבילה: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
   lines.push("");
   promotion.items.forEach((item) => {
     const quantity = parseQuantity(item.quantity);
     const model = cleanString(item.sku || item.skuKey || item.description) || "פריט";
     const description = cleanString(item.description);
     const itemTitle = description && description !== model ? ` · ${description}` : "";
-    lines.push(`• ${quantity} ${formatQuantityUnit(quantity)} (${model})${itemTitle} — ${formatPlainPrice(item.unitPrice)} ש״ח ליח׳`);
+    lines.push(bundle
+      ? `• ${quantity} ${formatQuantityUnit(quantity)} (${model})${itemTitle}`
+      : `• ${quantity} ${formatQuantityUnit(quantity)} (${model})${itemTitle} — ${formatPlainPrice(item.unitPrice)} ש״ח ליח׳`);
   });
   lines.push("");
-  lines.push(`סה״כ סט: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
+  lines.push(`${bundle ? "מחיר חבילה" : "סה״כ מבצע"}: ${formatPlainPrice(getPromotionTotal(promotion))} ש״ח`);
   return lines.join("\n");
 }
 
@@ -12273,6 +12559,9 @@ function formatOrderLine(item) {
   const prefix = `${item.quantity} ${formatQuantityUnit(item.quantity)} ${formatOrderItemModel(item)}`;
   if (item.fromReservation || item.priceSource === "reservation") return `${prefix} · משריון`;
   if (isBonusOrderItem(item)) return `${prefix} · ${getBonusOrderItemLabel(item)} · 0 ש״ח`;
+  if (isBundlePromotionCartLine(item)) {
+    return `${prefix} · באנדל${item.promotionName ? ` ${item.promotionName}` : ""}`;
+  }
   const line = `${prefix} לפי ${formatOrderPrice(item)}`;
   if (item.priceSource === "display") return `${line} · הנחת תצוגה 15%`;
   return item.priceSource === "promotion" ? `${line} · מחיר מבצע` : line;
@@ -12472,7 +12761,7 @@ function moveOrderToDraft(orderId) {
     draftReminderDate: normalizeDateInput(order.draftReminderDate),
     items: order.items.map((line) => ({
       ...line,
-      lineTotal: roundMoney(line.quantity * line.unitPrice),
+      lineTotal: getCartLineTotal(line),
     })),
   };
   draft.total = getOrderTotal(draft.items);
@@ -12822,7 +13111,7 @@ function commitDraftToOrders(draftId, options = {}) {
     ),
     items: draft.items.map((line) => ({
       ...line,
-      lineTotal: roundMoney(line.quantity * line.unitPrice),
+      lineTotal: getCartLineTotal(line),
     })),
   };
   order.total = getOrderTotal(order.items);
@@ -12992,7 +13281,7 @@ function duplicateOrderToCart(orderId) {
         fromReservation: false,
         unitPrice,
         priceSource,
-        lineTotal: roundMoney(item.quantity * unitPrice),
+        lineTotal: getCartLineTotal({ ...item, unitPrice }),
       };
     }),
   );
@@ -13026,14 +13315,22 @@ function rebuildLastPricesFromOrders(orderList) {
     }, {});
 }
 
+function getCartLineTotal(line) {
+  if (isBundlePromotionCartLine(line)) {
+    const bundleTotal = parsePrice(line.promotionBundleLineTotal);
+    if (bundleTotal !== null) return roundMoney(Math.max(0, bundleTotal));
+  }
+  return roundMoney(parseQuantity(line.quantity) * (Number(line.unitPrice) || 0));
+}
+
 function getOrderTotal(items) {
-  return roundMoney(items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0));
+  return roundMoney(items.reduce((sum, item) => sum + getCartLineTotal(item), 0));
 }
 
 function getPaidSalesTotal(items) {
   return roundMoney(
     items.reduce(
-      (sum, item) => (isReservationOrderItem(item) ? sum : sum + item.quantity * item.unitPrice),
+      (sum, item) => (isReservationOrderItem(item) ? sum : sum + getCartLineTotal(item)),
       0,
     ),
   );
@@ -13431,8 +13728,13 @@ function readCart() {
       const unitPrice = fromReservation ? 0 : parsePrice(line.unitPrice) ?? 0;
       const priceSource = fromReservation ? "reservation" : normalizePriceSource(line.priceSource);
       const bonusType = normalizeBonusType(line.bonusType);
+      const promotionType = normalizePromotionType(line.promotionType);
+      const bundleQuantity = parseQuantity(line.promotionBundleQuantity);
+      const bundleItemQuantity = parseQuantity(line.promotionBundleItemQuantity);
+      const bundleUnitTotal = Math.max(0, parsePrice(line.promotionBundleUnitTotal) ?? 0);
+      const isBundle = priceSource === "promotion" && promotionType === "bundle" && cleanString(line.promotionBundleId || line.promotionId);
       return {
-        lineKey: createCartLineKey(skuKey, fromReservation, unitPrice, priceSource, bonusType, line.promotionId),
+        lineKey: createCartLineKey(skuKey, fromReservation, unitPrice, priceSource, bonusType, line.promotionId, promotionType),
         skuKey,
         sku: cleanString(line.sku),
         description: cleanString(line.description),
@@ -13441,8 +13743,17 @@ function readCart() {
         priceSource,
         promotionId: cleanString(line.promotionId),
         promotionName: cleanString(line.promotionName),
+        promotionType,
+        promotionBundleId: isBundle ? cleanString(line.promotionBundleId || line.promotionId) : "",
+        promotionBundleQuantity: isBundle ? bundleQuantity : 0,
+        promotionBundleItemQuantity: isBundle ? bundleItemQuantity : 0,
+        promotionBundlePrice: isBundle ? Math.max(0, parsePrice(line.promotionBundlePrice) ?? 0) : 0,
+        promotionBundleUnitTotal: isBundle ? bundleUnitTotal : 0,
+        promotionBundleLineTotal: isBundle
+          ? Math.max(0, parsePrice(line.promotionBundleLineTotal) ?? roundMoney(bundleUnitTotal * bundleQuantity))
+          : 0,
         bonusType,
-        quantity: parseQuantity(line.quantity),
+        quantity: isBundle ? bundleQuantity * bundleItemQuantity : parseQuantity(line.quantity),
         fromReservation,
       };
     })
@@ -13491,6 +13802,13 @@ function normalizeOrders(value) {
             priceSource: normalizePriceSource(line.priceSource),
             promotionId: cleanString(line.promotionId),
             promotionName: cleanString(line.promotionName),
+            promotionType: normalizePromotionType(line.promotionType),
+            promotionBundleId: cleanString(line.promotionBundleId || line.promotionId),
+            promotionBundleQuantity: parseQuantity(line.promotionBundleQuantity),
+            promotionBundleItemQuantity: parseQuantity(line.promotionBundleItemQuantity),
+            promotionBundlePrice: Math.max(0, parsePrice(line.promotionBundlePrice) ?? 0),
+            promotionBundleUnitTotal: Math.max(0, parsePrice(line.promotionBundleUnitTotal) ?? 0),
+            promotionBundleLineTotal: Math.max(0, parsePrice(line.promotionBundleLineTotal) ?? 0),
             bonusType: normalizeBonusType(line.bonusType),
             quantity: parseQuantity(line.quantity),
             lineTotal: parsePrice(line.lineTotal) ?? 0,
@@ -13651,10 +13969,13 @@ function normalizePromotions(value) {
       const name = cleanString(item.name);
       const items = normalizePromotionItems(item.items);
       if (!name || !items.length) return null;
+      const type = normalizePromotionType(item.type);
       return {
         id,
         name,
         description: cleanString(item.description),
+        type,
+        bundlePrice: type === "bundle" ? Math.max(0, parsePrice(item.bundlePrice) ?? 0) : 0,
         active: item.active !== false,
         items,
         createdAt: item.createdAt || new Date().toISOString(),
