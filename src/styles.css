@@ -8668,6 +8668,29 @@ body {
   border-color: color-mix(in srgb, var(--workspace-tone) 72%, #d8f9ff);
 }
 
+.promotions-panel .promotion-builder-actions .file-button {
+  border-color: #f3c86f;
+  background: linear-gradient(135deg, #b97925, #e6b764 55%, #f2ce83);
+  color: #171009;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.promotions-panel .promotion-builder-actions .secondary-button,
+.promotions-panel .promotion-card-actions .secondary-button {
+  border-color: rgba(96, 184, 218, 0.78);
+  background: linear-gradient(135deg, rgba(25, 90, 119, 0.92), rgba(17, 54, 77, 0.96));
+  color: #d9f3ff;
+}
+
+.promotions-panel .promotion-product-result {
+  border-color: color-mix(in srgb, var(--workspace-tone) 25%, rgba(87, 174, 208, 0.38));
+  background: linear-gradient(145deg, rgba(13, 30, 42, 0.88), rgba(5, 12, 20, 0.88));
+}
+
+.promotions-panel .promotion-product-result:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--workspace-tone) 20%, transparent), 0 0 20px rgba(92, 189, 223, 0.23);
+}
+
 .promotions-panel .promotion-card-actions .whatsapp-button {
   border-color: rgba(73, 234, 147, 0.86);
   box-shadow:
@@ -8742,10 +8765,21 @@ body {
   .promotions-panel {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
   .promotions-panel :is(input, textarea, select) {
     font-size: 16px;
+  }
+
+  .promotion-product-search {
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+
+  .promotion-product-results {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .promotion-builder-fields,
