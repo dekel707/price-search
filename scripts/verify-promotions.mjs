@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [html, app, stateApi] = await Promise.all([
+const [html, app, stateApi, styles] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../api/state.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
 ]);
 
 assert.match(html, /data-tab="promotions"/, "the promotions tab must be available in the main navigation");
@@ -33,5 +34,11 @@ assert.match(app, /data-promotion-product-search/, "a product-name/model search 
 assert.match(app, /function renderPromotionProductPicker\(\)/, "the builder must render a clear product picker beneath the search");
 assert.match(app, /data-select-promotion-product/, "search results must let the user add a product directly to the promotion");
 assert.match(app, /data-change-promotion-item/, "a selected promotion item must remain replaceable without a long native dropdown");
+assert.match(app, /promotion-item-marker/, "each selected promotion product must have a visible item marker");
+assert.match(app, /productButton\.classList\.toggle\("has-product", Boolean\(item\.skuKey\)\)/, "a selected promotion product must receive a visible selected state");
+assert.match(styles, /\.promotion-builder-item::before/, "promotion product boxes need a clear visual boundary");
+assert.match(styles, /\.promotion-selected-product\.has-product/, "the selected product state needs a dedicated visual treatment");
+assert.match(styles, /\.promotions-panel :is\(input, textarea, select\)\s*\{\s*font-size: 16px;/, "mobile promotion inputs must avoid automatic browser zoom");
+assert.match(styles, /\.promotion-product-result span,\s*\.promotion-selected-product small\s*\{[\s\S]*?white-space: normal;/, "product names must be allowed to wrap inside their boxes");
 
 console.log("Promotion workspace safety checks passed.");

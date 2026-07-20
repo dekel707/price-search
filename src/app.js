@@ -11161,6 +11161,16 @@ function renderPromotionProductPicker() {
 function renderPromotionBuilderItem(item, index) {
   const row = document.createElement("article");
   row.className = "promotion-builder-item";
+
+  const marker = document.createElement("div");
+  marker.className = "promotion-item-marker";
+  const markerIcon = document.createElement("span");
+  markerIcon.setAttribute("aria-hidden", "true");
+  markerIcon.textContent = "✦";
+  const markerText = document.createElement("strong");
+  markerText.textContent = `פריט ${index + 1}`;
+  marker.append(markerIcon, markerText);
+
   const top = document.createElement("div");
   top.className = "promotion-builder-item-top";
 
@@ -11172,6 +11182,7 @@ function renderPromotionBuilderItem(item, index) {
   productButton.type = "button";
   productButton.className = "promotion-selected-product";
   productButton.dataset.changePromotionItem = String(index);
+  productButton.classList.toggle("has-product", Boolean(item.skuKey));
   const productModel = document.createElement("strong");
   productModel.textContent = item.sku || "בחר מוצר מהרשימה";
   const productDescription = document.createElement("small");
@@ -11193,7 +11204,7 @@ function renderPromotionBuilderItem(item, index) {
   details.textContent = item.skuKey
     ? `${item.description || "ללא תיאור"} · סה״כ לשורה ${formatPrice(parseQuantity(item.quantity) * Math.max(0, parsePrice(item.unitPrice) ?? 0))}`
     : "בחר דגם כדי להגדיר אותו כחלק מהסט.";
-  row.append(top, details);
+  row.append(marker, top, details);
   return row;
 }
 
