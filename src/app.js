@@ -10452,7 +10452,9 @@ function saveDraftOrder(options = {}) {
   saveCart();
   saveSettings();
   saveOrderReportTomorrow();
-  queueCloudSave({ action: futureStockOrder ? "future-stock-edit" : originalDraft ? "draft-edit" : "draft-create" });
+  if (!options.deferCloudSave) {
+    queueCloudSave({ action: futureStockOrder ? "future-stock-edit" : originalDraft ? "draft-edit" : "draft-create" });
+  }
   render();
   if (options.activateTab !== false) setActiveTab(futureStockOrder ? "future-stock-orders" : "drafts");
   dom.status.textContent =
@@ -10542,7 +10544,9 @@ function saveOrder(options = {}) {
   saveSettings();
   saveOrderReportTomorrow();
   render();
-  queueCloudSave({ action: originalOrder ? "order-edit" : "order-create" });
+  if (!options.deferCloudSave) {
+    queueCloudSave({ action: originalOrder ? "order-edit" : "order-create" });
+  }
   if (options.activateTab !== false) setActiveTab("orders");
   dom.status.textContent =
     options.status ||
@@ -10725,36 +10729,35 @@ async function sendCurrentOrderToWhatsApp(event) {
   let savedOrder = null;
   if (savingDraft) {
     const draft = saveDraftOrder({
-      status: "שומר את הטיוטה בענן לפני פתיחת WhatsApp…",
+      // WhatsApp opens from this click without waiting for the network. The
+      // complete local state is already persisted; the cloud copy is queued
+      // immediately after the external window opens.
+      deferCloudSave: true,
+      status: "הטיוטה נשמרה ונפתחה מיידית לשליחה ב‑WhatsApp.",
     });
     if (!draft) return;
     savedOrder = draft;
   } else {
-    savedOrder = saveOrder({ status: "שומר את ההזמנה בענן לפני פתיחת WhatsApp…" });
+    savedOrder = saveOrder({
+      // saveOrder renders the calculations synchronously before WhatsApp is
+      // opened, so the dashboard immediately reflects this order.
+      deferCloudSave: true,
+      status: "ההזמנה נשמרה ונפתחה מיידית לשליחה ב‑WhatsApp.",
+    });
     if (!savedOrder) return;
   }
 
-  const saveId = pendingCloudSave?.id || readPendingCloudSave()?.id || "";
-  const savedInCloud = await confirmCloudSaveBeforeExternalAction(saveId);
-  if (!savedInCloud) {
-    const kind = savedOrder && isFutureStockDraft(savedOrder) ? "הטיוטה" : savingDraft ? "הטיוטה" : "ההזמנה";
-    const message = `${kind} לא נפתחה ב‑WhatsApp כי לא התקבל אישור שמירה בענן. לא נשלחה הודעה בלי הזמנה שמורה.`;
-    dom.status.textContent = message;
-    showActionToast(message);
-    return;
-  }
-
   const message = savingDraft
-    ? "הטיוטה נשמרה בענן ונפתחה לשליחה ב‑WhatsApp. היא לא נכנסה להזמנות."
+    ? "הטיוטה נשמרה ונפתחה לשליחה ב‑WhatsApp. היא לא נכנסה להזמנות."
     : savingReservationOrder
-      ? "הזמנת השריון נשמרה בענן, היתרות עודכנו וההודעה נפתחה ב‑WhatsApp."
-      : "ההזמנה נשמרה בענן ונפתחה לשליחה ב‑WhatsApp.";
+      ? "הזמנת השריון נשמרה, היתרות עודכנו וההודעה נפתחה ב‑WhatsApp."
+      : "ההזמנה נשמרה ונפתחה לשליחה ב‑WhatsApp.";
   dom.status.textContent = message;
   showActionToast(message);
-  // Navigating the current tab avoids the transient blank popup that appeared
-  // on mobile, while the affirmative cloud-save check above still guarantees
-  // that no WhatsApp message opens before the order exists in the cloud.
-  window.location.assign(url);
+  // A direct URL avoids the blank intermediary screen. The app tab remains
+  // open, so the cloud save and immutable backup can run straight afterwards.
+  window.open(url, "_blank", "noopener,noreferrer");
+  queueCloudSave({ action: savingDraft ? "draft-whatsapp" : "order-whatsapp" });
 }
 
 function renderCart() {
@@ -12952,36 +12955,6 @@ function rememberCloudSaveResult(id, saved) {
   while (cloudSaveResults.size > 16) {
     cloudSaveResults.delete(cloudSaveResults.keys().next().value);
   }
-}
-
-function pause(milliseconds) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-}
-
-// A WhatsApp message is an external action: it must never be opened before
-// the matching order has an affirmative cloud-save response. The regular
-// background retry remains in place for all other edits, while this short
-// confirmation wait prevents an order from existing only in a WhatsApp chat.
-async function confirmCloudSaveBeforeExternalAction(saveId, timeout = 12_000) {
-  if (CLOUD_SYNC_DISABLED) return true;
-  if (!saveId) return false;
-
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (cloudSaveResults.has(saveId)) return cloudSaveResults.get(saveId);
-    if (cloudSyncState === "conflict") return false;
-
-    if (!cloudSaveInFlight) {
-      await saveSharedStateNow();
-      if (cloudSaveResults.has(saveId)) return cloudSaveResults.get(saveId);
-      await pause(180);
-      continue;
-    }
-
-    await pause(90);
-  }
-
-  return cloudSaveResults.get(saveId) === true;
 }
 
 function normalizeCloudSaveRequest(request) {
