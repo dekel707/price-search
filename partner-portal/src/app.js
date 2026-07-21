@@ -664,13 +664,15 @@ async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
     const result = await api(`?action=${editing ? "update-order" : "create-order"}`, { method: "POST", body: JSON.stringify({ ...(editing ? { orderId: editing } : {}), customerId: customer.id, items: state.cart.map((item) => ({ ...item, unitPrice: item.price })) }) });
     const savedOrder = result.order;
     const plannedReservationUnits = Number(result.plannedReservationUnits || 0);
+    const deduplicated = Boolean(result.deduplicated);
     state.cart = [];
     state.editingOrderId = "";
     clearActiveCustomer();
     await refresh();
     if (openWhatsApp) openOrderWhatsApp(savedOrder, draftWindow);
-    $("#cartMessage").textContent = `${editing ? "השינויים נשמרו" : "ההזמנה נשמרה"}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? " ונפתחה לשליחה ב‑WhatsApp." : ""}`;
-    showActionToast(openWhatsApp ? "ההזמנה נשמרה ונפתחה ב‑WhatsApp." : (editing ? "השינויים בהזמנה נשמרו." : "ההזמנה נשמרה."));
+    const saveLabel = deduplicated ? "הזמנה זהה כבר נשמרה — לא נוצרה כפילות" : (editing ? "השינויים נשמרו" : "ההזמנה נשמרה");
+    $("#cartMessage").textContent = `${saveLabel}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? " ונפתחה לשליחה ב‑WhatsApp." : ""}`;
+    showActionToast(openWhatsApp ? `${deduplicated ? "לא נוצרה כפילות וההזמנה" : "ההזמנה"} נפתחה ב‑WhatsApp.` : `${saveLabel}.`);
     return savedOrder;
   } catch (error) {
     if (draftWindow && !draftWindow.closed) draftWindow.close();

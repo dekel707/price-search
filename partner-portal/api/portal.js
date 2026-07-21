@@ -6,6 +6,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 12;
 const DEFAULT_CATALOG_URL = "https://price-search-teal.vercel.app/api/dealer-catalog";
 const DEFAULT_MAIN_SYNC_URL = "https://price-search-teal.vercel.app/api/eitan-live-data";
 const DEFAULT_MAIN_ORDER_URL = "https://price-search-teal.vercel.app/api/eitan-portal-orders";
+const ORDER_DUPLICATE_WINDOW_SECONDS = 90;
 let sqlClient;
 let schemaReady;
 
@@ -84,6 +85,7 @@ async function ensureSchema(sql) {
         created_by TEXT NOT NULL CHECK (created_by IN ('owner', 'eitan')),
         status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed')),
         sync_action TEXT NOT NULL DEFAULT 'create' CHECK (sync_action IN ('create', 'update', 'delete')),
+        dedupe_key TEXT NOT NULL DEFAULT '',
         note TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -145,6 +147,8 @@ async function ensureSchema(sql) {
       await sql`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS sync_action TEXT NOT NULL DEFAULT 'create'`;
       await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_sync_action_check`;
       await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_sync_action_check CHECK (sync_action IN ('create', 'update', 'delete'))`;
+      await sql`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS dedupe_key TEXT NOT NULL DEFAULT ''`;
+      await sql`CREATE INDEX IF NOT EXISTS partner_orders_dedupe_lookup ON partner_orders(created_by, customer_id, dedupe_key, created_at DESC)`;
       await sql`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_updated_at TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_version TEXT NOT NULL DEFAULT ''`;
     })().catch((error) => {
@@ -433,12 +437,38 @@ async function createOrder(sql, session, body, config) {
   const customer = live.customers.find((item) => cleanText(item.id, 100) === customerId);
   if (!customer) throw new Error("main_customer_not_found");
   const safeItems = buildSafePartnerOrderItems(live, customerId, items);
+  const dedupeKey = createOrderDedupeKey(customerId, safeItems);
 
   return sql.begin(async (tx) => {
     const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
+    // Serialize only identical submissions. This prevents a timeout, a double
+    // tap, or a retry from creating two partner orders before either request
+    // reaches the main-system bridge.
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${dedupeKey}))`;
+    const duplicate = await tx`SELECT id FROM partner_orders
+      WHERE created_by = ${session.role}
+        AND customer_id = ${mirrorCustomer.id}
+        AND dedupe_key = ${dedupeKey}
+        AND status <> 'cancelled'
+        AND created_at >= NOW() - (${ORDER_DUPLICATE_WINDOW_SECONDS} * INTERVAL '1 second')
+      ORDER BY created_at DESC
+      LIMIT 1`;
+    if (duplicate.length) {
+      const existingOrder = await getOwnerQueueOrder(tx, duplicate[0].id);
+      if (existingOrder) {
+        await recordAudit(tx, session.role, "duplicate_order_submission_blocked", { orderId: duplicate[0].id, customerId, itemCount: safeItems.length });
+        return {
+          orderId: duplicate[0].id,
+          order: existingOrder,
+          customer: mirrorCustomer.name,
+          plannedReservationUnits: safeItems.reduce((sum, item) => sum + item.reservationQuantity, 0),
+          deduplicated: true,
+        };
+      }
+    }
     const beforeBackup = await createBackup(tx, "before-order-create");
     const orderId = crypto.randomUUID();
-    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, sync_action, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'processing', 'create', '')`;
+    await tx`INSERT INTO partner_orders (id, customer_id, created_by, status, sync_action, dedupe_key, note) VALUES (${orderId}, ${mirrorCustomer.id}, ${session.role}, 'processing', 'create', ${dedupeKey}, '')`;
     for (const item of safeItems) {
       await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, sku_key, quantity, reservation_quantity, unit_price, list_price, from_reservation)
         VALUES (${crypto.randomUUID()}, ${orderId}, ${item.model}, ${item.name}, ${item.skuKey}, ${item.quantity}, ${item.reservationQuantity}, ${item.unitPrice}, ${item.listPrice}, ${item.fromReservation})`;
@@ -454,6 +484,20 @@ async function createOrder(sql, session, body, config) {
       afterBackup,
     };
   });
+}
+
+function createOrderDedupeKey(customerId, items) {
+  const normalizedLines = items
+    .map((item) => [
+      modelKey(item.skuKey || item.model),
+      normaliseQuantity(item.quantity),
+      normaliseQuantity(item.reservationQuantity),
+      item.fromReservation ? 1 : 0,
+      asMoney(item.unitPrice),
+      asMoney(item.listPrice),
+    ].join("|"))
+    .sort();
+  return crypto.createHash("sha256").update([cleanText(customerId, 100), ...normalizedLines].join("\n")).digest("hex");
 }
 
 function buildSafePartnerOrderItems(live, customerId, items) {
