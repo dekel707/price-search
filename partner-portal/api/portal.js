@@ -133,24 +133,30 @@ async function ensureSchema(sql) {
         source_version TEXT NOT NULL DEFAULT '',
         synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
-      await sql`ALTER TABLE partner_customers ADD COLUMN IF NOT EXISTS main_customer_id TEXT`;
-      await sql`CREATE UNIQUE INDEX IF NOT EXISTS partner_customers_main_customer_id_key ON partner_customers(main_customer_id) WHERE main_customer_id IS NOT NULL`;
-      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS sku_key TEXT NOT NULL DEFAULT ''`;
-      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS unit_price NUMERIC(14, 2) NOT NULL DEFAULT 0`;
-      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS list_price NUMERIC(14, 2) NOT NULL DEFAULT 0`;
-      await sql`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS from_reservation BOOLEAN NOT NULL DEFAULT false`;
-      // Earlier pilot databases allowed only pending/approved/cancelled. The
-      // short processing state makes owner approval safe to retry without
-      // ever creating the main order twice.
-      await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_status_check`;
-      await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_status_check CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed'))`;
-      await sql`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS sync_action TEXT NOT NULL DEFAULT 'create'`;
-      await sql`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_sync_action_check`;
-      await sql`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_sync_action_check CHECK (sync_action IN ('create', 'update', 'delete'))`;
-      await sql`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS dedupe_key TEXT NOT NULL DEFAULT ''`;
-      await sql`CREATE INDEX IF NOT EXISTS partner_orders_dedupe_lookup ON partner_orders(created_by, customer_id, dedupe_key, created_at DESC)`;
-      await sql`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_updated_at TEXT NOT NULL DEFAULT ''`;
-      await sql`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_version TEXT NOT NULL DEFAULT ''`;
+      // Vercel can start several function instances at once. Serialize the
+      // mutable schema changes, otherwise two instances can both try to add
+      // the same named constraint and make every portal request fail.
+      await sql.begin(async (migration) => {
+        await migration`SELECT pg_advisory_xact_lock(hashtext('price-search-eitan-portal-schema-v1'))`;
+        await migration`ALTER TABLE partner_customers ADD COLUMN IF NOT EXISTS main_customer_id TEXT`;
+        await migration`CREATE UNIQUE INDEX IF NOT EXISTS partner_customers_main_customer_id_key ON partner_customers(main_customer_id) WHERE main_customer_id IS NOT NULL`;
+        await migration`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS sku_key TEXT NOT NULL DEFAULT ''`;
+        await migration`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS unit_price NUMERIC(14, 2) NOT NULL DEFAULT 0`;
+        await migration`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS list_price NUMERIC(14, 2) NOT NULL DEFAULT 0`;
+        await migration`ALTER TABLE partner_order_items ADD COLUMN IF NOT EXISTS from_reservation BOOLEAN NOT NULL DEFAULT false`;
+        // Earlier pilot databases allowed only pending/approved/cancelled. The
+        // short processing state makes owner approval safe to retry without
+        // ever creating the main order twice.
+        await migration`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_status_check`;
+        await migration`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_status_check CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed'))`;
+        await migration`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS sync_action TEXT NOT NULL DEFAULT 'create'`;
+        await migration`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_sync_action_check`;
+        await migration`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_sync_action_check CHECK (sync_action IN ('create', 'update', 'delete'))`;
+        await migration`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS dedupe_key TEXT NOT NULL DEFAULT ''`;
+        await migration`CREATE INDEX IF NOT EXISTS partner_orders_dedupe_lookup ON partner_orders(created_by, customer_id, dedupe_key, created_at DESC)`;
+        await migration`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_updated_at TEXT NOT NULL DEFAULT ''`;
+        await migration`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_version TEXT NOT NULL DEFAULT ''`;
+      });
     })().catch((error) => {
       schemaReady = undefined;
       throw error;

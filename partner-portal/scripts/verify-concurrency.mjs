@@ -12,6 +12,8 @@ assert.match(api, /sync_action/);
 assert.match(api, /status IN \('pending_owner_approval', 'approved', 'sent_to_main', 'sync_failed', 'processing'\) FOR UPDATE/);
 assert.match(api, /ORDER_DUPLICATE_WINDOW_SECONDS = 90/);
 assert.match(api, /pg_advisory_xact_lock\(hashtext/);
+assert.match(api, /price-search-eitan-portal-schema-v1/);
+assert.match(api, /two instances can both try to add/);
 assert.match(api, /partner_orders_dedupe_lookup/);
 assert.match(api, /duplicate_order_submission_blocked/);
 assert.match(api, /deduplicated: true/);
