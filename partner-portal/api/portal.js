@@ -228,6 +228,12 @@ function normaliseQuantity(value) {
   return Math.round(quantity * 100) / 100;
 }
 
+function normaliseOptionalQuantity(value) {
+  const quantity = Number(value ?? 0);
+  if (!Number.isFinite(quantity) || quantity < 0 || quantity > 100000) throw new Error("invalid_quantity");
+  return Math.round(quantity * 100) / 100;
+}
+
 function cleanText(value, max = 180) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 }
@@ -497,7 +503,10 @@ function createOrderDedupeKey(customerId, items) {
     .map((item) => [
       modelKey(item.skuKey || item.model),
       normaliseQuantity(item.quantity),
-      normaliseQuantity(item.reservationQuantity),
+      // A regular cash order legitimately has no reservation withdrawal. The
+      // zero must therefore be part of the fingerprint instead of being
+      // rejected as an invalid order quantity.
+      normaliseOptionalQuantity(item.reservationQuantity),
       item.fromReservation ? 1 : 0,
       asMoney(item.unitPrice),
       asMoney(item.listPrice),
