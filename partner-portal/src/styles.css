@@ -172,12 +172,88 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
 .advanced-search-status { min-height: 20px; margin: 0 0 10px; color: #91a8c0; font-size: .8rem; }
 .advanced-search-results { display: grid; gap: 10px; }
 
-/* The order search intentionally mirrors the product cards in the main system.
-   The actions remain limited to the capabilities Eitan is allowed to use. */
-.order-search-panel .advanced-search-results { gap: 14px; }
-.order-search-product-card { position: relative; overflow: hidden; gap: 14px; padding: 16px 18px 16px 16px; border-radius: 16px; }
-.order-search-product-card::before { position: absolute; inset: 0 0 0 auto; width: 4px; background: #5ce3d0; box-shadow: 0 0 17px rgba(92,227,208,.54); content: ""; }
+/* The order search uses the same layout and calm glass hierarchy as the
+   primary search. Its actions intentionally remain limited to Eitan's
+   existing ordering capabilities. */
+[data-tab-panel="search"] > .search-panel {
+  --workspace-tone: #70d6f3;
+  --portal-search-accent: #2fd7c1;
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(112,214,243,.34) !important;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0,rgba(112,214,243,.1),transparent 31%),
+    radial-gradient(circle at 0 100%,rgba(112,214,243,.07),transparent 38%),
+    linear-gradient(145deg,rgba(12,18,27,.98),rgba(7,12,19,.98)) !important;
+  box-shadow: 0 22px 52px rgba(0,0,0,.3), inset 0 1px 0 rgba(235,243,255,.045);
+}
+[data-tab-panel="search"] > .search-panel > .panel-header {
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom-color: rgba(112,214,243,.18);
+}
+[data-tab-panel="search"] > .search-panel .panel-header h2 { color: #d7eef7; }
+[data-tab-panel="search"] > .search-panel .panel-header .eyebrow { color: #8fc6d7; }
+.search-cart-button {
+  min-height: 32px;
+  cursor: pointer;
+  font: inherit;
+}
+.search-panel .search-label { color: #cce8f4; font-size: .82rem; font-weight: 900; }
+.search-panel .search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 5px 8px 5px 5px;
+  border: 1px solid rgba(87,175,209,.34);
+  border-radius: 14px;
+  background: linear-gradient(145deg,rgba(6,38,57,.82),rgba(4,23,39,.86));
+  box-shadow: inset 0 1px 0 rgba(206,239,255,.035);
+}
+.search-panel .search-box::before {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(47,215,193,.13);
+  color: var(--portal-search-accent, #2fd7c1);
+  content: "⌕";
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+.search-panel .search-box input {
+  width: auto;
+  min-width: 0;
+  min-height: 46px;
+  flex: 1;
+  padding-inline: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.search-panel .search-box:focus-within {
+  border-color: rgba(47,215,193,.64);
+  box-shadow: 0 0 0 4px rgba(47,215,193,.12), inset 0 1px 0 rgba(206,239,255,.04);
+}
+[data-tab-panel="search"] > .results { gap: 14px; margin-top: 18px; }
+.order-search-product-card {
+  position: relative;
+  overflow: hidden;
+  gap: 14px;
+  padding: 16px 18px 16px 16px;
+  border-color: rgba(172,205,194,.2);
+  border-radius: 16px;
+  background: rgba(13,24,23,.94);
+  box-shadow: 0 14px 34px rgba(0,0,0,.22);
+}
+.order-search-product-card::before { position: absolute; inset: 0 0 0 auto; width: 4px; background: var(--portal-search-accent, #2fd7c1); box-shadow: 0 0 17px rgba(47,215,193,.54); content: ""; }
 .order-search-product-card .result-main { gap: 16px; }
+.order-search-product-card .sku { color: #20c7a8; }
+.order-search-product-card .category-label { border-color: rgba(67,213,193,.32); background: rgba(67,213,193,.1); color: #9ce8d9; }
 .order-search-product-card .price { min-width: 104px; border: 1px solid rgba(244,201,93,.26); border-radius: 11px; }
 .order-search-product-card .item-tools { gap: 12px; padding-top: 12px; border-top: 1px solid rgba(100,171,206,.16); }
 .portal-order-result-actions { display: grid; grid-template-columns: minmax(92px,.62fr) minmax(0,1fr); gap: 8px; max-width: none; }
@@ -307,6 +383,9 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
   .standard-panel-chip { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
   .advanced-search-layout { grid-template-columns: 1fr; }
   .advanced-search-filter-panel { order: 0; }
+  [data-tab-panel="search"] > .search-panel { padding: 14px; border-radius: 14px; }
+  [data-tab-panel="search"] > .search-panel > .panel-header { align-items: flex-start; }
+  .search-cart-button { flex: 0 0 auto; }
   .order-search-product-card { padding: 14px 16px 14px 13px; }
   .cart-panel,.orders-panel,.customers-panel,.reservations-panel { padding: 14px 15px 15px 13px; }
   .cart-line,.order-card,.portal-customer-card,.reservation-customer-card { border-radius: 14px; }

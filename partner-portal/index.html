@@ -44,11 +44,13 @@
         </nav>
 
         <section class="tab-panel active" data-tab-panel="search">
-          <section class="advanced-search-panel order-search-panel" aria-label="חיפוש מחירון">
-            <div class="panel-header advanced-search-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true">⌕</span><div><p class="eyebrow">מחירון חכם</p><h2>חיפוש מוצרים</h2></div></div><button id="openCartFromSearch" class="secondary-button" type="button">לסל <span id="searchCartCount">0</span></button></div>
-            <label class="advanced-search-field" for="orderSearchInput"><span class="advanced-search-field-icon" aria-hidden="true">⌕</span><input id="orderSearchInput" type="search" autocomplete="off" placeholder="מק״ט, דגם או תיאור" autofocus /></label>
-            <div class="advanced-search-results-area order-search-results-area"><p class="advanced-search-status" id="orderSearchStatus">המחירים והשריונים מסונכרנים מהמערכת הראשית. עריכה אינה זמינה כאן.</p><section id="orderSearchResults" class="advanced-search-results order-search-results" aria-live="polite"></section></div>
+          <section class="search-panel" aria-label="חיפוש מחירון">
+            <div class="panel-header search-panel-header"><div class="standard-panel-title"><span class="standard-panel-icon search" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg></span><div><p class="eyebrow">מחירון חכם</p><h2>חיפוש מוצרים</h2></div></div><button id="openCartFromSearch" class="standard-panel-chip search-cart-button" type="button">לסל <span id="searchCartCount">0</span></button></div>
+            <label class="search-label" for="orderSearchInput">מק״ט, דגם או תיאור</label>
+            <div class="search-box"><input id="orderSearchInput" type="search" inputmode="search" autocomplete="off" placeholder="התחל להקליד..." autofocus /></div>
+            <p class="status" id="orderSearchStatus">המחירים והשריונים מסונכרנים מהמערכת הראשית. עריכה אינה זמינה כאן.</p>
           </section>
+          <section id="orderSearchResults" class="results order-search-results" aria-live="polite"></section>
         </section>
 
         <section class="tab-panel" data-tab-panel="advanced-search">
