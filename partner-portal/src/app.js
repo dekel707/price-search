@@ -639,6 +639,20 @@ function openOrderWhatsApp(order, targetWindow = null) {
   return true;
 }
 
+function cartWhatsAppPreview(customer) {
+  return {
+    customer_name: customer.name,
+    created_at: new Date().toISOString(),
+    items: state.cart.map((item) => {
+      const reservation = item.fromReservation ? reservationFor(customer.id, item.model) : null;
+      return {
+        ...item,
+        reservationQuantity: reservation ? Math.min(Number(item.quantity || 0), Number(reservation.quantity || 0)) : 0,
+      };
+    }),
+  };
+}
+
 function currentCartCustomer() {
   const customer = findCustomer(state.customerId);
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שמירת ההזמנה."; return null; }
@@ -656,10 +670,14 @@ async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
   if (!customer) return null;
   const submit = $("#submitOrder");
   const whatsapp = $("#sendCartWhatsApp");
-  const draftWindow = openWhatsApp ? window.open("about:blank", "_blank") : null;
+  // Open the real WhatsApp URL from the user click, not an about:blank
+  // placeholder. The portal can then finish its save and backup work without
+  // leaving a white intermediary window on the phone.
+  const whatsappOpened = openWhatsApp && openOrderWhatsApp(cartWhatsAppPreview(customer));
   submit.disabled = true;
   whatsapp.disabled = true;
   const editing = state.editingOrderId;
+  if (whatsappOpened) $("#cartMessage").textContent = "ההודעה נפתחה ב‑WhatsApp. ההזמנה נשמרת ברקע.";
   try {
     const result = await api(`?action=${editing ? "update-order" : "create-order"}`, { method: "POST", body: JSON.stringify({ ...(editing ? { orderId: editing } : {}), customerId: customer.id, items: state.cart.map((item) => ({ ...item, unitPrice: item.price })) }) });
     const savedOrder = result.order;
@@ -669,15 +687,13 @@ async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
     state.editingOrderId = "";
     clearActiveCustomer();
     await refresh();
-    if (openWhatsApp) openOrderWhatsApp(savedOrder, draftWindow);
     const saveLabel = deduplicated ? "הזמנה זהה כבר נשמרה — לא נוצרה כפילות" : (editing ? "השינויים נשמרו" : "ההזמנה נשמרה");
-    $("#cartMessage").textContent = `${saveLabel}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? " ונפתחה לשליחה ב‑WhatsApp." : ""}`;
-    showActionToast(openWhatsApp ? `${deduplicated ? "לא נוצרה כפילות וההזמנה" : "ההזמנה"} נפתחה ב‑WhatsApp.` : `${saveLabel}.`);
+    $("#cartMessage").textContent = `${saveLabel}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? "; הודעת WhatsApp כבר נפתחה." : ""}`;
+    showActionToast(openWhatsApp ? `${deduplicated ? "לא נוצרה כפילות וההזמנה" : "ההזמנה"} נשמרה.` : `${saveLabel}.`);
     return savedOrder;
   } catch (error) {
-    if (draftWindow && !draftWindow.closed) draftWindow.close();
-    $("#cartMessage").textContent = `ההזמנה לא נשמרה: ${error.message}`;
-    showActionToast("ההזמנה לא נשמרה.", "error");
+    $("#cartMessage").textContent = `${whatsappOpened ? "הודעת WhatsApp נפתחה, אבל " : ""}ההזמנה לא נשמרה: ${error.message}`;
+    showActionToast(whatsappOpened ? "ההודעה נפתחה, אך ההזמנה לא נשמרה." : "ההזמנה לא נשמרה.", "error");
     return null;
   } finally {
     submit.disabled = false;
