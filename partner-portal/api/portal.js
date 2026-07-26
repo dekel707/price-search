@@ -630,26 +630,50 @@ async function sendOrderToMain(config, order, action = "create") {
   }
 }
 
-async function markOrderMainSync(sql, orderId, status, eventType, details = {}) {
-  return sql.begin(async (tx) => {
-    const beforeBackup = await createBackup(tx, `before-main-sync-${status}`);
-    const updated = await tx`UPDATE partner_orders SET status = ${status}, updated_at = now() WHERE id = ${orderId} AND created_by = 'eitan' RETURNING id`;
-    if (!updated.length) throw new Error("order_not_found");
-    await recordAudit(tx, "eitan", eventType, { orderId, ...details });
-    const afterBackup = await createBackup(tx, `after-main-sync-${status}`);
-    return { beforeBackup, afterBackup };
+async function syncPartnerOrderToMain(sql, config, orderId, { retried = false } = {}) {
+  const safeOrderId = cleanText(orderId, 100);
+  if (!safeOrderId) throw new Error("invalid_order_id");
+  let syncFailure;
+  const result = await sql.begin(async (tx) => {
+    // The client may start a background sync while a refresh retries the same
+    // order. Serialize that one order so the main application receives one
+    // import at a time; its source ID remains a second idempotency safeguard.
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${`price-search-eitan-main-sync:${safeOrderId}`}))`;
+    const current = await tx`SELECT id, status, sync_action FROM partner_orders WHERE id = ${safeOrderId} AND created_by = 'eitan' FOR UPDATE`;
+    if (!current.length) throw new Error("order_not_found");
+    const action = ["create", "update", "delete"].includes(current[0].sync_action) ? current[0].sync_action : "create";
+    const terminalStatus = action === "delete" ? "cancelled" : "sent_to_main";
+    if (current[0].status === terminalStatus) {
+      return { order: await getOwnerQueueOrder(tx, safeOrderId), status: terminalStatus, alreadySynced: true };
+    }
+    const order = await getOwnerQueueOrder(tx, safeOrderId);
+    if (!order) throw new Error("order_not_found");
+    try {
+      const imported = await sendOrderToMain(config, order, action);
+      const beforeBackup = await createBackup(tx, `before-main-sync-${terminalStatus}`);
+      await tx`UPDATE partner_orders SET status = ${terminalStatus}, updated_at = now() WHERE id = ${safeOrderId} AND created_by = 'eitan'`;
+      await recordAudit(tx, "eitan", action === "delete" ? "main_order_delete_completed" : "main_order_import_completed", { orderId: safeOrderId, mainOrderId: imported.orderId, retried, action });
+      const afterBackup = await createBackup(tx, `after-main-sync-${terminalStatus}`);
+      return { order, status: terminalStatus, imported, beforeBackup, afterBackup };
+    } catch (error) {
+      const errorMessage = cleanText(error?.message, 100) || "main_order_import_failed";
+      const beforeBackup = await createBackup(tx, "before-main-sync-failed");
+      await tx`UPDATE partner_orders SET status = 'sync_failed', updated_at = now() WHERE id = ${safeOrderId} AND created_by = 'eitan'`;
+      await recordAudit(tx, "eitan", "main_order_import_failed", { orderId: safeOrderId, error: errorMessage, retried, action });
+      const afterBackup = await createBackup(tx, "after-main-sync-failed");
+      syncFailure = new Error(errorMessage);
+      return { order, status: "sync_failed", beforeBackup, afterBackup };
+    }
   });
+  if (syncFailure) throw syncFailure;
+  return result;
 }
 
 async function retryPendingMainOrders(sql, config) {
-  const pending = await sql`SELECT id, sync_action FROM partner_orders WHERE created_by = 'eitan' AND status IN ('processing', 'sync_failed') ORDER BY created_at ASC LIMIT 8`;
+  const pending = await sql`SELECT id FROM partner_orders WHERE created_by = 'eitan' AND status IN ('processing', 'sync_failed') ORDER BY created_at ASC LIMIT 8`;
   for (const entry of pending) {
     try {
-      const order = await getOwnerQueueOrder(sql, entry.id);
-      if (!order) continue;
-      const action = ["create", "update", "delete"].includes(entry.sync_action) ? entry.sync_action : "create";
-      const imported = await sendOrderToMain(config, order, action);
-      await markOrderMainSync(sql, entry.id, action === "delete" ? "cancelled" : "sent_to_main", action === "delete" ? "main_order_delete_completed" : "main_order_import_completed", { mainOrderId: imported.orderId, retried: true, action });
+      await syncPartnerOrderToMain(sql, config, entry.id, { retried: true });
     } catch (error) {
       console.warn("partner_main_order_retry_failed", entry.id, error?.message || error);
     }
@@ -871,25 +895,20 @@ export default async function handler(request, response) {
     if (request.method === "GET" && resource === "dashboard") return sendJson(response, 200, await dashboard(sql, session));
     if (request.method === "POST" && action === "create-order") {
       const created = await createOrder(sql, session, await readJsonBody(request), config);
-      try {
-        const imported = await sendOrderToMain(config, created.order, "create");
-        await markOrderMainSync(sql, created.orderId, "sent_to_main", "main_order_import_completed", { mainOrderId: imported.orderId });
-        return sendJson(response, 201, { ok: true, ...created, imported });
-      } catch (error) {
-        await markOrderMainSync(sql, created.orderId, "sync_failed", "main_order_import_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
-        throw error;
-      }
+      // The durable order and its before/after backup are complete now. The
+      // signed main-system import is triggered immediately by the browser in
+      // the background, so the send button is never held by a cross-project
+      // network round trip.
+      return sendJson(response, 201, { ok: true, ...created, queuedForMainSync: true });
     }
     if (request.method === "POST" && action === "update-order") {
       const updated = await updateOrder(sql, session, await readJsonBody(request), config);
-      try {
-        const imported = await sendOrderToMain(config, updated.order, "update");
-        await markOrderMainSync(sql, updated.orderId, "sent_to_main", "main_order_update_completed", { mainOrderId: imported.orderId });
-        return sendJson(response, 200, { ok: true, ...updated, imported });
-      } catch (error) {
-        await markOrderMainSync(sql, updated.orderId, "sync_failed", "main_order_update_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
-        throw error;
-      }
+      return sendJson(response, 200, { ok: true, ...updated, queuedForMainSync: true });
+    }
+    if (request.method === "POST" && action === "sync-order") {
+      const body = await readJsonBody(request);
+      const synced = await syncPartnerOrderToMain(sql, config, body.orderId);
+      return sendJson(response, 200, { ok: true, ...synced });
     }
     if (request.method === "POST" && action === "delete-order") {
       const pendingDelete = await prepareDeleteOrder(sql, session, await readJsonBody(request));

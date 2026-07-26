@@ -17,6 +17,12 @@ assert.match(api, /two instances can both try to add/);
 assert.match(api, /partner_orders_dedupe_lookup/);
 assert.match(api, /duplicate_order_submission_blocked/);
 assert.match(api, /deduplicated: true/);
+assert.match(api, /syncPartnerOrderToMain/);
+assert.match(api, /action === "sync-order"/);
+assert.match(api, /price-search-eitan-main-sync/);
+const createHandler = api.slice(api.indexOf('action === "create-order"'), api.indexOf('action === "update-order"'));
+assert.match(createHandler, /queuedForMainSync: true/);
+assert.doesNotMatch(createHandler, /await sendOrderToMain/, "the durable create response must not wait for the cross-project import");
 
 class ReservationLockModel {
   constructor(quantity) { this.remaining = quantity; this.tail = Promise.resolve(); }

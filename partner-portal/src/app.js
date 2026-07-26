@@ -481,7 +481,6 @@ function addPendingToCart() {
   closeAddDialog();
   renderCart();
   $("#orderSearchStatus").textContent = `${product.model} נוסף לסל עבור ${customer.name}. אפשר להמשיך להוסיף מוצרים או לפתוח את בועת הסל.`;
-  showActionToast(`${product.model} נוסף לסל.`);
 }
 
 function renderCart() {
@@ -669,6 +668,22 @@ function currentCartCustomer() {
   return customer;
 }
 
+function syncOrderInBackground(orderId) {
+  if (!orderId) return;
+  void api("?action=sync-order", { method: "POST", body: JSON.stringify({ orderId }) })
+    .then((result) => {
+      const synced = result.order ? { ...result.order, status: result.status || "sent_to_main" } : null;
+      if (synced) state.orders = [synced, ...state.orders.filter((order) => order.id !== synced.id)];
+      renderData();
+      window.setTimeout(() => { void refresh().catch(() => undefined); }, 800);
+    })
+    .catch((error) => {
+      // The order itself is already durably stored and is retried on the next
+      // portal refresh. Keep the user working instead of blocking the cart.
+      console.warn("partner_order_background_sync_failed", error);
+    });
+}
+
 async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
   const customer = currentCartCustomer();
   if (!customer) return null;
@@ -690,14 +705,14 @@ async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
     state.cart = [];
     state.editingOrderId = "";
     clearActiveCustomer();
-    // The server has already stored the order in the main system at this
-    // point. Render the confirmation immediately; the full projection may
-    // refresh in the background without keeping the send buttons blocked.
-    const locallySyncedOrder = { ...savedOrder, status: result.imported ? "sent_to_main" : savedOrder.status };
+    // The durable portal save and backup have completed. Render immediately,
+    // then let the signed main-system import run independently in the
+    // background so WhatsApp and the next order are never held up.
+    const locallySyncedOrder = { ...savedOrder, status: savedOrder.status || "processing" };
     state.orders = [locallySyncedOrder, ...state.orders.filter((order) => order.id !== locallySyncedOrder.id)];
     renderCart();
     renderData();
-    void refresh().catch(() => undefined);
+    if (result.queuedForMainSync) syncOrderInBackground(result.orderId);
     const saveLabel = deduplicated ? "הזמנה זהה כבר נשמרה — לא נוצרה כפילות" : (editing ? "השינויים נשמרו" : "ההזמנה נשמרה");
     $("#cartMessage").textContent = `${saveLabel}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? "; הודעת WhatsApp כבר נפתחה." : ""}`;
     showActionToast(openWhatsApp ? `${deduplicated ? "לא נוצרה כפילות וההזמנה" : "ההזמנה"} נשמרה.` : `${saveLabel}.`);
