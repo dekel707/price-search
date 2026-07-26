@@ -7,6 +7,7 @@ const DEFAULT_CATALOG_URL = "https://price-search-teal.vercel.app/api/dealer-cat
 const DEFAULT_MAIN_SYNC_URL = "https://price-search-teal.vercel.app/api/eitan-live-data";
 const DEFAULT_MAIN_ORDER_URL = "https://price-search-teal.vercel.app/api/eitan-portal-orders";
 const ORDER_DUPLICATE_WINDOW_SECONDS = 90;
+const ORDER_LIVE_CACHE_MAX_AGE_MS = 90 * 1000;
 let sqlClient;
 let schemaReady;
 
@@ -385,6 +386,18 @@ async function getPortalLiveWorkspace(sql, config) {
   }
 }
 
+async function getOrderLiveWorkspace(sql, config) {
+  // The portal refreshes this projection every 30 seconds while Eitan works.
+  // Reusing a very fresh copy removes two remote reads from the submit path.
+  // The signed main import still reads the current main state and clamps any
+  // reservation withdrawal atomically, so this shortcut cannot overdraw a
+  // reservation when two people submit at the same time.
+  const cached = await readCachedLiveWorkspace(sql);
+  const syncedAt = new Date(cached?.syncedAt || "").getTime();
+  if (cached && Number.isFinite(syncedAt) && Date.now() - syncedAt <= ORDER_LIVE_CACHE_MAX_AGE_MS) return cached;
+  return getPortalLiveWorkspace(sql, config);
+}
+
 function numericFields(value, allowed) {
   const source = value && typeof value === "object" ? value : {};
   return Object.fromEntries(allowed.map((key) => [key, Number(source[key])]).filter(([, number]) => Number.isFinite(number) && number >= 0));
@@ -445,7 +458,7 @@ async function createOrder(sql, session, body, config) {
   const customerId = cleanText(body.customerId, 100);
   const items = Array.isArray(body.items) ? body.items : [];
   if (!customerId || !items.length || items.length > 100) throw new Error("invalid_order");
-  const live = await getLiveWorkspace(config);
+  const live = await getOrderLiveWorkspace(sql, config);
   const customer = live.customers.find((item) => cleanText(item.id, 100) === customerId);
   if (!customer) throw new Error("main_customer_not_found");
   const safeItems = buildSafePartnerOrderItems(live, customerId, items);
@@ -545,7 +558,7 @@ async function updateOrder(sql, session, body, config) {
   const customerId = cleanText(body.customerId, 100);
   const items = Array.isArray(body.items) ? body.items : [];
   if (!orderId || !customerId || !items.length || items.length > 100) throw new Error("invalid_order");
-  const live = await getLiveWorkspace(config);
+  const live = await getOrderLiveWorkspace(sql, config);
   const customer = live.customers.find((item) => cleanText(item.id, 100) === customerId);
   if (!customer) throw new Error("main_customer_not_found");
   const safeItems = buildSafePartnerOrderItems(live, customerId, items);

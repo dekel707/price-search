@@ -686,7 +686,14 @@ async function persistCurrentCartOrder({ openWhatsApp = false } = {}) {
     state.cart = [];
     state.editingOrderId = "";
     clearActiveCustomer();
-    await refresh();
+    // The server has already stored the order in the main system at this
+    // point. Render the confirmation immediately; the full projection may
+    // refresh in the background without keeping the send buttons blocked.
+    const locallySyncedOrder = { ...savedOrder, status: result.imported ? "sent_to_main" : savedOrder.status };
+    state.orders = [locallySyncedOrder, ...state.orders.filter((order) => order.id !== locallySyncedOrder.id)];
+    renderCart();
+    renderData();
+    void refresh().catch(() => undefined);
     const saveLabel = deduplicated ? "הזמנה זהה כבר נשמרה — לא נוצרה כפילות" : (editing ? "השינויים נשמרו" : "ההזמנה נשמרה");
     $("#cartMessage").textContent = `${saveLabel}${plannedReservationUnits ? `. ${plannedReservationUnits.toLocaleString("he-IL")} יח׳ מסומנות לשריון לפי היתרה העדכנית.` : ""}${openWhatsApp ? "; הודעת WhatsApp כבר נפתחה." : ""}`;
     showActionToast(openWhatsApp ? `${deduplicated ? "לא נוצרה כפילות וההזמנה" : "ההזמנה"} נשמרה.` : `${saveLabel}.`);
