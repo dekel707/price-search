@@ -1,7 +1,7 @@
 import "./styles.css";
 
 const ORDER_WHATSAPP_PHONE = "972523685265";
-const state = { user: null, products: [], customers: [], reservations: [], orders: [], cart: [], syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", activeTab: "search", openReservationCustomers: new Set() };
+const state = { user: null, products: [], customers: [], reservations: [], orders: [], cart: [], syncedAt: "", customerId: "", editingOrderId: "", pendingProduct: null, pendingDeleteId: "", pendingDeleteOrderIds: new Set(), activeTab: "search", openReservationCustomers: new Set() };
 const $ = (selector) => document.querySelector(selector);
 const money = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 2 });
 let actionToastTimer;
@@ -549,9 +549,12 @@ async function deleteOrder(orderId) {
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) return;
   try {
-    await api("?action=delete-order", { method: "POST", body: JSON.stringify({ orderId }) });
+    const result = await api("?action=delete-order", { method: "POST", body: JSON.stringify({ orderId }) });
     if (state.editingOrderId === orderId) cancelEdit();
-    await refresh();
+    state.pendingDeleteOrderIds.add(orderId);
+    state.orders = state.orders.filter((item) => item.id !== orderId);
+    renderData();
+    if (result.queuedForMainSync) syncOrderInBackground(result.orderId);
     $("#orderActionMessage").textContent = "ההזמנה נמחקה.";
     showActionToast("ההזמנה נמחקה.");
   } catch (error) { $("#orderActionMessage").textContent = `המחיקה לא הושלמה: ${error.message}`; showActionToast("המחיקה לא הושלמה.", "error"); }
@@ -571,7 +574,7 @@ function cancelEdit() { clearCart("עריכת ההזמנה בוטלה והסל �
 async function refresh() {
   document.querySelectorAll(".reservation-customer-card[open]").forEach((item) => state.openReservationCustomers.add(item.dataset.reservationCustomer));
   const [live, orders] = await Promise.all([api("?resource=live"), api("?resource=orders")]);
-  Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], orders: orders.items || [], syncedAt: live.updatedAt || "" });
+  Object.assign(state, { products: live.products || [], customers: live.customers || [], reservations: live.reservations || [], orders: (orders.items || []).filter((order) => !state.pendingDeleteOrderIds.has(order.id)), syncedAt: live.updatedAt || "" });
   renderOrderSearch();
   renderData(); renderCart();
   const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
@@ -673,7 +676,12 @@ function syncOrderInBackground(orderId) {
   void api("?action=sync-order", { method: "POST", body: JSON.stringify({ orderId }) })
     .then((result) => {
       const synced = result.order ? { ...result.order, status: result.status || "sent_to_main" } : null;
-      if (synced) state.orders = [synced, ...state.orders.filter((order) => order.id !== synced.id)];
+      if (result.status === "cancelled") {
+        state.pendingDeleteOrderIds.delete(orderId);
+        state.orders = state.orders.filter((order) => order.id !== orderId);
+      } else if (synced) {
+        state.orders = [synced, ...state.orders.filter((order) => order.id !== synced.id)];
+      }
       renderData();
       window.setTimeout(() => { void refresh().catch(() => undefined); }, 800);
     })

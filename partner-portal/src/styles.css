@@ -176,25 +176,25 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
    primary search. Its actions intentionally remain limited to Eitan's
    existing ordering capabilities. */
 [data-tab-panel="search"] > .search-panel {
-  --workspace-tone: #70d6f3;
-  --portal-search-accent: #2fd7c1;
+  --workspace-tone: #5ce3d0;
+  --portal-search-accent: #5ce3d0;
   position: relative;
   overflow: hidden;
-  border-color: rgba(112,214,243,.34) !important;
+  border-color: rgba(92,227,208,.34) !important;
   border-radius: 18px;
   background:
-    radial-gradient(circle at 100% 0,rgba(112,214,243,.1),transparent 31%),
-    radial-gradient(circle at 0 100%,rgba(112,214,243,.07),transparent 38%),
-    linear-gradient(145deg,rgba(12,18,27,.98),rgba(7,12,19,.98)) !important;
+    radial-gradient(circle at 100% 0,rgba(92,227,208,.12),transparent 31%),
+    radial-gradient(circle at 0 100%,rgba(79,181,239,.08),transparent 38%),
+    linear-gradient(145deg,#0d2a3d,#071a2a) !important;
   box-shadow: 0 22px 52px rgba(0,0,0,.3), inset 0 1px 0 rgba(235,243,255,.045);
 }
 [data-tab-panel="search"] > .search-panel > .panel-header {
   align-items: center;
   padding-bottom: 16px;
-  border-bottom-color: rgba(112,214,243,.18);
+  border-bottom-color: rgba(92,227,208,.18);
 }
-[data-tab-panel="search"] > .search-panel .panel-header h2 { color: #d7eef7; }
-[data-tab-panel="search"] > .search-panel .panel-header .eyebrow { color: #8fc6d7; }
+[data-tab-panel="search"] > .search-panel .panel-header h2 { color: #e5f3f7; }
+[data-tab-panel="search"] > .search-panel .panel-header .eyebrow { color: #5ce3d0; }
 .search-cart-button {
   min-height: 32px;
   cursor: pointer;
@@ -219,7 +219,7 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
   height: 34px;
   place-items: center;
   border-radius: 10px;
-  background: rgba(47,215,193,.13);
+  background: rgba(92,227,208,.13);
   color: var(--portal-search-accent, #2fd7c1);
   content: "⌕";
   font-size: 1.2rem;
@@ -236,8 +236,8 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
   box-shadow: none;
 }
 .search-panel .search-box:focus-within {
-  border-color: rgba(47,215,193,.64);
-  box-shadow: 0 0 0 4px rgba(47,215,193,.12), inset 0 1px 0 rgba(206,239,255,.04);
+  border-color: rgba(92,227,208,.64);
+  box-shadow: 0 0 0 4px rgba(92,227,208,.12), inset 0 1px 0 rgba(206,239,255,.04);
 }
 [data-tab-panel="search"] > .results { gap: 14px; margin-top: 18px; }
 .order-search-product-card {
@@ -245,17 +245,17 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
   overflow: hidden;
   gap: 14px;
   padding: 16px 18px 16px 16px;
-  border-color: rgba(172,205,194,.2);
+  border-color: rgba(104,169,203,.28);
   border-radius: 16px;
-  background: rgba(13,24,23,.94);
-  box-shadow: 0 14px 34px rgba(0,0,0,.22);
+  background: linear-gradient(145deg,#0e2a3f,#091d31);
+  box-shadow: 0 14px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(218,246,255,.025);
 }
-.order-search-product-card::before { position: absolute; inset: 0 0 0 auto; width: 4px; background: var(--portal-search-accent, #2fd7c1); box-shadow: 0 0 17px rgba(47,215,193,.54); content: ""; }
+.order-search-product-card::before { position: absolute; inset: 0 0 0 auto; width: 4px; background: var(--portal-search-accent, #5ce3d0); box-shadow: 0 0 17px rgba(92,227,208,.54); content: ""; }
 .order-search-product-card .result-main { gap: 16px; }
-.order-search-product-card .sku { color: #20c7a8; }
+.order-search-product-card .sku { color: #5ce3d0; }
 .order-search-product-card .category-label { border-color: rgba(67,213,193,.32); background: rgba(67,213,193,.1); color: #9ce8d9; }
 .order-search-product-card .price { min-width: 104px; border: 1px solid rgba(244,201,93,.26); border-radius: 11px; }
-.order-search-product-card .item-tools { gap: 12px; padding-top: 12px; border-top: 1px solid rgba(100,171,206,.16); }
+.order-search-product-card .item-tools { gap: 12px; padding-top: 12px; border-top: 1px solid rgba(100,171,206,.24); }
 .portal-order-result-actions { display: grid; grid-template-columns: minmax(92px,.62fr) minmax(0,1fr); gap: 8px; max-width: none; }
 .portal-order-result-actions > * { display: inline-flex; min-width: 0 !important; min-height: 42px; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; font-size: .78rem; font-weight: 900; text-align: center; }
 

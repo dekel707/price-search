@@ -912,14 +912,10 @@ export default async function handler(request, response) {
     }
     if (request.method === "POST" && action === "delete-order") {
       const pendingDelete = await prepareDeleteOrder(sql, session, await readJsonBody(request));
-      try {
-        const imported = await sendOrderToMain(config, pendingDelete.order, "delete");
-        await markOrderMainSync(sql, pendingDelete.orderId, "cancelled", "main_order_delete_completed", { mainOrderId: imported.orderId });
-        return sendJson(response, 200, { ok: true, ...pendingDelete, imported });
-      } catch (error) {
-        await markOrderMainSync(sql, pendingDelete.orderId, "sync_failed", "main_order_delete_failed", { error: cleanText(error?.message, 100) }).catch(() => undefined);
-        throw error;
-      }
+      // The deletion and its before/after backup are durable now. Just like
+      // create/update, the cross-project import runs after the UI responds.
+      // This prevents a slow main deploy from appearing as a failed delete.
+      return sendJson(response, 200, { ok: true, ...pendingDelete, queuedForMainSync: true });
     }
     if (request.method === "POST" && action === "save-entity") return sendJson(response, 201, { ok: true, ...(await saveEntity(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "approve-order") return sendJson(response, 200, { ok: true, ...(await approveOrder(sql, session, await readJsonBody(request))) });

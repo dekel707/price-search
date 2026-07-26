@@ -23,6 +23,9 @@ assert.match(api, /price-search-eitan-main-sync/);
 const createHandler = api.slice(api.indexOf('action === "create-order"'), api.indexOf('action === "update-order"'));
 assert.match(createHandler, /queuedForMainSync: true/);
 assert.doesNotMatch(createHandler, /await sendOrderToMain/, "the durable create response must not wait for the cross-project import");
+const deleteHandler = api.slice(api.indexOf('action === "delete-order"'), api.indexOf('action === "save-entity"'));
+assert.match(deleteHandler, /queuedForMainSync: true/, "a durable delete must queue the main-system bridge");
+assert.doesNotMatch(deleteHandler, /sendOrderToMain/, "a delete response must not wait for the cross-project import");
 
 class ReservationLockModel {
   constructor(quantity) { this.remaining = quantity; this.tail = Promise.resolve(); }

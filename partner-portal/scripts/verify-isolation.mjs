@@ -28,6 +28,7 @@ assert.match(app, /data-edit-order/);
 assert.match(app, /data-delete-order/);
 assert.ok(!app.includes("data-advanced-add"), "advanced search must stay read-only");
 assert.match(app, /pendingDeleteId/);
+assert.match(app, /pendingDeleteOrderIds/, "a locally deleted order must stay hidden while its background bridge completes");
 assert.match(app, /activeTab/);
 assert.match(app, /972523685265/);
 assert.match(app, /sendCartWhatsApp/);
