@@ -408,8 +408,12 @@ function advancedMatchesFreezerStyle(product, style) { if (!advancedIsCategory(p
 
 function productCard(product, { ordering = false } = {}) {
   const facts = cleanFacts(product);
-  const action = ordering ? `<div class="inline-add-fields"><label class="inline-add-field"><span>כמות</span><select data-quantity-for="${escapeAttr(product.model)}">${quantityOptions(1, 50)}</select></label><button class="add-cart-button" type="button" data-order-add="${escapeAttr(product.model)}">הוסף לסל</button></div>` : `<div class="advanced-readonly-actions"><span class="portal-readonly-badge">מפרט לקריאה בלבד</span></div>`;
-  return `<article class="result-row"><div class="result-main"><div class="result-content"><div class="sku">${escapeHtml(product.model || "—")}</div><div class="description">${escapeHtml(product.name || product.model)}</div><div class="annotation-meta"><span class="category-label">${escapeHtml(product.category || "מוצר")}</span>${ordering ? stockLabel(product) : ""}</div>${facts ? `<div class="portal-fact-tags">${facts}</div>` : ""}${!ordering ? `${productSpecification(product)}${productDocumentLinks(product)}` : ""}</div>${ordering ? `<strong class="price">${formatPrice(product.price)}</strong>` : ""}</div><div class="item-tools">${action}</div></article>`;
+  const action = ordering
+    ? `<div class="inline-add-fields portal-order-result-actions"><label class="inline-add-field"><span>כמות</span><select data-quantity-for="${escapeAttr(product.model)}">${quantityOptions(1, 50)}</select></label><button class="add-cart-button" type="button" data-order-add="${escapeAttr(product.model)}">הוסף לסל</button></div>`
+    : `<div class="advanced-readonly-actions"><span class="portal-readonly-badge">מפרט לקריאה בלבד</span></div>`;
+  const classes = ordering ? "result-row order-search-product-card" : "result-row";
+  const details = ordering ? "" : `${facts ? `<div class="portal-fact-tags">${facts}</div>` : ""}${productSpecification(product)}${productDocumentLinks(product)}`;
+  return `<article class="${classes}"><div class="result-main"><div class="result-content"><div class="sku">${escapeHtml(product.model || "—")}</div><div class="description">${escapeHtml(product.name || product.model)}</div><div class="annotation-meta"><span class="category-label">${escapeHtml(product.category || "מוצר")}</span>${ordering ? stockLabel(product) : ""}</div>${details}</div>${ordering ? `<strong class="price">${formatPrice(product.price)}</strong>` : ""}</div><div class="item-tools">${action}</div></article>`;
 }
 
 function reservationFor(customerId, model) {

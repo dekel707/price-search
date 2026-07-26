@@ -172,6 +172,17 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
 .advanced-search-status { min-height: 20px; margin: 0 0 10px; color: #91a8c0; font-size: .8rem; }
 .advanced-search-results { display: grid; gap: 10px; }
 
+/* The order search intentionally mirrors the product cards in the main system.
+   The actions remain limited to the capabilities Eitan is allowed to use. */
+.order-search-panel .advanced-search-results { gap: 14px; }
+.order-search-product-card { position: relative; overflow: hidden; gap: 14px; padding: 16px 18px 16px 16px; border-radius: 16px; }
+.order-search-product-card::before { position: absolute; inset: 0 0 0 auto; width: 4px; background: #5ce3d0; box-shadow: 0 0 17px rgba(92,227,208,.54); content: ""; }
+.order-search-product-card .result-main { gap: 16px; }
+.order-search-product-card .price { min-width: 104px; border: 1px solid rgba(244,201,93,.26); border-radius: 11px; }
+.order-search-product-card .item-tools { gap: 12px; padding-top: 12px; border-top: 1px solid rgba(100,171,206,.16); }
+.portal-order-result-actions { display: grid; grid-template-columns: minmax(92px,.62fr) minmax(0,1fr); gap: 8px; max-width: none; }
+.portal-order-result-actions > * { display: inline-flex; min-width: 0 !important; min-height: 42px; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; font-size: .78rem; font-weight: 900; text-align: center; }
+
 .portal-cart-actions { display: grid; align-content: start; gap: 8px; min-width: 126px; }
 .portal-cart-actions .field-wrap { gap: 5px; }
 .portal-cart-actions select { min-height: 40px; }
@@ -185,6 +196,82 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
 .portal-reservation-body { display: grid; gap: 0; }
 .portal-reservation-body .reservation-export-button { width: fit-content; margin: 10px 14px; }
 .reservation-row b { color: #ffe19a; white-space: nowrap; }
+
+/* Shared portal treatment — visual only.  All tab panels and their existing
+   controls keep their current behaviour while receiving the main app's glass
+   card hierarchy and coloured edge markers. */
+.cart-panel,.orders-panel,.customers-panel,.reservations-panel {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(128,167,206,.23);
+  background:
+    radial-gradient(circle at 100% 0,rgba(71,202,193,.1),transparent 33%),
+    linear-gradient(145deg,rgba(15,34,55,.96),rgba(10,25,42,.94));
+  box-shadow: 0 20px 48px rgba(2,9,20,.24),inset 0 1px 0 rgba(214,239,255,.035);
+}
+.cart-panel::before,.orders-panel::before,.customers-panel::before,.reservations-panel::before {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 4px;
+  border-radius: 5px;
+  background: #5ce3d0;
+  box-shadow: 0 0 17px rgba(92,227,208,.48);
+  content: "";
+  pointer-events: none;
+}
+.orders-panel::before { background: #5bbcf3; box-shadow: 0 0 17px rgba(91,188,243,.48); }
+.reservations-panel::before { background: #ffcc75; box-shadow: 0 0 17px rgba(255,204,117,.42); }
+.cart-panel .panel-header,.orders-panel .panel-header,.customers-panel .panel-header,.reservations-panel .panel-header {
+  position: relative;
+  z-index: 1;
+  padding: 0 0 14px;
+  border-bottom-color: rgba(125,170,204,.18);
+}
+.cart-panel .field-wrap,.cart-panel .cart-total,.cart-panel .cart-submit-actions,.cart-panel .status,
+.orders-panel .orders-list,.orders-panel .status,.customers-panel .portal-data-list,.reservations-panel .reservations-list {
+  position: relative;
+  z-index: 1;
+}
+.cart-line,.order-card,.portal-customer-card,.reservation-customer-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(128,171,207,.24);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0,rgba(79,202,193,.06),transparent 34%),
+    linear-gradient(145deg,rgba(17,42,62,.92),rgba(9,28,46,.88));
+  box-shadow: 0 14px 34px rgba(1,8,22,.2),inset 0 1px 0 rgba(222,244,255,.025);
+}
+.cart-line::before,.order-card::before,.portal-customer-card::before,.reservation-customer-card::before {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 3px;
+  background: rgba(92,227,208,.82);
+  box-shadow: 0 0 13px rgba(92,227,208,.38);
+  content: "";
+  pointer-events: none;
+}
+.order-card::before { background: #6bc7f5; box-shadow: 0 0 13px rgba(107,199,245,.38); }
+.reservation-customer-card::before { background: #ffcc75; box-shadow: 0 0 13px rgba(255,204,117,.34); }
+.cart-line:hover,.order-card:hover,.portal-customer-card:hover,.reservation-customer-card:hover {
+  border-color: rgba(106,220,213,.5);
+}
+.cart-total {
+  border-color: rgba(92,227,208,.48);
+  border-radius: 13px;
+  background: linear-gradient(135deg,rgba(21,117,109,.34),rgba(13,61,75,.42));
+  box-shadow: inset 0 1px 0 rgba(223,255,250,.05);
+}
+.cart-submit-actions .file-button,.cart-submit-actions .whatsapp-button,.cart-header-actions .secondary-button,.cart-header-actions .danger-button,
+.order-card-actions .secondary-button,.order-card-actions .danger-button {
+  min-height: 42px;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(244,252,255,.05),0 8px 18px rgba(1,11,22,.18);
+}
+.customers-panel .portal-customer-card,.reservations-panel .reservation-customer-card { padding: 14px 16px; }
+.reservation-customer-header { margin: -14px -16px 0; padding: 13px 16px; border-bottom-color: rgba(133,178,207,.16); background: linear-gradient(135deg,rgba(155,111,31,.18),rgba(22,52,69,.5)); }
+.reservation-row { border-bottom-color: rgba(133,178,207,.13); }
+.reservation-row:last-child { border-bottom: 0; }
 
 @media (max-width: 719px) {
   .app-shell { padding: 14px 12px 102px; }
@@ -220,6 +307,11 @@ input:focus,select:focus { border-color: rgba(91,225,205,.92); background: rgba(
   .standard-panel-chip { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
   .advanced-search-layout { grid-template-columns: 1fr; }
   .advanced-search-filter-panel { order: 0; }
+  .order-search-product-card { padding: 14px 16px 14px 13px; }
+  .cart-panel,.orders-panel,.customers-panel,.reservations-panel { padding: 14px 15px 15px 13px; }
+  .cart-line,.order-card,.portal-customer-card,.reservation-customer-card { border-radius: 14px; }
+  .customers-panel .portal-customer-card,.reservations-panel .reservation-customer-card { padding: 13px 14px; }
+  .reservation-customer-header { margin: -13px -14px 0; padding: 12px 14px; }
   .portal-cart-actions { grid-template-columns: minmax(94px, 1fr) minmax(80px, .72fr); align-items: end; min-width: 0; }
   .portal-customer-card { align-items: flex-start; }
   .order-card-actions { justify-content: stretch; }
