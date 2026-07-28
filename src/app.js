@@ -1508,7 +1508,6 @@ function bindEvents() {
   dom.refreshEitanOrders?.addEventListener("click", () => loadEitanOrders());
   dom.eitanOrdersList?.addEventListener("click", handleEitanOrderAction);
   dom.completedOrderCustomer.addEventListener("change", () => {
-    dom.completedOrderSearch.value = "";
     renderCompletedOrders();
   });
   dom.completedOrderSearch.addEventListener("input", renderCompletedOrders);
@@ -12080,7 +12079,6 @@ function renderCompletedOrders() {
 
   if (dom.completedOrderCustomer.value !== selectedCustomerKey) {
     dom.completedOrderCustomer.value = selectedCustomerKey;
-    dom.completedOrderSearch.value = "";
   }
 
   const currentOptionsSignature = Array.from(dom.completedOrderCustomer.options)
@@ -12095,12 +12093,7 @@ function renderCompletedOrders() {
   }
 
   const hasCustomer = Boolean(selectedCustomerKey);
-  dom.completedOrderSearch.disabled = !hasCustomer;
-  dom.completedOrderSearch.placeholder = hasCustomer
-    ? "חפש לפי דגם או תיאור מוצר"
-    : "יש לבחור לקוח תחילה";
-
-  const productQuery = hasCustomer ? normalizeSearch(dom.completedOrderSearch.value) : "";
+  const productQuery = normalizeSearch(dom.completedOrderSearch.value);
   const visibleOrders = completedOrders
     .filter((order) => !hasCustomer || getCompletedOrderCustomerKey(order) === selectedCustomerKey)
     .filter((order) => {
@@ -12114,6 +12107,8 @@ function renderCompletedOrders() {
       ? "אין עדיין הזמנות שהושלמו."
       : hasCustomer && productQuery
         ? "לא נמצאו אצל הלקוח הזמנות שהושלמו עם המוצר שחיפשת."
+        : productQuery
+          ? "לא נמצאו הזמנות שהושלמו עם המוצר שחיפשת."
         : hasCustomer
           ? "אין ללקוח זה הזמנות שהושלמו."
           : "אין עדיין הזמנות שהושלמו.";
