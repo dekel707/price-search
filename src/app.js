@@ -423,6 +423,7 @@ const dom = {
   refreshEitanOrders: document.querySelector("#refreshEitanOrders"),
   orderSearch: document.querySelector("#orderSearch"),
   ordersList: document.querySelector("#ordersList"),
+  completedOrderCustomer: document.querySelector("#completedOrderCustomer"),
   completedOrderSearch: document.querySelector("#completedOrderSearch"),
   completedOrdersList: document.querySelector("#completedOrdersList"),
   tomorrowOrderSearch: document.querySelector("#tomorrowOrderSearch"),
@@ -1506,6 +1507,10 @@ function bindEvents() {
   dom.orderSearch.addEventListener("input", renderOrders);
   dom.refreshEitanOrders?.addEventListener("click", () => loadEitanOrders());
   dom.eitanOrdersList?.addEventListener("click", handleEitanOrderAction);
+  dom.completedOrderCustomer.addEventListener("change", () => {
+    dom.completedOrderSearch.value = "";
+    renderCompletedOrders();
+  });
   dom.completedOrderSearch.addEventListener("input", renderCompletedOrders);
   dom.tomorrowOrderSearch.addEventListener("input", renderTomorrowOrders);
   dom.soldProductsSearch.addEventListener("input", renderSoldProductsPanel);
@@ -12067,18 +12072,74 @@ async function handleEitanOrderAction(event) {
 }
 
 function renderCompletedOrders() {
-  const query = normalizeSearch(dom.completedOrderSearch.value);
   const completedOrders = orders.filter(isOrderCompleted);
-  const visibleOrders = filterOrdersByQuery(completedOrders, query).sort(compareOrdersByCreatedAt);
+  const customerOptions = getCompletedOrderCustomerOptions(completedOrders);
+  const selectedCustomerKey = customerOptions.some((customer) => customer.key === dom.completedOrderCustomer.value)
+    ? dom.completedOrderCustomer.value
+    : "";
+
+  if (dom.completedOrderCustomer.value !== selectedCustomerKey) {
+    dom.completedOrderCustomer.value = selectedCustomerKey;
+    dom.completedOrderSearch.value = "";
+  }
+
+  const currentOptionsSignature = Array.from(dom.completedOrderCustomer.options)
+    .map((option) => `${option.value}:${option.textContent}`)
+    .join("|");
+  const nextOptionsSignature = [":בחר לקוח כדי לחפש את המוצרים שרכש", ...customerOptions.map((customer) => `${customer.key}:${customer.name}`)].join("|");
+  if (currentOptionsSignature !== nextOptionsSignature) {
+    dom.completedOrderCustomer.replaceChildren(
+      createOption("", "בחר לקוח כדי לחפש את המוצרים שרכש", !selectedCustomerKey),
+      ...customerOptions.map((customer) => createOption(customer.key, customer.name, customer.key === selectedCustomerKey)),
+    );
+  }
+
+  const hasCustomer = Boolean(selectedCustomerKey);
+  dom.completedOrderSearch.disabled = !hasCustomer;
+  dom.completedOrderSearch.placeholder = hasCustomer
+    ? "חפש לפי דגם או תיאור מוצר"
+    : "יש לבחור לקוח תחילה";
+
+  const productQuery = hasCustomer ? normalizeSearch(dom.completedOrderSearch.value) : "";
+  const visibleOrders = completedOrders
+    .filter((order) => !hasCustomer || getCompletedOrderCustomerKey(order) === selectedCustomerKey)
+    .filter((order) => {
+      if (!productQuery) return true;
+      return order.items.some((item) => normalizeSearch([item.sku, item.description].join(" ")).includes(productQuery));
+    })
+    .sort(compareOrdersByCreatedAt);
 
   if (!visibleOrders.length) {
-    dom.completedOrdersList.replaceChildren(emptyState(query ? "לא נמצאו הזמנות שהושלמו מתאימות." : "אין עדיין הזמנות שהושלמו."));
+    const message = !completedOrders.length
+      ? "אין עדיין הזמנות שהושלמו."
+      : hasCustomer && productQuery
+        ? "לא נמצאו אצל הלקוח הזמנות שהושלמו עם המוצר שחיפשת."
+        : hasCustomer
+          ? "אין ללקוח זה הזמנות שהושלמו."
+          : "אין עדיין הזמנות שהושלמו.";
+    dom.completedOrdersList.replaceChildren(emptyState(message));
     return;
   }
 
   dom.completedOrdersList.replaceChildren(
-    ...visibleOrders.slice(0, query ? 80 : 120).map((order) => renderOrderCard(order, { tone: "completed-order-card" })),
+    ...visibleOrders.slice(0, productQuery ? 80 : 120).map((order) => renderOrderCard(order, { tone: "completed-order-card" })),
   );
+}
+
+function getCompletedOrderCustomerOptions(completedOrders) {
+  const customersByKey = new Map();
+  completedOrders.forEach((order) => {
+    const name = cleanString(getOrderCustomer(order)?.name || order.customerName);
+    if (!name) return;
+    const key = getCompletedOrderCustomerKey(order);
+    if (!customersByKey.has(key)) customersByKey.set(key, { key, name });
+  });
+  return [...customersByKey.values()].sort((a, b) => a.name.localeCompare(b.name, "he"));
+}
+
+function getCompletedOrderCustomerKey(order) {
+  const customer = getOrderCustomer(order);
+  return customer?.id || `name:${normalizeSearch(order?.customerName)}`;
 }
 
 function renderTomorrowOrders() {
