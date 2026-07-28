@@ -1,6 +1,6 @@
 {
   "source": "מחירון יוני +אחוזים.xlsx",
-  "count": 127,
+  "count": 128,
   "products": [
     {
       "sku": "FJ-32UIL900",
@@ -286,6 +286,11 @@
       "sku": "FJ-GH755W",
       "description": "כיריים גז 4 מבערים זכוכית לבנה",
       "price": 579.0
+    },
+    {
+      "sku": "FJ-GOG575BL",
+      "description": "כיריים גז 5 להבות 75 ס\"מ זכוכית שחורה",
+      "price": 690.0
     },
     {
       "sku": "FJ-GH840BK",

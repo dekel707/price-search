@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 151,
-  "productCount": 127,
-  "matchedProducts": 113,
+  "totalPdfFiles": 152,
+  "productCount": 128,
+  "matchedProducts": 114,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -841,6 +841,20 @@
         {
           "url": "/img/FJ-GHRT13BG.pdf",
           "fileName": "FJ-GHRT13BG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-GOG575BL": {
+      "url": "/img/FJ-GOG575BL.pdf",
+      "fileName": "FJ-GOG575BL.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-GOG575BL.pdf",
+          "fileName": "FJ-GOG575BL.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2812,6 +2826,20 @@
         }
       ]
     },
+    "FJGOG575BL": {
+      "url": "/img/FJ-GOG575BL.pdf",
+      "fileName": "FJ-GOG575BL.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-GOG575BL.pdf",
+          "fileName": "FJ-GOG575BL.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJHP1010": {
       "url": "/img/%EF%BF%BD%EF%BF%BDFJ-HP1010.pdf",
       "fileName": "FJ-HP1010.pdf",
@@ -4463,6 +4491,14 @@
       "url": "/img/FJ-GHRT13BG.pdf",
       "modelKeys": [
         "FJGHRT13BG"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-GOG575BL.pdf",
+      "url": "/img/FJ-GOG575BL.pdf",
+      "modelKeys": [
+        "FJGOG575BL"
       ],
       "installation": false
     },
