@@ -862,8 +862,14 @@
             <span class="orders-panel-chip history">נשמרות בדוחות</span>
           </div>
           <label class="field-wrap">
-            <span>חיפוש בהזמנות שהושלמו</span>
-            <input id="completedOrderSearch" type="search" autocomplete="off" placeholder="שם לקוח, מק״ט או מוצר" />
+            <span>בחר לקוח</span>
+            <select id="completedOrderCustomer" aria-label="סינון הזמנות שהושלמו לפי לקוח">
+              <option value="">בחר לקוח כדי לחפש את המוצרים שרכש</option>
+            </select>
+          </label>
+          <label class="field-wrap">
+            <span>חיפוש מוצר של הלקוח</span>
+            <input id="completedOrderSearch" type="search" autocomplete="off" disabled placeholder="יש לבחור לקוח תחילה" />
           </label>
           <div class="orders-list" id="completedOrdersList"></div>
         </section>
