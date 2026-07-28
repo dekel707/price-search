@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 111, `ציפינו ל-111 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 112, `ציפינו ל-112 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -54,5 +54,8 @@ const tv = catalog.items.FJ50UILQ950;
 assert(tv.performance?.screenSizeInches === 50 && tv.displayDimensionsMm?.withoutStand?.widthMm === 1112, "מפרט FJ-50UILQ950 אינו תקין");
 const dishwasher = catalog.items.FJDWB8817;
 assert(dishwasher.capacities?.placeSettings === 14 && dishwasher.performance?.noiseDb === 44, "מפרט FJ-DWB8817 אינו תקין");
+const gasHob = catalog.items.FJGOG575BL;
+assert(gasHob.dimensionsCm?.widthCm === 75 && gasHob.dimensionsCm?.depthCm === 51, "מידות FJ-GOG575BL אינן תקינות");
+assert(gasHob.barcodes?.includes("7290114724715"), "ברקוד FJ-GOG575BL אינו תקין");
 
 console.log(`תקין: ${products.length} מפרטים | ישיר: ${byMatch.exact_model} | וריאנט: ${byMatch.catalog_variant} | מחירון בלבד: ${byMatch.description_only}`);
