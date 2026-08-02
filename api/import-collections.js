@@ -69,12 +69,14 @@ export default async function handler(request, response) {
 async function extractCollectionReportWithVerification(data) {
   const first = await extractCollectionReport(data.slice());
   const second = await extractCollectionReport(data.slice());
-  if (createReportSignature(first) !== createReportSignature(second)) {
+  const third = await extractCollectionReport(data.slice());
+  const signature = createReportSignature(first);
+  if (createReportSignature(second) !== signature || createReportSignature(third) !== signature) {
     const error = new Error("Collection report verification failed");
     error.code = "verification_failed";
     throw error;
   }
-  return { ...first, verifiedPasses: 2 };
+  return { ...first, verifiedPasses: 3 };
 }
 
 function createReportSignature(report) {

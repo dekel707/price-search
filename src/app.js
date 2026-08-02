@@ -5358,7 +5358,7 @@ async function handleReservationReportUpload(event) {
     return;
   }
 
-  dom.reservationImportStatus.textContent = `קורא ובודק את ${file.name} פעמיים...`;
+  dom.reservationImportStatus.textContent = `קורא ובודק את ${file.name} שלוש פעמים...`;
   dom.status.textContent = "בודק ומעדכן שריונים מדוח Excel...";
 
   try {
@@ -5384,7 +5384,7 @@ function handlePastedReservationReport() {
     return;
   }
 
-  dom.reservationImportStatus.textContent = "בודק את הנתונים המודבקים פעמיים...";
+  dom.reservationImportStatus.textContent = "בודק את הנתונים המודבקים שלוש פעמים...";
   dom.status.textContent = "בודק ומעדכן שריונים מהדוח המודבק...";
   try {
     const rows = parsePastedReservationRows(text);
@@ -5408,7 +5408,9 @@ function saveImportedReservationReport(report) {
 
   const syncMode = report.isFullReport ? "דוח מלא סונכרן" : "שורות הדוח עודכנו";
   const details = [
-    "הדוח נבדק פעמיים",
+    "הדוח נבדק 3 פעמים",
+    `${report.entries.length.toLocaleString("he-IL")} יתרות ייחודיות`,
+    `${report.totalQuantity.toLocaleString("he-IL")} יח׳ בדוח`,
     `${syncMode}: ${result.updated.toLocaleString("he-IL")} עודכנו`,
     `${result.added.toLocaleString("he-IL")} נוספו`,
   ];
@@ -5420,21 +5422,31 @@ function saveImportedReservationReport(report) {
 }
 
 async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
-  const firstPass = parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId);
-  const secondPass = parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId);
-  if (getReservationReportSignature(firstPass) !== getReservationReportSignature(secondPass)) {
-    throw new Error("בדיקת הדוח הכפולה לא התאימה. לא בוצע שינוי בשריונים.");
+  const reports = [];
+  for (let pass = 0; pass < 3; pass += 1) {
+    reports.push(parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId));
   }
-  return firstPass;
+  return verifyReservationReportPasses(reports);
 }
 
 function parseVerifiedReservationRows(rows, selectedCustomerId = "") {
-  const firstPass = parseReservationSpreadsheetRows(rows, selectedCustomerId);
-  const secondPass = parseReservationSpreadsheetRows(rows, selectedCustomerId);
-  if (getReservationReportSignature(firstPass) !== getReservationReportSignature(secondPass)) {
-    throw new Error("בדיקת הדוח הכפולה לא התאימה. לא בוצע שינוי בשריונים.");
+  return verifyReservationReportPasses(
+    Array.from({ length: 3 }, () => parseReservationSpreadsheetRows(rows, selectedCustomerId)),
+  );
+}
+
+function verifyReservationReportPasses(reports) {
+  const [first, ...remaining] = reports;
+  if (!first || remaining.some((report) => getReservationReportSignature(report) !== getReservationReportSignature(first))) {
+    throw new Error("בדיקת הדוח המשולשת לא התאימה. לא בוצע שינוי בשריונים.");
   }
-  return firstPass;
+  if (first.invalidRows.length) {
+    throw new Error(`נמצאו ${first.invalidRows.length.toLocaleString("he-IL")} שורות חלקיות או לא תקינות בדוח. לא בוצע שינוי בשריונים.`);
+  }
+  if (first.skippedCustomerNames.length) {
+    throw new Error(`נמצאו ${first.skippedCustomerNames.length.toLocaleString("he-IL")} לקוחות שלא זוהו במערכת. לא בוצע שינוי בשריונים.`);
+  }
+  return first;
 }
 
 function parsePastedReservationRows(text) {
@@ -5459,13 +5471,22 @@ function parseReservationSpreadsheetRows(rows, selectedCustomerId = "") {
 
   const entries = new Map();
   const skippedCustomerNames = new Set();
-  rows.slice(headerRowIndex + 1).forEach((row) => {
+  const invalidRows = [];
+  let sourceRowCount = 0;
+  let totalQuantity = 0;
+  rows.slice(headerRowIndex + 1).forEach((row, offset) => {
     const sku = cleanString(row[columns.sku]);
     const skuKey = getSkuKey(sku);
     const quantity = parseStockQuantity(row[columns.quantity]);
-    if (!skuKey || quantity === null) return;
+    const customerName = columns.customer === undefined ? fallbackCustomer?.name || "" : cleanString(row[columns.customer]);
+    const hasValues = row.some((cell) => cleanString(cell));
+    if (!hasValues) return;
+    if (!skuKey || quantity === null || (columns.customer !== undefined && !customerName)) {
+      invalidRows.push(headerRowIndex + offset + 2);
+      return;
+    }
+    sourceRowCount += 1;
 
-    const customerName = columns.customer === undefined ? fallbackCustomer.name : cleanString(row[columns.customer]);
     const customer = columns.customer === undefined ? fallbackCustomer : findCustomerByLooseName(customerName);
     if (!customer) {
       if (customerName) skippedCustomerNames.add(customerName);
@@ -5481,6 +5502,7 @@ function parseReservationSpreadsheetRows(rows, selectedCustomerId = "") {
       quantity: 0,
     };
     current.quantity += quantity;
+    totalQuantity += quantity;
     if (!current.description && columns.description !== undefined) {
       current.description = cleanString(row[columns.description]);
     }
@@ -5507,6 +5529,9 @@ function parseReservationSpreadsheetRows(rows, selectedCustomerId = "") {
   return {
     entries: [...entries.values()],
     skippedCustomerNames: [...skippedCustomerNames],
+    invalidRows,
+    sourceRowCount,
+    totalQuantity,
     isFullReport,
   };
 }
@@ -5516,7 +5541,7 @@ function getReservationReportSignature(report) {
     .map((entry) => [entry.customer.id, entry.skuKey, entry.description, entry.quantity].join("|"))
     .sort()
     .join("\n");
-  return `${report.isFullReport}|${report.skippedCustomerNames.slice().sort().join("|")}|${entries}`;
+  return `${report.isFullReport}|${report.sourceRowCount}|${report.totalQuantity}|${report.invalidRows.join(",")}|${report.skippedCustomerNames.slice().sort().join("|")}|${entries}`;
 }
 
 function detectReservationColumns(rows) {
@@ -7209,7 +7234,7 @@ async function handleCollectionReportUpload(event) {
     return;
   }
 
-  dom.collectionImportStatus.textContent = `קורא ובודק את ${file.name} פעמיים...`;
+  dom.collectionImportStatus.textContent = `קורא ובודק את ${file.name} שלוש פעמים...`;
   dom.status.textContent = "מייבא דוח גיול...";
 
   try {
@@ -7240,7 +7265,7 @@ async function handleCollectionReportUpload(event) {
     renderDashboard();
     const skipped = Math.max(0, Number(result.skippedNonPositive) || 0);
     const skippedText = skipped ? ` ${skipped.toLocaleString("he-IL")} יתרות שליליות/אפס לא נכנסו כחוב.` : "";
-    const verifiedText = Number(result.verifiedPasses) >= 2 ? " הדוח נבדק פעמיים לפני העדכון." : "";
+    const verifiedText = Number(result.verifiedPasses) >= 3 ? " הדוח נבדק 3 פעמים לפני העדכון." : "";
     dom.collectionImportStatus.textContent = `יובאו ${imported.toLocaleString("he-IL")} לקוחות מדוח הגיול.${verifiedText}${skippedText}`;
     dom.status.textContent = `דוח הגיול עודכן: ${imported.toLocaleString("he-IL")} לקוחות.${verifiedText}${skippedText}`;
   } catch (error) {
@@ -7444,7 +7469,7 @@ function getCollectionImportErrorMessage(errorCode) {
   if (errorCode === "invalid_file") return "הקובץ לא נראה כמו PDF תקין.";
   if (errorCode === "file_too_large") return "הקובץ גדול מדי להעלאה.";
   if (errorCode === "no_rows_detected") return "לא זוהו שורות סיכום בדוח. ודא שזה דוח גיול בפורמט הקבוע.";
-  if (errorCode === "verification_failed") return "הייבוא נעצר כי שתי בדיקות הדוח לא יצאו זהות. לא עודכנו נתוני כסף.";
+  if (errorCode === "verification_failed") return "הייבוא נעצר כי שלוש בדיקות הדוח לא יצאו זהות. לא עודכנו נתוני כסף.";
   return "לא הצלחתי לייבא את דוח הגיול.";
 }
 
