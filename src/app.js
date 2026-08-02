@@ -3862,6 +3862,10 @@ function renderResultNodes(items, query, totalMatches) {
     const annotation = getAnnotation(product);
     const isDiscontinued = isDiscontinuedCategory(annotation.category);
     const futureStockEligible = isFutureStockEligibleProduct(product);
+    const reservationEligible = canOfferFutureStockReservation(product);
+    // A product can remain marked as unavailable for regular sale while still
+    // being deliverable from a reservation already held by the selected customer.
+    const canAddFromReservation = isDiscontinued && reservationEligible;
     const article = document.createElement("article");
     article.className = "result-row";
     article.classList.toggle("discontinued-product", isDiscontinued);
@@ -3909,7 +3913,9 @@ function renderResultNodes(items, query, totalMatches) {
     if (isDiscontinued) {
       const availability = document.createElement("span");
       availability.className = "unavailable-label";
-      availability.textContent = "יצא מהמגוון · זמין להזמנת מלאי עתידי בלבד";
+      availability.textContent = canAddFromReservation
+        ? "יצא מהמגוון · זמין גם מהשריון של הלקוח"
+        : "יצא מהמגוון · זמין להזמנת מלאי עתידי בלבד";
       annotationMeta.append(availability);
     }
 
@@ -3919,21 +3925,23 @@ function renderResultNodes(items, query, totalMatches) {
 
     const actions = document.createElement("div");
     actions.className = "result-actions";
-    if (!isDiscontinued) {
+    if (!isDiscontinued || canAddFromReservation) {
       const addButton = document.createElement("button");
       addButton.className = "add-cart-button";
       addButton.type = "button";
       addButton.dataset.addToCart = product.skuKey;
-      addButton.textContent = "הוסף לסל";
+      addButton.textContent = canAddFromReservation ? "הוסף מהשריון" : "הוסף לסל";
       actions.append(addButton);
 
-      const promotionButton = document.createElement("button");
-      promotionButton.className = "ten-plus-one-button";
-      promotionButton.type = "button";
-      promotionButton.dataset.addTenPlusOne = product.skuKey;
-      promotionButton.setAttribute("aria-label", `הוסף מבצע 10 ועוד 1 עבור ${product.sku || product.description}`);
-      promotionButton.innerHTML = `${getOrderActionIcon("bonus")}<span>10+1</span>`;
-      actions.append(promotionButton);
+      if (!isDiscontinued) {
+        const promotionButton = document.createElement("button");
+        promotionButton.className = "ten-plus-one-button";
+        promotionButton.type = "button";
+        promotionButton.dataset.addTenPlusOne = product.skuKey;
+        promotionButton.setAttribute("aria-label", `הוסף מבצע 10 ועוד 1 עבור ${product.sku || product.description}`);
+        promotionButton.innerHTML = `${getOrderActionIcon("bonus")}<span>10+1</span>`;
+        actions.append(promotionButton);
+      }
     }
 
     if (futureStockEligible) {
@@ -3962,7 +3970,7 @@ function renderResultNodes(items, query, totalMatches) {
     const tools = document.createElement("div");
     tools.className = "item-tools";
 
-    if (!isDiscontinued && !shouldAskForCartCustomer()) {
+    if ((!isDiscontinued || canAddFromReservation) && !shouldAskForCartCustomer()) {
       const inlineFields = document.createElement("div");
       inlineFields.className = "inline-add-fields";
       const quantity = createQuantitySelectField("כמות", 1, {
