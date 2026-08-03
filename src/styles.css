@@ -8282,6 +8282,128 @@ body {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--workspace-tone) 10%, transparent);
 }
 
+/* Price lists are static documents only; this workspace never reads or writes
+   orders, stock, customers, reservations, or cloud state. */
+.price-lists-panel {
+  --price-lists-tone: #6dcbe3;
+  position: relative;
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--price-lists-tone) 34%, transparent);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--price-lists-tone) 10%, transparent), transparent 31%),
+    radial-gradient(circle at 0 100%, color-mix(in srgb, var(--price-lists-tone) 7%, transparent), transparent 38%),
+    linear-gradient(145deg, rgba(12, 18, 27, 0.98), rgba(7, 12, 19, 0.98));
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(235, 243, 255, 0.045);
+}
+
+.price-lists-panel::before {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 4px;
+  background: var(--price-lists-tone);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--price-lists-tone) 52%, transparent);
+  content: "";
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.price-lists-header {
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom-color: color-mix(in srgb, var(--price-lists-tone) 18%, transparent);
+}
+
+.price-lists-panel .standard-panel-icon,
+.price-lists-panel .standard-panel-chip {
+  --ps-accent: var(--price-lists-tone);
+}
+
+.price-lists-intro {
+  margin: 0;
+  color: #afbdc9;
+  font-size: 0.88rem;
+  line-height: 1.58;
+}
+
+.price-list-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.price-list-card {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--price-lists-tone) 28%, rgba(162, 177, 196, 0.2));
+  border-radius: 15px;
+  background: linear-gradient(145deg, rgba(34, 46, 61, 0.6), rgba(11, 17, 26, 0.9));
+  box-shadow: inset 0 1px 0 rgba(235, 244, 255, 0.035);
+}
+
+.price-list-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.price-list-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--price-lists-tone) 48%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--price-lists-tone) 13%, #091724);
+  color: var(--price-lists-tone);
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.price-list-card h3,
+.price-list-card p {
+  margin: 0;
+}
+
+.price-list-card h3 {
+  color: #eff8fc;
+  font-size: 1rem;
+}
+
+.price-list-card p {
+  margin-top: 5px;
+  color: #aebdc9;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.price-list-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.price-list-actions :is(.secondary-button, .whatsapp-button) {
+  min-width: 0;
+  min-height: 42px;
+  padding-inline: 10px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .price-lists-panel { gap: 12px; padding: 14px; border-radius: 14px; }
+  .price-list-cards { grid-template-columns: 1fr; }
+  .price-list-card { gap: 14px; padding: 14px; }
+  .price-list-actions { gap: 8px; }
+  .price-list-actions :is(.secondary-button, .whatsapp-button) { font-size: 0.76rem; }
+}
+
 .promotions-intro {
   margin: 0;
   color: #afbdc9;

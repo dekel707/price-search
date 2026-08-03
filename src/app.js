@@ -58,6 +58,22 @@ const AI_ORDER_ENDPOINT = "/api/ai-order";
 const ZMANIM_ENDPOINT = "/api/zmanim";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
 const CATALOG_ATTRIBUTES_ENDPOINT = "/api/catalog-specifications";
+const PRICE_LIST_DOCUMENTS = {
+  "general-26": {
+    title: "מחירון סוחרים כללי 26",
+    files: {
+      pdf: "/price-lists/price-list-traders-general-26.pdf",
+      xlsx: "/price-lists/price-list-traders-general-26.xlsx",
+    },
+  },
+  "jun-jul": {
+    title: "מחירון סוחרים יוני יולי",
+    files: {
+      pdf: "/price-lists/price-list-traders-jun-jul.pdf",
+      xlsx: "/price-lists/price-list-traders-jun-jul.xlsx",
+    },
+  },
+};
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const CLOUD_SYNC_DISABLED = URL_PARAMS.has("local");
 const AUTH_DISABLED =
@@ -409,6 +425,7 @@ const dom = {
   saveOrder: document.querySelector("#saveOrder"),
   sendWhatsApp: document.querySelector("#sendWhatsApp"),
   promotionsPanel: document.querySelector('[data-tab-panel="promotions"]'),
+  priceListsPanel: document.querySelector('[data-tab-panel="price-lists"]'),
   promotionsSummary: document.querySelector("#promotionsSummary"),
   promotionBuilder: document.querySelector("#promotionBuilder"),
   promotionsList: document.querySelector("#promotionsList"),
@@ -1499,6 +1516,11 @@ function bindEvents() {
     editingDraftId || dom.saveAsDraft.checked ? saveDraftOrder() : saveOrder(),
   );
   dom.sendWhatsApp.addEventListener("click", sendCurrentOrderToWhatsApp);
+  dom.priceListsPanel?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-price-list-whatsapp]");
+    if (!button) return;
+    openPriceListInWhatsApp(button.dataset.priceListWhatsapp, button.dataset.priceListFormat);
+  });
   dom.draftSearch.addEventListener("input", renderDrafts);
   dom.draftsList.addEventListener("change", handleDraftFieldChange);
   dom.draftsList.addEventListener("click", handleDraftActionClick);
@@ -12623,6 +12645,23 @@ function createPromotionWhatsAppUrl(promotion, options = {}) {
   const phone = normalizePhone(settings.whatsappNumber);
   if (!phone || !promotion?.items?.length) return "";
   return `https://wa.me/${phone}?text=${encodeURIComponent(createPromotionMessage(promotion, options))}`;
+}
+
+function openPriceListInWhatsApp(priceListId, format) {
+  const priceList = PRICE_LIST_DOCUMENTS[priceListId];
+  const filePath = priceList?.files?.[format];
+  if (!priceList || !filePath || !["pdf", "xlsx"].includes(format)) return;
+
+  const fileUrl = new URL(filePath, window.location.origin).toString();
+  const fileLabel = format === "pdf" ? "קובץ PDF" : "קובץ Excel";
+  const message = `${priceList.title}\n${fileLabel}: ${fileUrl}`;
+  const phone = normalizePhone(settings.whatsappNumber);
+  const whatsappUrl = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+
+  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  showActionToast(`נפתחה הודעת WhatsApp עם קישור ל${fileLabel} של ${priceList.title}.`);
 }
 
 function updateWhatsAppLink(link, url) {
