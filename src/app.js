@@ -389,6 +389,8 @@ const dom = {
   yearOverYearStatus: document.querySelector("#yearOverYearStatus"),
   yearOverYearPaceLabel: document.querySelector("#yearOverYearPaceLabel"),
   yearOverYearInsights: document.querySelector("#yearOverYearInsights"),
+  yearOverYearNewRevenueSummary: document.querySelector("#yearOverYearNewRevenueSummary"),
+  yearOverYearNewRevenueList: document.querySelector("#yearOverYearNewRevenueList"),
   yearOverYearList: document.querySelector("#yearOverYearList"),
   monthlySalesSummary: document.querySelector("#monthlySalesSummary"),
   monthlySalesStats: document.querySelector("#monthlySalesStats"),
@@ -9276,6 +9278,8 @@ function renderYearOverYearPanel() {
     dom.yearOverYearStatus.textContent = "עדיין לא נטענו נתוני מקור להשוואת שנה מול שנה.";
     dom.yearOverYearPaceLabel.textContent = "ממתין לנתוני מקור";
     dom.yearOverYearInsights.replaceChildren(emptyState("מוקדי תשומת לב יופיעו לאחר טעינת נתוני המקור."));
+    dom.yearOverYearNewRevenueSummary.textContent = "אין נתונים";
+    dom.yearOverYearNewRevenueList.replaceChildren(emptyState("לקוחות עם כסף חדש יופיעו לאחר טעינת נתוני המקור."));
     dom.yearOverYearList.replaceChildren(emptyState("אין עדיין נתונים להצגה."));
     return;
   }
@@ -9284,6 +9288,7 @@ function renderYearOverYearPanel() {
   dom.yearOverYearStatus.textContent = `${linkedCount.toLocaleString("he-IL")} לקוחות מחוברים למערכת. הזמנות מתאריך 1.8.2026 מתווספות אוטומטית להשוואה, בלי לשנות דוחות אחרים.`;
   dom.yearOverYearPaceLabel.textContent = `נכון ל־${formatYearOverYearDate(reportData.pace.toDate)} · חלפו ${formatYearOverYearPercent(reportData.pace.elapsedPercent)} מהשנה`;
   renderYearOverYearInsights(reports, reportData.pace);
+  renderYearOverYearNewRevenue(reports);
 
   if (!reports.length) {
     dom.yearOverYearList.replaceChildren(emptyState("לא נמצאו לקוחות מתאימים."));
@@ -9385,6 +9390,7 @@ function getYearOverYearReports() {
         ...report,
         sales2026,
         hasTarget,
+        isNewRevenueCustomer: !hasTarget && sales2026 > 0,
         attainment,
         passed,
         expectedSalesAtPace,
@@ -9442,9 +9448,9 @@ function getYearOverYearSignal(report) {
 
   if (!report.hasTarget) {
     if (report.sales2026 >= 20_000) {
-      return { tone: "positive", label: "לקוח חדש בצמיחה", action: "הזדמנות לפתח את הקשר" };
+      return { tone: "positive", label: "כסף חדש ב־2026", action: "הזדמנות לפתח את הקשר" };
     }
-    return { tone: "neutral", label: "לקוח חדש", action: "אין בסיס להשוואת 2025" };
+    return { tone: "neutral", label: "כסף חדש ב־2026", action: "אין בסיס להשוואת 2025" };
   }
 
   if (report.sales2026 <= 0 && report.sales2025 >= 25_000) {
@@ -9519,6 +9525,52 @@ function renderYearOverYearInsights(reports, pace) {
     return;
   }
   dom.yearOverYearInsights.replaceChildren(...insights.map((report) => renderYearOverYearInsightRow(report, pace)));
+}
+
+function renderYearOverYearNewRevenue(reports) {
+  const newRevenueReports = reports
+    .filter((report) => report.isNewRevenueCustomer)
+    .sort(
+      (left, right) =>
+        right.sales2026 - left.sales2026 ||
+        right.currentPeriodSales - left.currentPeriodSales ||
+        left.customerName.localeCompare(right.customerName, "he"),
+    );
+  const totalNewRevenue = roundMoney(newRevenueReports.reduce((total, report) => total + report.sales2026, 0));
+
+  dom.yearOverYearNewRevenueSummary.textContent = newRevenueReports.length
+    ? `${newRevenueReports.length.toLocaleString("he-IL")} לקוחות · ${formatPrice(totalNewRevenue)}`
+    : "אין כסף חדש";
+
+  if (!newRevenueReports.length) {
+    dom.yearOverYearNewRevenueList.replaceChildren(emptyState("אין כרגע לקוחות עם מכר ב־2026 וללא מכר ב־2025."));
+    return;
+  }
+
+  dom.yearOverYearNewRevenueList.replaceChildren(
+    ...newRevenueReports.map((report) => renderYearOverYearNewRevenueCard(report)),
+  );
+}
+
+function renderYearOverYearNewRevenueCard(report) {
+  const card = document.createElement("article");
+  card.className = "year-over-year-new-revenue-card";
+  const recentSales = report.currentPeriodSales > 0
+    ? ` · ${formatPrice(report.currentPeriodSales)} נוספו מאוגוסט`
+    : "";
+
+  card.innerHTML = `
+    <div class="year-over-year-new-revenue-customer">
+      <strong>${escapeHtml(report.customerName)}</strong>
+      <span>${escapeHtml(report.customerCode ? `קוד ${report.customerCode}` : "ללא קוד לקוח")}</span>
+    </div>
+    <div class="year-over-year-new-revenue-value">
+      <span>מכר חדש ב־2026</span>
+      <strong>${escapeHtml(formatPrice(report.sales2026))}</strong>
+      <small>${escapeHtml(`2025: ללא מכר${recentSales}`)}</small>
+    </div>
+  `;
+  return card;
 }
 
 function getYearOverYearInsightRows(reports) {
