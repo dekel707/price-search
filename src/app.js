@@ -387,6 +387,8 @@ const dom = {
   yearOverYearSearch: document.querySelector("#yearOverYearSearch"),
   yearOverYearStats: document.querySelector("#yearOverYearStats"),
   yearOverYearStatus: document.querySelector("#yearOverYearStatus"),
+  yearOverYearPaceLabel: document.querySelector("#yearOverYearPaceLabel"),
+  yearOverYearInsights: document.querySelector("#yearOverYearInsights"),
   yearOverYearList: document.querySelector("#yearOverYearList"),
   monthlySalesSummary: document.querySelector("#monthlySalesSummary"),
   monthlySalesStats: document.querySelector("#monthlySalesStats"),
@@ -9272,12 +9274,16 @@ function renderYearOverYearPanel() {
 
   if (!reportData.config) {
     dom.yearOverYearStatus.textContent = "עדיין לא נטענו נתוני מקור להשוואת שנה מול שנה.";
+    dom.yearOverYearPaceLabel.textContent = "ממתין לנתוני מקור";
+    dom.yearOverYearInsights.replaceChildren(emptyState("מוקדי תשומת לב יופיעו לאחר טעינת נתוני המקור."));
     dom.yearOverYearList.replaceChildren(emptyState("אין עדיין נתונים להצגה."));
     return;
   }
 
   const linkedCount = reportData.reports.filter((report) => report.customerId).length;
   dom.yearOverYearStatus.textContent = `${linkedCount.toLocaleString("he-IL")} לקוחות מחוברים למערכת. הזמנות מתאריך 1.8.2026 מתווספות אוטומטית להשוואה, בלי לשנות דוחות אחרים.`;
+  dom.yearOverYearPaceLabel.textContent = `נכון ל־${formatYearOverYearDate(reportData.pace.toDate)} · חלפו ${formatYearOverYearPercent(reportData.pace.elapsedPercent)} מהשנה`;
+  renderYearOverYearInsights(reports, reportData.pace);
 
   if (!reports.length) {
     dom.yearOverYearList.replaceChildren(emptyState("לא נמצאו לקוחות מתאימים."));
@@ -9291,7 +9297,8 @@ function renderYearOverYearPanel() {
 
 function getYearOverYearReports() {
   const config = normalizeCustomerYearOverYear(customerYearOverYear);
-  if (!config) return { config: null, reports: [] };
+  if (!config) return { config: null, reports: [], pace: null };
+  const pace = getYearOverYearPace(config);
 
   const reportsByKey = new Map();
   const reportsByCustomerId = new Map();
@@ -9366,16 +9373,31 @@ function getYearOverYearReports() {
       const hasTarget = report.sales2025 > 0;
       const attainment = hasTarget ? (sales2026 / report.sales2025) * 100 : null;
       const passed = Boolean(hasTarget && sales2026 >= report.sales2025);
-      return {
+      const expectedSalesAtPace = hasTarget ? roundMoney(report.sales2025 * (pace.elapsedPercent / 100)) : 0;
+      const paceGapAmount = hasTarget ? roundMoney(sales2026 - expectedSalesAtPace) : 0;
+      const paceGapPercent = hasTarget ? roundMoney((attainment || 0) - pace.elapsedPercent) : null;
+      const projectedSales = pace.daysElapsed > 0 ? roundMoney((sales2026 / pace.daysElapsed) * pace.daysInYear) : sales2026;
+      const projectedAttainment = hasTarget ? (projectedSales / report.sales2025) * 100 : null;
+      const remaining = hasTarget ? Math.max(0, roundMoney(report.sales2025 - sales2026)) : 0;
+      const requiredMonthlySales =
+        remaining > 0 && pace.daysRemaining > 0 ? roundMoney(remaining / (pace.daysRemaining / 30.4375)) : 0;
+      const enrichedReport = {
         ...report,
         sales2026,
         hasTarget,
         attainment,
         passed,
-        remaining: hasTarget ? Math.max(0, roundMoney(report.sales2025 - sales2026)) : 0,
+        expectedSalesAtPace,
+        paceGapAmount,
+        paceGapPercent,
+        projectedSales,
+        projectedAttainment,
+        remaining,
+        requiredMonthlySales,
         delta: roundMoney(sales2026 - report.sales2025),
         searchText: normalizeSearch(`${report.customerName} ${report.sourceCustomerName} ${report.customerCode}`),
       };
+      return { ...enrichedReport, signal: getYearOverYearSignal(enrichedReport) };
     })
     .sort(
       (a, b) =>
@@ -9384,7 +9406,63 @@ function getYearOverYearReports() {
         a.customerName.localeCompare(b.customerName, "he"),
     );
 
-  return { config, reports };
+  return { config, reports, pace };
+}
+
+function getYearOverYearPace(config) {
+  const cutoff = normalizeDateInput(config?.baselineCutoffDate) || "2026-07-31";
+  const year = Number(cutoff.slice(0, 4)) || new Date().getFullYear();
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+  const today = getIsraelDateKey(new Date());
+  const toDate = today < yearStart ? yearStart : today > yearEnd ? yearEnd : today;
+  const daysInYear = getYearOverYearDayDifference(yearStart, yearEnd) + 1;
+  const daysElapsed = getYearOverYearDayDifference(yearStart, toDate) + 1;
+  const daysRemaining = Math.max(0, daysInYear - daysElapsed);
+  return {
+    year,
+    toDate,
+    daysInYear,
+    daysElapsed,
+    daysRemaining,
+    elapsedPercent: (daysElapsed / daysInYear) * 100,
+  };
+}
+
+function getYearOverYearDayDifference(fromDateKey, toDateKey) {
+  const from = Date.parse(`${fromDateKey}T12:00:00Z`);
+  const to = Date.parse(`${toDateKey}T12:00:00Z`);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return 0;
+  return Math.round((to - from) / 86_400_000);
+}
+
+function getYearOverYearSignal(report) {
+  const materialGap = Math.max(Math.abs(report.paceGapAmount || 0), report.remaining || 0);
+  const isMaterial = report.sales2025 >= 25_000 || materialGap >= 20_000;
+
+  if (!report.hasTarget) {
+    if (report.sales2026 >= 20_000) {
+      return { tone: "positive", label: "לקוח חדש בצמיחה", action: "הזדמנות לפתח את הקשר" };
+    }
+    return { tone: "neutral", label: "לקוח חדש", action: "אין בסיס להשוואת 2025" };
+  }
+
+  if (report.sales2026 <= 0 && report.sales2025 >= 25_000) {
+    return { tone: "danger", label: "ללא מכר השנה", action: "כדאי לבדוק קשר ומכר חוזר" };
+  }
+  if (isMaterial && (report.paceGapPercent || 0) <= -15) {
+    return { tone: "danger", label: "מתחת לקצב", action: `נדרש קצב של ${formatPrice(report.requiredMonthlySales)} לחודש` };
+  }
+  if (isMaterial && (report.paceGapPercent || 0) <= -6) {
+    return { tone: "warning", label: "דורש מעקב", action: `פער לקצב: ${formatPrice(Math.abs(report.paceGapAmount))}` };
+  }
+  if (report.passed && isMaterial) {
+    return { tone: "positive", label: "עבר את 2025", action: "לשמר את הקצב ולהרחיב מכר" };
+  }
+  if (isMaterial && (report.paceGapPercent || 0) >= 10) {
+    return { tone: "positive", label: "מעל הקצב", action: "קצב שנתי צפוי לעבור את 2025" };
+  }
+  return { tone: "neutral", label: "בקצב יציב", action: "המשך מעקב לפי הקצב החודשי" };
 }
 
 function findYearOverYearCustomer(record) {
@@ -9434,6 +9512,85 @@ function createYearOverYearStat(label, value) {
   return item;
 }
 
+function renderYearOverYearInsights(reports, pace) {
+  const insights = getYearOverYearInsightRows(reports);
+  if (!insights.length) {
+    dom.yearOverYearInsights.replaceChildren(emptyState("אין כרגע חריגות משמעותיות לזיהוי."));
+    return;
+  }
+  dom.yearOverYearInsights.replaceChildren(...insights.map((report) => renderYearOverYearInsightRow(report, pace)));
+}
+
+function getYearOverYearInsightRows(reports) {
+  if (reports.length <= 5) return reports;
+
+  const attention = reports
+    .filter((report) => ["danger", "warning"].includes(report.signal.tone))
+    .sort(
+      (left, right) =>
+        getYearOverYearAttentionRank(right) - getYearOverYearAttentionRank(left) ||
+        right.remaining - left.remaining,
+    )
+    .slice(0, 4);
+  const positive = reports
+    .filter((report) => report.signal.tone === "positive")
+    .sort(
+      (left, right) =>
+        (right.projectedAttainment || 0) - (left.projectedAttainment || 0) ||
+        right.sales2026 - left.sales2026,
+    )
+    .slice(0, 4);
+  const selected = [...attention, ...positive];
+  const seen = new Set();
+  return selected.filter((report) => {
+    if (seen.has(report.key)) return false;
+    seen.add(report.key);
+    return true;
+  });
+}
+
+function getYearOverYearAttentionRank(report) {
+  const toneRank = report.signal.tone === "danger" ? 2 : report.signal.tone === "warning" ? 1 : 0;
+  return toneRank * 10_000_000 + Math.max(report.remaining || 0, Math.abs(report.paceGapAmount || 0));
+}
+
+function renderYearOverYearInsightRow(report, pace) {
+  const row = document.createElement("article");
+  row.className = `year-over-year-insight-row is-${report.signal.tone}`;
+  const forecast = report.hasTarget ? formatYearOverYearPercent(report.projectedAttainment) : "חדש";
+  const paceValue = report.hasTarget
+    ? `${report.paceGapPercent >= 0 ? "+" : ""}${formatYearOverYearPercent(report.paceGapPercent)}`
+    : "—";
+  const gapDescription = report.hasTarget
+    ? report.paceGapAmount >= 0
+      ? `מעל קצב השנה ב־${formatPrice(report.paceGapAmount)}`
+      : `מתחת לקצב השנה ב־${formatPrice(Math.abs(report.paceGapAmount))}`
+    : "אין בסיס 2025 להשוואה";
+
+  row.innerHTML = `
+    <div class="year-over-year-insight-customer">
+      <strong>${escapeHtml(report.customerName)}</strong>
+      <span>${escapeHtml(report.customerCode ? `קוד ${report.customerCode}` : "ללא קוד לקוח")}</span>
+    </div>
+    <span class="year-over-year-signal is-${escapeHtml(report.signal.tone)}">${escapeHtml(report.signal.label)}</span>
+    <div class="year-over-year-insight-value">
+      <span>פער מהקצב</span>
+      <strong>${escapeHtml(paceValue)}</strong>
+      <small>${escapeHtml(gapDescription)}</small>
+    </div>
+    <div class="year-over-year-insight-value">
+      <span>תחזית סוף ${pace.year}</span>
+      <strong>${escapeHtml(forecast)}</strong>
+      <small>${escapeHtml(report.hasTarget ? formatPrice(report.projectedSales) : report.signal.action)}</small>
+    </div>
+    <div class="year-over-year-insight-action">
+      <span>מה לשים לב</span>
+      <strong>${escapeHtml(report.signal.action)}</strong>
+    </div>
+  `;
+  return row;
+}
+
 function renderYearOverYearCard(report, openDetails) {
   const card = document.createElement("details");
   card.className = [
@@ -9457,6 +9614,11 @@ function renderYearOverYearCard(report, openDetails) {
     : report.currentOrderCount
       ? `${report.currentOrderCount.toLocaleString("he-IL")} הזמנות נוספו מאוגוסט`
       : "מחובר ללקוח במערכת";
+  const paceDescription = report.hasTarget
+    ? report.paceGapAmount >= 0
+      ? `מעל קצב השנה ב־${formatPrice(report.paceGapAmount)}`
+      : `מתחת לקצב השנה ב־${formatPrice(Math.abs(report.paceGapAmount))}`
+    : "ללא בסיס 2025 להשוואה";
 
   const summary = document.createElement("summary");
   summary.className = "year-over-year-summary-row";
@@ -9468,6 +9630,7 @@ function renderYearOverYearCard(report, openDetails) {
     <div class="year-over-year-kpi">
       <strong>${report.hasTarget ? escapeHtml(formatYearOverYearPercent(report.attainment)) : "חדש"}</strong>
       <span>${escapeHtml(comparison)}</span>
+      <b class="year-over-year-signal is-${escapeHtml(report.signal.tone)}">${escapeHtml(report.signal.label)}</b>
     </div>
   `;
 
@@ -9479,11 +9642,14 @@ function renderYearOverYearCard(report, openDetails) {
       ${createYearOverYearMetric("2026 עד סוף יולי", formatPrice(report.sales2026ThroughJuly))}
       ${createYearOverYearMetric("נוסף מאוגוסט", formatPrice(report.currentPeriodSales))}
       ${createYearOverYearMetric("מכר 2026 מצטבר", formatPrice(report.sales2026))}
+      ${createYearOverYearMetric("תחזית סוף שנה", report.hasTarget ? formatYearOverYearPercent(report.projectedAttainment) : "חדש")}
+      ${createYearOverYearMetric("פער מקצב השנה", report.hasTarget ? `${report.paceGapPercent >= 0 ? "+" : ""}${formatYearOverYearPercent(report.paceGapPercent)}` : "—")}
+      ${createYearOverYearMetric("קצב חודשי נדרש", report.remaining ? formatPrice(report.requiredMonthlySales) : "הושג")}
     </div>
     <div class="year-over-year-progress" aria-label="עמידה מול 2025">
       <span style="width: ${progress.toFixed(2)}%"></span>
     </div>
-    <p>${escapeHtml(comparison)}</p>
+    <p>${escapeHtml(`${comparison} · ${paceDescription}`)}</p>
   `;
 
   card.append(summary, details);
@@ -9497,6 +9663,11 @@ function createYearOverYearMetric(label, value) {
 function formatYearOverYearPercent(value) {
   const rounded = Math.round((Number(value) || 0) * 10) / 10;
   return `${rounded.toLocaleString("he-IL", { maximumFractionDigits: 1 })}%`;
+}
+
+function formatYearOverYearDate(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? dateKey : date.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
 }
 
 function renderMonthlySalesPanel() {

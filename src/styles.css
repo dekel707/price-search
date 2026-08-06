@@ -7641,6 +7641,157 @@ body {
   line-height: 1.5;
 }
 
+.year-over-year-insights {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(104, 204, 196, 0.28);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(101, 217, 200, 0.08), transparent 43%),
+    rgba(5, 15, 25, 0.46);
+}
+
+.year-over-year-insights-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(127, 166, 188, 0.18);
+}
+
+.year-over-year-insights-heading .eyebrow {
+  margin: 0 0 3px;
+  color: #74d9ce;
+  font-size: 0.68rem;
+}
+
+.year-over-year-insights-heading h3 {
+  margin: 0;
+  color: #e5f8f5;
+  font-size: 1rem;
+}
+
+.year-over-year-insights-heading > span {
+  max-width: 270px;
+  color: #9fb8c4;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  text-align: end;
+}
+
+.year-over-year-insights-list {
+  display: grid;
+  gap: 7px;
+}
+
+.year-over-year-insight-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.15fr) minmax(94px, 0.72fr) minmax(130px, 0.92fr) minmax(125px, 0.86fr) minmax(160px, 1.1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(127, 166, 188, 0.17);
+  border-inline-start: 3px solid #6aafc7;
+  border-radius: 10px;
+  background: rgba(7, 18, 29, 0.62);
+}
+
+.year-over-year-insight-row.is-positive {
+  border-inline-start-color: #57d492;
+}
+
+.year-over-year-insight-row.is-warning {
+  border-inline-start-color: #eca95b;
+}
+
+.year-over-year-insight-row.is-danger {
+  border-inline-start-color: #f2757f;
+}
+
+.year-over-year-insight-customer,
+.year-over-year-insight-value,
+.year-over-year-insight-action {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.year-over-year-insight-customer strong,
+.year-over-year-insight-value strong,
+.year-over-year-insight-action strong {
+  overflow: hidden;
+  color: #eaf5f7;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.year-over-year-insight-customer strong {
+  white-space: nowrap;
+}
+
+.year-over-year-insight-customer span,
+.year-over-year-insight-value span,
+.year-over-year-insight-value small,
+.year-over-year-insight-action span {
+  color: #91a7b5;
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+.year-over-year-insight-value small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.year-over-year-insight-action strong {
+  color: #c9d9df;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.year-over-year-signal {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 4px 8px;
+  border: 1px solid rgba(106, 175, 199, 0.45);
+  border-radius: 999px;
+  background: rgba(76, 143, 174, 0.13);
+  color: #a8d9ed;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.year-over-year-signal.is-positive {
+  border-color: rgba(87, 212, 146, 0.52);
+  background: rgba(63, 168, 111, 0.15);
+  color: #9aeec2;
+}
+
+.year-over-year-signal.is-warning {
+  border-color: rgba(236, 169, 91, 0.58);
+  background: rgba(184, 120, 51, 0.15);
+  color: #f4cd94;
+}
+
+.year-over-year-signal.is-danger {
+  border-color: rgba(242, 117, 127, 0.58);
+  background: rgba(181, 61, 78, 0.16);
+  color: #ffb2ba;
+}
+
+.year-over-year-kpi .year-over-year-signal {
+  margin-top: 2px;
+}
+
 .year-over-year-list {
   display: grid;
   gap: 10px;
@@ -7792,6 +7943,20 @@ body {
   .year-over-year-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .year-over-year-insight-row {
+    grid-template-columns: minmax(0, 1fr) minmax(110px, 0.72fr);
+  }
+
+  .year-over-year-insight-customer {
+    grid-column: 1 / -1;
+  }
+
+  .year-over-year-insight-action {
+    grid-column: 1 / -1;
+    padding-top: 7px;
+    border-top: 1px solid rgba(127, 166, 188, 0.13);
+  }
 }
 
 @media (max-width: 480px) {
@@ -7813,6 +7978,43 @@ body {
 
   .year-over-year-intro {
     font-size: 0.78rem;
+  }
+
+  .year-over-year-insights {
+    padding: 10px;
+  }
+
+  .year-over-year-insights-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .year-over-year-insights-heading h3 {
+    font-size: 0.89rem;
+  }
+
+  .year-over-year-insights-heading > span {
+    max-width: none;
+    font-size: 0.64rem;
+    text-align: start;
+  }
+
+  .year-over-year-insight-row {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .year-over-year-insight-customer strong {
+    font-size: 0.76rem;
+  }
+
+  .year-over-year-insight-value strong {
+    font-size: 0.74rem;
+  }
+
+  .year-over-year-insight-action strong {
+    font-size: 0.68rem;
   }
 
   .year-over-year-stat {
