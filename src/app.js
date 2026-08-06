@@ -12427,7 +12427,10 @@ function renderCompletedOrders() {
   }
 
   dom.completedOrdersList.replaceChildren(
-    ...visibleOrders.slice(0, productQuery ? 80 : 120).map((order) => renderOrderCard(order, { tone: "completed-order-card" })),
+    // Completed orders are the long-term history. Never trim this list: a
+    // customer or product search must be able to reach every saved order,
+    // including orders from the first months of the system.
+    ...visibleOrders.map((order) => renderOrderCard(order, { tone: "completed-order-card" })),
   );
 }
 
