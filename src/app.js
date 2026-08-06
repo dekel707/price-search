@@ -383,6 +383,11 @@ const dom = {
   customerSalesSearch: document.querySelector("#customerSalesSearch"),
   customerSalesStats: document.querySelector("#customerSalesStats"),
   customerSalesList: document.querySelector("#customerSalesList"),
+  yearOverYearSummary: document.querySelector("#yearOverYearSummary"),
+  yearOverYearSearch: document.querySelector("#yearOverYearSearch"),
+  yearOverYearStats: document.querySelector("#yearOverYearStats"),
+  yearOverYearStatus: document.querySelector("#yearOverYearStatus"),
+  yearOverYearList: document.querySelector("#yearOverYearList"),
   monthlySalesSummary: document.querySelector("#monthlySalesSummary"),
   monthlySalesStats: document.querySelector("#monthlySalesStats"),
   monthlySalesList: document.querySelector("#monthlySalesList"),
@@ -475,6 +480,7 @@ let reservationSeedVersion = 0;
 let reminders = [];
 let collections = [];
 let promotions = [];
+let customerYearOverYear = null;
 let promotionDraft = createEmptyPromotionDraft();
 let promotionProductSearchQuery = "";
 let promotionProductTargetIndex = null;
@@ -964,6 +970,7 @@ function bindEvents() {
   dom.promotionsPanel.addEventListener("change", handlePromotionBuilderChange);
   dom.customerSearch.addEventListener("input", renderCustomersPanel);
   dom.customerSalesSearch.addEventListener("input", renderCustomerSalesPanel);
+  dom.yearOverYearSearch.addEventListener("input", renderYearOverYearPanel);
   dom.customerForm.addEventListener("submit", saveCustomerFromForm);
   dom.cancelCustomerEdit.addEventListener("click", resetCustomerForm);
   dom.newCustomer.addEventListener("click", () => openNewCustomerForm());
@@ -2745,6 +2752,7 @@ function render() {
   renderDashboard();
   renderSoldProductsPanel();
   renderCustomerSalesPanel();
+  renderYearOverYearPanel();
   renderMonthlySalesPanel();
   renderCart();
   renderDrafts();
@@ -2819,6 +2827,7 @@ function setActiveTab(tab) {
   renderFloatingCart();
   if (tab === "advanced-search") renderAdvancedSearch();
   if (tab === "promotions") renderPromotionsPanel();
+  if (tab === "customer-year-over-year") renderYearOverYearPanel();
 }
 
 function handleDashboardAction(action) {
@@ -9242,6 +9251,254 @@ function createCustomerSalesMoneyButton(value, className) {
   `;
 }
 
+function renderYearOverYearPanel() {
+  const query = normalizeSearch(dom.yearOverYearSearch.value);
+  const reportData = getYearOverYearReports();
+  const reports = query
+    ? reportData.reports.filter((report) => report.searchText.includes(query))
+    : reportData.reports;
+  const stats = getYearOverYearStats(reports);
+
+  dom.yearOverYearSummary.textContent = query
+    ? `${reports.length.toLocaleString("he-IL")} מתוך ${reportData.reports.length.toLocaleString("he-IL")} לקוחות`
+    : `${reportData.reports.length.toLocaleString("he-IL")} לקוחות`;
+
+  dom.yearOverYearStats.replaceChildren(
+    createYearOverYearStat("לקוחות בדוח", reports.length.toLocaleString("he-IL")),
+    createYearOverYearStat("עברו את 2025", stats.passedCount.toLocaleString("he-IL")),
+    createYearOverYearStat("עמידה מצטברת", stats.attainmentLabel),
+    createYearOverYearStat("נוסף מאוגוסט", formatPrice(stats.currentPeriodSales)),
+  );
+
+  if (!reportData.config) {
+    dom.yearOverYearStatus.textContent = "עדיין לא נטענו נתוני מקור להשוואת שנה מול שנה.";
+    dom.yearOverYearList.replaceChildren(emptyState("אין עדיין נתונים להצגה."));
+    return;
+  }
+
+  const linkedCount = reportData.reports.filter((report) => report.customerId).length;
+  dom.yearOverYearStatus.textContent = `${linkedCount.toLocaleString("he-IL")} לקוחות מחוברים למערכת. הזמנות מתאריך 1.8.2026 מתווספות אוטומטית להשוואה, בלי לשנות דוחות אחרים.`;
+
+  if (!reports.length) {
+    dom.yearOverYearList.replaceChildren(emptyState("לא נמצאו לקוחות מתאימים."));
+    return;
+  }
+
+  dom.yearOverYearList.replaceChildren(
+    ...reports.map((report) => renderYearOverYearCard(report, Boolean(query))),
+  );
+}
+
+function getYearOverYearReports() {
+  const config = normalizeCustomerYearOverYear(customerYearOverYear);
+  if (!config) return { config: null, reports: [] };
+
+  const reportsByKey = new Map();
+  const reportsByCustomerId = new Map();
+  const reportsByName = new Map();
+
+  config.customers.forEach((record) => {
+    const customer = findYearOverYearCustomer(record);
+    const customerId = customer?.id || cleanString(record.customerId);
+    const key = customerId
+      ? `customer:${customerId}`
+      : `source:${cleanString(record.customerCode) || normalizeSearch(record.customerName)}`;
+    const report = {
+      key,
+      customerId,
+      customerCode: cleanString(customer?.code || record.customerCode),
+      customerName: cleanString(customer?.name || record.customerName) || "לקוח ללא שם",
+      sourceCustomerName: cleanString(record.customerName),
+      sales2025: record.sales2025,
+      sales2026ThroughJuly: record.sales2026ThroughJuly,
+      currentPeriodSales: 0,
+      currentOrderCount: 0,
+      sourcePage: record.sourcePage,
+      sourceOnly: !customer,
+    };
+    reportsByKey.set(key, report);
+    if (customerId) reportsByCustomerId.set(customerId, report);
+    [report.customerName, record.customerName].forEach((name) => {
+      const normalized = normalizeSearch(name);
+      if (normalized) reportsByName.set(normalized, report);
+    });
+  });
+
+  orders.forEach((order) => {
+    const reportDate = getOrderReportDateKey(order);
+    if (!isCurrentYearOverYearOrderDate(reportDate, config.baselineCutoffDate)) return;
+    const paidSales = getPaidSalesTotal(order.items);
+    if (paidSales <= 0) return;
+
+    const customer = getOrderCustomer(order);
+    const customerId = cleanString(customer?.id || order.customerId);
+    const orderCustomerName = cleanString(customer?.name || order.customerName) || "לקוח ללא שם";
+    const nameKey = normalizeSearch(orderCustomerName);
+    let report = (customerId && reportsByCustomerId.get(customerId)) || reportsByName.get(nameKey);
+
+    if (!report) {
+      const key = customerId ? `customer:${customerId}` : `order:${nameKey || order.id}`;
+      report = {
+        key,
+        customerId,
+        customerCode: cleanString(customer?.code || order.customerCode),
+        customerName: orderCustomerName,
+        sourceCustomerName: "",
+        sales2025: 0,
+        sales2026ThroughJuly: 0,
+        currentPeriodSales: 0,
+        currentOrderCount: 0,
+        sourcePage: 0,
+        sourceOnly: false,
+      };
+      reportsByKey.set(key, report);
+      if (customerId) reportsByCustomerId.set(customerId, report);
+      if (nameKey) reportsByName.set(nameKey, report);
+    }
+
+    report.currentPeriodSales = roundMoney(report.currentPeriodSales + paidSales);
+    report.currentOrderCount += 1;
+  });
+
+  const reports = [...reportsByKey.values()]
+    .map((report) => {
+      const sales2026 = roundMoney(report.sales2026ThroughJuly + report.currentPeriodSales);
+      const hasTarget = report.sales2025 > 0;
+      const attainment = hasTarget ? (sales2026 / report.sales2025) * 100 : null;
+      const passed = Boolean(hasTarget && sales2026 >= report.sales2025);
+      return {
+        ...report,
+        sales2026,
+        hasTarget,
+        attainment,
+        passed,
+        remaining: hasTarget ? Math.max(0, roundMoney(report.sales2025 - sales2026)) : 0,
+        delta: roundMoney(sales2026 - report.sales2025),
+        searchText: normalizeSearch(`${report.customerName} ${report.sourceCustomerName} ${report.customerCode}`),
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.sales2026 - a.sales2026 ||
+        b.sales2025 - a.sales2025 ||
+        a.customerName.localeCompare(b.customerName, "he"),
+    );
+
+  return { config, reports };
+}
+
+function findYearOverYearCustomer(record) {
+  const customerId = cleanString(record?.customerId);
+  if (customerId) {
+    const byId = customers.find((customer) => customer.id === customerId);
+    if (byId) return byId;
+  }
+
+  const code = cleanString(record?.customerCode);
+  if (code) {
+    const byCode = customers.find((customer) => cleanString(customer.code) === code);
+    if (byCode) return byCode;
+  }
+
+  return findCustomerByLooseName(record?.customerName);
+}
+
+function isCurrentYearOverYearOrderDate(dateKey, baselineCutoffDate) {
+  const cutoff = normalizeDateInput(baselineCutoffDate) || "2026-07-31";
+  const year = cutoff.slice(0, 4);
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && dateKey > cutoff && dateKey.startsWith(`${year}-`);
+}
+
+function getYearOverYearStats(reports) {
+  const totals = reports.reduce(
+    (result, report) => ({
+      sales2025: roundMoney(result.sales2025 + report.sales2025),
+      sales2026: roundMoney(result.sales2026 + report.sales2026),
+      currentPeriodSales: roundMoney(result.currentPeriodSales + report.currentPeriodSales),
+      passedCount: result.passedCount + Number(report.passed),
+    }),
+    { sales2025: 0, sales2026: 0, currentPeriodSales: 0, passedCount: 0 },
+  );
+  const attainment = totals.sales2025 > 0 ? (totals.sales2026 / totals.sales2025) * 100 : null;
+  return {
+    ...totals,
+    attainment,
+    attainmentLabel: attainment === null ? "—" : formatYearOverYearPercent(attainment),
+  };
+}
+
+function createYearOverYearStat(label, value) {
+  const item = document.createElement("div");
+  item.className = "year-over-year-stat";
+  item.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
+  return item;
+}
+
+function renderYearOverYearCard(report, openDetails) {
+  const card = document.createElement("details");
+  card.className = [
+    "year-over-year-card",
+    report.passed ? "is-passed" : "",
+    !report.hasTarget ? "is-new-customer" : "",
+    report.sourceOnly ? "is-source-only" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  card.open = openDetails;
+
+  const progress = report.hasTarget ? Math.min(100, Math.max(0, report.attainment || 0)) : 0;
+  const comparison = !report.hasTarget
+    ? "לקוח חדש ביחס ל־2025"
+    : report.passed
+      ? `עבר את 2025 ב־${formatPrice(Math.abs(report.delta))}`
+      : `נותרו ${formatPrice(report.remaining)} ליעד 2025`;
+  const sourceStatus = report.sourceOnly
+    ? "נתון היסטורי בלבד — טרם נמצא לקוח תואם במערכת"
+    : report.currentOrderCount
+      ? `${report.currentOrderCount.toLocaleString("he-IL")} הזמנות נוספו מאוגוסט`
+      : "מחובר ללקוח במערכת";
+
+  const summary = document.createElement("summary");
+  summary.className = "year-over-year-summary-row";
+  summary.innerHTML = `
+    <div class="year-over-year-title">
+      <strong>${escapeHtml(report.customerName)}</strong>
+      <span>${escapeHtml([report.customerCode ? `קוד ${report.customerCode}` : "", sourceStatus].filter(Boolean).join(" · "))}</span>
+    </div>
+    <div class="year-over-year-kpi">
+      <strong>${report.hasTarget ? escapeHtml(formatYearOverYearPercent(report.attainment)) : "חדש"}</strong>
+      <span>${escapeHtml(comparison)}</span>
+    </div>
+  `;
+
+  const details = document.createElement("div");
+  details.className = "year-over-year-details";
+  details.innerHTML = `
+    <div class="year-over-year-metrics">
+      ${createYearOverYearMetric("מכר 2025", formatPrice(report.sales2025))}
+      ${createYearOverYearMetric("2026 עד סוף יולי", formatPrice(report.sales2026ThroughJuly))}
+      ${createYearOverYearMetric("נוסף מאוגוסט", formatPrice(report.currentPeriodSales))}
+      ${createYearOverYearMetric("מכר 2026 מצטבר", formatPrice(report.sales2026))}
+    </div>
+    <div class="year-over-year-progress" aria-label="עמידה מול 2025">
+      <span style="width: ${progress.toFixed(2)}%"></span>
+    </div>
+    <p>${escapeHtml(comparison)}</p>
+  `;
+
+  card.append(summary, details);
+  return card;
+}
+
+function createYearOverYearMetric(label, value) {
+  return `<div class="year-over-year-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function formatYearOverYearPercent(value) {
+  const rounded = Math.round((Number(value) || 0) * 10) / 10;
+  return `${rounded.toLocaleString("he-IL", { maximumFractionDigits: 1 })}%`;
+}
+
 function renderMonthlySalesPanel() {
   const reports = getMonthlySalesReports();
   const stats = getMonthlySalesStats(reports);
@@ -13881,6 +14138,7 @@ function hasCloudState(state) {
       (Array.isArray(state.reminders) && state.reminders.length) ||
       (Array.isArray(state.collections) && state.collections.length) ||
       (Array.isArray(state.promotions) && state.promotions.length) ||
+      (Array.isArray(state.customerYearOverYear?.customers) && state.customerYearOverYear.customers.length) ||
       Object.keys(state.annotations || {}).length ||
       Object.keys(state.lastPrices || {}).length ||
       cleanString(state.settings?.whatsappNumber),
@@ -13911,6 +14169,7 @@ function buildSharedState() {
     reminders,
     collections,
     promotions,
+    customerYearOverYear: normalizeCustomerYearOverYear(customerYearOverYear),
     settings: {
       whatsappNumber: settings.whatsappNumber || "",
       monthlySalesAdjustment: normalizeMonthlySalesAdjustment(settings.monthlySalesAdjustment),
@@ -13962,6 +14221,7 @@ function applySharedState(state) {
   reminders = normalizeReminders(state.reminders);
   collections = normalizeCollections(state.collections);
   promotions = normalizePromotions(state.promotions);
+  customerYearOverYear = normalizeCustomerYearOverYear(state.customerYearOverYear);
   const migratedCollectionReminders = migrateCollectionDueDatesToReminders({ sync: false });
 
   settings = {
@@ -14258,6 +14518,52 @@ function normalizePromotions(value) {
     })
     .filter(Boolean)
     .sort((a, b) => Number(b.active) - Number(a.active) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+function normalizeCustomerYearOverYear(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const source = value.source && typeof value.source === "object" ? value.source : {};
+  const seen = new Set();
+  const rows = (Array.isArray(value.customers) ? value.customers : [])
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const customerCode = cleanString(item.customerCode);
+      const customerName = cleanString(item.customerName);
+      const key = customerCode || normalizeSearch(customerName);
+      if (!customerName || !key || seen.has(key)) return null;
+      seen.add(key);
+
+      return {
+        customerCode,
+        customerName,
+        customerId: cleanString(item.customerId),
+        matchedCustomerName: cleanString(item.matchedCustomerName),
+        matchMode: cleanString(item.matchMode),
+        matchScore: Number.isFinite(Number(item.matchScore)) ? Number(item.matchScore) : 0,
+        sales2025: Math.max(0, roundMoney(parsePrice(item.sales2025) ?? 0)),
+        sales2026ThroughJuly: Math.max(0, roundMoney(parsePrice(item.sales2026ThroughJuly) ?? 0)),
+        sourcePage: Math.max(0, Math.floor(Number(item.sourcePage) || 0)),
+      };
+    })
+    .filter(Boolean);
+
+  if (!rows.length) return null;
+
+  return {
+    version: Math.max(1, Math.floor(Number(value.version) || 1)),
+    source: {
+      fileName: cleanString(source.fileName),
+      period2025: cleanString(source.period2025),
+      period2026Baseline: cleanString(source.period2026Baseline),
+      importedAt: cleanString(source.importedAt),
+      customerRowCount: Math.max(0, Math.floor(Number(source.customerRowCount) || rows.length)),
+      calculatedTotals: source.calculatedTotals && typeof source.calculatedTotals === "object" ? source.calculatedTotals : {},
+      printedTotals: source.printedTotals && typeof source.printedTotals === "object" ? source.printedTotals : {},
+    },
+    baselineCutoffDate: normalizeDateInput(value.baselineCutoffDate) || "2026-07-31",
+    customers: rows,
+  };
 }
 
 function normalizePromotionItems(value) {

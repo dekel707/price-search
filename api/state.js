@@ -32,6 +32,7 @@ const EMPTY_STATE = {
   reminders: [],
   collections: [],
   promotions: [],
+  customerYearOverYear: null,
   settings: { whatsappNumber: "", monthlySalesAdjustment: null },
   updatedAt: null,
 };
@@ -84,6 +85,10 @@ export default async function handler(request, response) {
     if (request.method === "POST") {
       const incomingState = await readJsonBody(request);
       const includesPromotions = Object.prototype.hasOwnProperty.call(incomingState && typeof incomingState === "object" ? incomingState : {}, "promotions");
+      const includesCustomerYearOverYear = Object.prototype.hasOwnProperty.call(
+        incomingState && typeof incomingState === "object" ? incomingState : {},
+        "customerYearOverYear",
+      );
       const payload = normalizeState(incomingState);
       payload.updatedAt = new Date().toISOString();
       const expectedVersion = getRequestHeader(request, "x-state-version");
@@ -100,6 +105,11 @@ export default async function handler(request, response) {
         // collection in that case, so an otherwise valid order/customer save
         // from that tab cannot erase configured promotion bundles.
         if (!includesPromotions) payload.promotions = normalizeState(currentDatabaseState.state).promotions;
+        // Preserve the year-over-year source data when an older open browser
+        // tab saves an order without knowing about this isolated report field.
+        if (!includesCustomerYearOverYear) {
+          payload.customerYearOverYear = normalizeState(currentDatabaseState.state).customerYearOverYear;
+        }
         let dailyBackup = null;
         if (hasBlobStorageCredentials()) {
           try {
@@ -193,6 +203,7 @@ export default async function handler(request, response) {
         currentPayload = normalizeState(JSON.parse(await streamToText(currentStored.stream)));
         payload.settings = mergeStateSettings(currentPayload.settings, payload.settings);
         if (!includesPromotions) payload.promotions = currentPayload.promotions;
+        if (!includesCustomerYearOverYear) payload.customerYearOverYear = currentPayload.customerYearOverYear;
       }
 
       const blockedOrderRemovals = currentState
@@ -421,6 +432,10 @@ function normalizeState(value) {
     reminders: Array.isArray(state.reminders) ? state.reminders : [],
     collections: Array.isArray(state.collections) ? state.collections : [],
     promotions: Array.isArray(state.promotions) ? state.promotions : [],
+    customerYearOverYear:
+      state.customerYearOverYear && typeof state.customerYearOverYear === "object" && !Array.isArray(state.customerYearOverYear)
+        ? state.customerYearOverYear
+        : null,
     settings: {
       ...EMPTY_STATE.settings,
       ...(state.settings && typeof state.settings === "object" ? state.settings : {}),
