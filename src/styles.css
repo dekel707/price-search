@@ -7787,6 +7787,107 @@ body {
   white-space: nowrap;
 }
 
+.year-over-year-lost-revenue {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(242, 117, 127, 0.35);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(242, 117, 127, 0.1), transparent 45%),
+    rgba(28, 10, 16, 0.5);
+}
+
+.year-over-year-lost-revenue-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(242, 151, 159, 0.21);
+}
+
+.year-over-year-lost-revenue-heading .eyebrow {
+  margin: 0 0 3px;
+  color: #ffa8b0;
+  font-size: 0.68rem;
+}
+
+.year-over-year-lost-revenue-heading h3 {
+  margin: 0;
+  color: #ffe6e8;
+  font-size: 1rem;
+}
+
+.year-over-year-lost-revenue-heading > span {
+  color: #f6afb6;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.4;
+  text-align: end;
+}
+
+.year-over-year-lost-revenue-intro {
+  margin: -2px 0 0;
+  color: #c7aab0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.year-over-year-lost-revenue-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.year-over-year-lost-revenue-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(242, 117, 127, 0.29);
+  border-inline-start: 3px solid #f2757f;
+  border-radius: 10px;
+  background: rgba(40, 12, 20, 0.47);
+}
+
+.year-over-year-lost-revenue-customer,
+.year-over-year-lost-revenue-value {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.year-over-year-lost-revenue-customer strong {
+  overflow: hidden;
+  color: #fff0f1;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.year-over-year-lost-revenue-customer span,
+.year-over-year-lost-revenue-value span,
+.year-over-year-lost-revenue-value small {
+  color: #c4a7ac;
+  font-size: 0.65rem;
+  line-height: 1.35;
+}
+
+.year-over-year-lost-revenue-value {
+  justify-items: end;
+  text-align: end;
+}
+
+.year-over-year-lost-revenue-value strong {
+  color: #ffb2ba;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
 .year-over-year-insight-row {
   display: grid;
   grid-template-columns: minmax(150px, 1.15fr) minmax(94px, 0.72fr) minmax(130px, 0.92fr) minmax(125px, 0.86fr) minmax(160px, 1.1fr);
@@ -8130,6 +8231,39 @@ body {
   }
 
   .year-over-year-new-revenue-value {
+    justify-items: start;
+    text-align: start;
+  }
+
+  .year-over-year-lost-revenue {
+    padding: 10px;
+  }
+
+  .year-over-year-lost-revenue-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .year-over-year-lost-revenue-heading h3 {
+    font-size: 0.89rem;
+  }
+
+  .year-over-year-lost-revenue-heading > span {
+    font-size: 0.66rem;
+    text-align: start;
+  }
+
+  .year-over-year-lost-revenue-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .year-over-year-lost-revenue-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .year-over-year-lost-revenue-value {
     justify-items: start;
     text-align: start;
   }

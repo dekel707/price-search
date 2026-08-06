@@ -391,6 +391,8 @@ const dom = {
   yearOverYearInsights: document.querySelector("#yearOverYearInsights"),
   yearOverYearNewRevenueSummary: document.querySelector("#yearOverYearNewRevenueSummary"),
   yearOverYearNewRevenueList: document.querySelector("#yearOverYearNewRevenueList"),
+  yearOverYearLostRevenueSummary: document.querySelector("#yearOverYearLostRevenueSummary"),
+  yearOverYearLostRevenueList: document.querySelector("#yearOverYearLostRevenueList"),
   yearOverYearList: document.querySelector("#yearOverYearList"),
   monthlySalesSummary: document.querySelector("#monthlySalesSummary"),
   monthlySalesStats: document.querySelector("#monthlySalesStats"),
@@ -9280,6 +9282,8 @@ function renderYearOverYearPanel() {
     dom.yearOverYearInsights.replaceChildren(emptyState("מוקדי תשומת לב יופיעו לאחר טעינת נתוני המקור."));
     dom.yearOverYearNewRevenueSummary.textContent = "אין נתונים";
     dom.yearOverYearNewRevenueList.replaceChildren(emptyState("לקוחות עם כסף חדש יופיעו לאחר טעינת נתוני המקור."));
+    dom.yearOverYearLostRevenueSummary.textContent = "אין נתונים";
+    dom.yearOverYearLostRevenueList.replaceChildren(emptyState("לקוחות עם ירידה חריגה יופיעו לאחר טעינת נתוני המקור."));
     dom.yearOverYearList.replaceChildren(emptyState("אין עדיין נתונים להצגה."));
     return;
   }
@@ -9289,6 +9293,7 @@ function renderYearOverYearPanel() {
   dom.yearOverYearPaceLabel.textContent = `נכון ל־${formatYearOverYearDate(reportData.pace.toDate)} · חלפו ${formatYearOverYearPercent(reportData.pace.elapsedPercent)} מהשנה`;
   renderYearOverYearInsights(reports, reportData.pace);
   renderYearOverYearNewRevenue(reports);
+  renderYearOverYearLostRevenue(reports);
 
   if (!reports.length) {
     dom.yearOverYearList.replaceChildren(emptyState("לא נמצאו לקוחות מתאימים."));
@@ -9377,6 +9382,8 @@ function getYearOverYearReports() {
       const sales2026 = roundMoney(report.sales2026ThroughJuly + report.currentPeriodSales);
       const hasTarget = report.sales2025 > 0;
       const attainment = hasTarget ? (sales2026 / report.sales2025) * 100 : null;
+      const salesDeclinePercent = hasTarget ? Math.max(0, 100 - attainment) : null;
+      const lostRevenue = hasTarget ? Math.max(0, roundMoney(report.sales2025 - sales2026)) : 0;
       const passed = Boolean(hasTarget && sales2026 >= report.sales2025);
       const expectedSalesAtPace = hasTarget ? roundMoney(report.sales2025 * (pace.elapsedPercent / 100)) : 0;
       const paceGapAmount = hasTarget ? roundMoney(sales2026 - expectedSalesAtPace) : 0;
@@ -9391,7 +9398,10 @@ function getYearOverYearReports() {
         sales2026,
         hasTarget,
         isNewRevenueCustomer: !hasTarget && sales2026 > 0,
+        isLostRevenueCustomer: Boolean(hasTarget && sales2026 <= report.sales2025 * 0.1),
         attainment,
+        salesDeclinePercent,
+        lostRevenue,
         passed,
         expectedSalesAtPace,
         paceGapAmount,
@@ -9568,6 +9578,49 @@ function renderYearOverYearNewRevenueCard(report) {
       <span>מכר חדש ב־2026</span>
       <strong>${escapeHtml(formatPrice(report.sales2026))}</strong>
       <small>${escapeHtml(`2025: ללא מכר${recentSales}`)}</small>
+    </div>
+  `;
+  return card;
+}
+
+function renderYearOverYearLostRevenue(reports) {
+  const lostRevenueReports = reports
+    .filter((report) => report.isLostRevenueCustomer)
+    .sort(
+      (left, right) =>
+        right.lostRevenue - left.lostRevenue ||
+        right.sales2025 - left.sales2025 ||
+        left.customerName.localeCompare(right.customerName, "he"),
+    );
+  const totalLostRevenue = roundMoney(lostRevenueReports.reduce((total, report) => total + report.lostRevenue, 0));
+
+  dom.yearOverYearLostRevenueSummary.textContent = lostRevenueReports.length
+    ? `${lostRevenueReports.length.toLocaleString("he-IL")} לקוחות · ${formatPrice(totalLostRevenue)} בירידה`
+    : "אין ירידה של 90%+";
+
+  if (!lostRevenueReports.length) {
+    dom.yearOverYearLostRevenueList.replaceChildren(emptyState("אין כרגע לקוחות עם ירידה של 90% ומעלה."));
+    return;
+  }
+
+  dom.yearOverYearLostRevenueList.replaceChildren(
+    ...lostRevenueReports.map((report) => renderYearOverYearLostRevenueCard(report)),
+  );
+}
+
+function renderYearOverYearLostRevenueCard(report) {
+  const card = document.createElement("article");
+  card.className = "year-over-year-lost-revenue-card";
+
+  card.innerHTML = `
+    <div class="year-over-year-lost-revenue-customer">
+      <strong>${escapeHtml(report.customerName)}</strong>
+      <span>${escapeHtml(report.customerCode ? `קוד ${report.customerCode}` : "ללא קוד לקוח")}</span>
+    </div>
+    <div class="year-over-year-lost-revenue-value">
+      <span>ירידה של ${escapeHtml(formatYearOverYearPercent(report.salesDeclinePercent))}</span>
+      <strong>${escapeHtml(formatPrice(report.lostRevenue))}</strong>
+      <small>${escapeHtml(`2025: ${formatPrice(report.sales2025)} · 2026: ${formatPrice(report.sales2026)}`)}</small>
     </div>
   `;
   return card;
