@@ -7602,7 +7602,7 @@ body {
 
 .year-over-year-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -7615,6 +7615,16 @@ body {
   border: 1px solid rgba(101, 217, 200, 0.2);
   border-radius: 12px;
   background: linear-gradient(145deg, rgba(18, 37, 49, 0.88), rgba(8, 18, 28, 0.86));
+}
+
+.year-over-year-stat.is-new-revenue {
+  border-color: rgba(87, 212, 146, 0.48);
+  background: linear-gradient(145deg, rgba(21, 75, 57, 0.62), rgba(8, 28, 25, 0.9));
+}
+
+.year-over-year-stat.is-lost-revenue {
+  border-color: rgba(242, 117, 127, 0.5);
+  background: linear-gradient(145deg, rgba(81, 29, 42, 0.65), rgba(33, 12, 20, 0.9));
 }
 
 .year-over-year-stat span,
@@ -7632,6 +7642,14 @@ body {
 .year-over-year-stat strong {
   color: #edf8fb;
   font-size: 1.05rem;
+}
+
+.year-over-year-stat.is-new-revenue strong {
+  color: #a5f3c6;
+}
+
+.year-over-year-stat.is-lost-revenue strong {
+  color: #ffb7be;
 }
 
 .year-over-year-status {

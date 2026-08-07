@@ -9275,6 +9275,16 @@ function renderYearOverYearPanel() {
     createYearOverYearStat("עברו את 2025", stats.passedCount.toLocaleString("he-IL")),
     createYearOverYearStat("עמידה מצטברת", stats.attainmentLabel),
     createYearOverYearStat("נוסף מאוגוסט", formatPrice(stats.currentPeriodSales)),
+    createYearOverYearStat(
+      `כסף חדש · ${stats.newRevenueCount.toLocaleString("he-IL")} לקוחות`,
+      formatPrice(stats.newRevenueTotal),
+      "is-new-revenue",
+    ),
+    createYearOverYearStat(
+      `כסף שהלך · ${stats.lostRevenueCount.toLocaleString("he-IL")} לקוחות`,
+      formatPrice(stats.lostRevenueTotal),
+      "is-lost-revenue",
+    ),
   );
 
   if (!reportData.config) {
@@ -9529,8 +9539,21 @@ function getYearOverYearStats(reports) {
       sales2026: roundMoney(result.sales2026 + report.sales2026),
       currentPeriodSales: roundMoney(result.currentPeriodSales + report.currentPeriodSales),
       passedCount: result.passedCount + Number(report.passed),
+      newRevenueCount: result.newRevenueCount + Number(report.isNewRevenueCustomer),
+      newRevenueTotal: roundMoney(result.newRevenueTotal + (report.isNewRevenueCustomer ? report.sales2026 : 0)),
+      lostRevenueCount: result.lostRevenueCount + Number(report.isLostRevenueCustomer),
+      lostRevenueTotal: roundMoney(result.lostRevenueTotal + (report.isLostRevenueCustomer ? report.lostRevenue : 0)),
     }),
-    { sales2025: 0, sales2026: 0, currentPeriodSales: 0, passedCount: 0 },
+    {
+      sales2025: 0,
+      sales2026: 0,
+      currentPeriodSales: 0,
+      passedCount: 0,
+      newRevenueCount: 0,
+      newRevenueTotal: 0,
+      lostRevenueCount: 0,
+      lostRevenueTotal: 0,
+    },
   );
   const attainment = totals.sales2025 > 0 ? (totals.sales2026 / totals.sales2025) * 100 : null;
   return {
@@ -9540,9 +9563,9 @@ function getYearOverYearStats(reports) {
   };
 }
 
-function createYearOverYearStat(label, value) {
+function createYearOverYearStat(label, value, tone = "") {
   const item = document.createElement("div");
-  item.className = "year-over-year-stat";
+  item.className = ["year-over-year-stat", tone].filter(Boolean).join(" ");
   item.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
   return item;
 }
