@@ -9281,7 +9281,7 @@ function renderYearOverYearPanel() {
       "is-new-revenue",
     ),
     createYearOverYearStat(
-      `כסף שהלך · ${stats.lostRevenueCount.toLocaleString("he-IL")} לקוחות`,
+      `כסף בירידה · ${stats.lostRevenueCount.toLocaleString("he-IL")} לקוחות`,
       formatPrice(stats.lostRevenueTotal),
       "is-lost-revenue",
     ),
