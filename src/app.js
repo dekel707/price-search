@@ -8089,6 +8089,7 @@ function renderDashboard() {
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
     dashboardMoneyStat("מכירות החודש", monthRevenueAdjustment.grossValue, "sales", "month"),
     dashboardMonthlyGoalStat(monthRevenueAdjustment.grossValue),
+    dashboardMonthlySalesPaceStat(todayKey),
     dashboardStat("הזמנות החודש", monthOrders.length.toLocaleString("he-IL"), "orders"),
     dashboardMoneyStat("מכירות השנה", yearRevenue, "lifetime", "year"),
     dashboardStat("שווי השריון", formatPrice(activeReservationValue), "reservations"),
@@ -8834,6 +8835,49 @@ function dashboardMonthlyGoalStat(grossValue) {
   `;
 }
 
+// A sales day is Sunday through Thursday. The active day is deliberately not
+// counted until the next Israel midnight, so the pace card never treats a
+// partially completed day as if it has already finished.
+function getMonthlySalesDayPace(todayKey) {
+  const [year, month, day] = cleanString(todayKey)
+    .split("-")
+    .map((value) => Number(value));
+  if (![year, month, day].every(Number.isInteger)) {
+    return { completedDays: 0, totalDays: 0, expectedGoalProgress: 0, expectedGoalValue: 0 };
+  }
+
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const isSalesDay = (dayOfWeek) => dayOfWeek >= 0 && dayOfWeek <= 4;
+  let totalDays = 0;
+  let completedDays = 0;
+
+  for (let calendarDay = 1; calendarDay <= daysInMonth; calendarDay += 1) {
+    const dayOfWeek = new Date(Date.UTC(year, month - 1, calendarDay)).getUTCDay();
+    if (!isSalesDay(dayOfWeek)) continue;
+    totalDays += 1;
+    if (calendarDay < day) completedDays += 1;
+  }
+
+  const expectedGoalProgress = totalDays ? roundMoney((completedDays / totalDays) * 100) : 0;
+  const expectedGoalValue = roundMoney((MONTHLY_SALES_GOAL_EX_VAT * expectedGoalProgress) / 100);
+  return { completedDays, totalDays, expectedGoalProgress, expectedGoalValue };
+}
+
+function dashboardMonthlySalesPaceStat(todayKey) {
+  const pace = getMonthlySalesDayPace(todayKey);
+  const dayLabel = `${pace.completedDays.toLocaleString("he-IL")} מתוך ${pace.totalDays.toLocaleString("he-IL")} ימי מכירה`;
+  const progressLabel = `${pace.expectedGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
+  const details = `היום נספר רק בחצות · קצב יעד: ${progressLabel} · ${formatPrice(pace.expectedGoalValue)} ללא מע״מ`;
+
+  return `
+    <div class="dashboard-stat sales-pace dashboard-goal-stat dashboard-sales-pace-stat">
+      ${dashboardStatHeading("קצב יעד החודש", "sales-pace")}
+      <strong>${escapeHtml(dayLabel)}</strong>
+      <small class="dashboard-goal-details">${escapeHtml(details)}</small>
+    </div>
+  `;
+}
+
 function dashboardInsight(label, value, icon) {
   return `
     <div class="dashboard-insight">
@@ -8863,6 +8907,7 @@ function getDashboardIconName(tone) {
     "today-sales": "bolt",
     sales: "trend",
     "sales-goal": "target",
+    "sales-pace": "calendar",
     orders: "receipt",
     lifetime: "chart",
     reservations: "reservations",

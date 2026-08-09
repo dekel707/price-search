@@ -476,6 +476,8 @@ h2 {
 .dashboard-stat.sales strong { color: #7ce7d3; }
 .dashboard-stat.sales-goal { border-color: rgba(45, 212, 191, 0.62); }
 .dashboard-stat.sales-goal strong { color: #8cf5df; }
+.dashboard-stat.sales-pace { border-color: rgba(112, 214, 243, 0.56); }
+.dashboard-stat.sales-pace strong { color: #a7eafb; }
 .dashboard-goal-details {
   display: grid;
   gap: 2px;
@@ -5898,6 +5900,7 @@ body {
 .dashboard-stat.today-sales,
 .dashboard-stat.sales { --dashboard-icon: #2fd7c1; --dashboard-icon-wash: rgba(47, 215, 193, 0.13); }
 .dashboard-stat.sales-goal { --dashboard-icon: #77e4d1; --dashboard-icon-wash: rgba(119, 228, 209, 0.16); }
+.dashboard-stat.sales-pace { --dashboard-icon: #86d7f5; --dashboard-icon-wash: rgba(134, 215, 245, 0.15); }
 .dashboard-stat.orders { --dashboard-icon: #f5c960; --dashboard-icon-wash: rgba(245, 201, 96, 0.13); }
 .dashboard-stat.lifetime { --dashboard-icon: #6dc7ff; --dashboard-icon-wash: rgba(109, 199, 255, 0.13); }
 .dashboard-stat.reservations { --dashboard-icon: #b29bff; --dashboard-icon-wash: rgba(178, 155, 255, 0.13); }
@@ -6713,33 +6716,39 @@ body {
 /* The monthly target has one extra line of context, so give it its own compact
    three-row layout instead of forcing the percentage and target text to compete
    for the same dashboard grid row. */
-.dashboard-goal-stat {
+.dashboard-goal-stat,
+.dashboard-sales-pace-stat {
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 6px;
 }
 
-.dashboard-goal-stat > strong {
+.dashboard-goal-stat > strong,
+.dashboard-sales-pace-stat > strong {
   align-self: center;
   line-height: 1;
 }
 
-.dashboard-goal-stat .dashboard-goal-details {
+.dashboard-goal-stat .dashboard-goal-details,
+.dashboard-sales-pace-stat .dashboard-goal-details {
   align-self: end;
   direction: rtl;
   white-space: nowrap;
 }
 
 @media (max-width: 719px) {
-  .dashboard-goal-stat {
+  .dashboard-goal-stat,
+  .dashboard-sales-pace-stat {
     gap: 5px;
     padding: 11px;
   }
 
-  .dashboard-goal-stat > strong {
+  .dashboard-goal-stat > strong,
+  .dashboard-sales-pace-stat > strong {
     font-size: 1.04rem;
   }
 
-  .dashboard-goal-stat .dashboard-goal-details {
+  .dashboard-goal-stat .dashboard-goal-details,
+  .dashboard-sales-pace-stat .dashboard-goal-details {
     font-size: 0.61rem;
     letter-spacing: -0.01em;
   }
