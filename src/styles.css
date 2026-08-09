@@ -6716,41 +6716,72 @@ body {
 /* The monthly target has one extra line of context, so give it its own compact
    three-row layout instead of forcing the percentage and target text to compete
    for the same dashboard grid row. */
-.dashboard-goal-stat,
-.dashboard-sales-pace-stat {
+.dashboard-goal-stat {
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 6px;
 }
 
-.dashboard-goal-stat > strong,
-.dashboard-sales-pace-stat > strong {
+.dashboard-goal-stat > strong {
   align-self: center;
   line-height: 1;
 }
 
-.dashboard-goal-stat .dashboard-goal-details,
-.dashboard-sales-pace-stat .dashboard-goal-details {
+.dashboard-goal-stat .dashboard-goal-details {
   align-self: end;
   direction: rtl;
   white-space: nowrap;
 }
 
+/* The workday pace card stays intentionally short: one ratio and one percent.
+   This keeps the same compact shape on desktop and on small mobile screens. */
+.dashboard-sales-pace-stat {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 7px;
+}
+
+.dashboard-sales-pace-stat > strong {
+  align-self: center;
+  color: #b7f0ff;
+  font-size: clamp(1.18rem, 1.8vw, 1.48rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.dashboard-pace-details {
+  align-self: end;
+  color: #9ecfe0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 @media (max-width: 719px) {
-  .dashboard-goal-stat,
-  .dashboard-sales-pace-stat {
+  .dashboard-goal-stat {
     gap: 5px;
     padding: 11px;
   }
 
-  .dashboard-goal-stat > strong,
-  .dashboard-sales-pace-stat > strong {
+  .dashboard-goal-stat > strong {
     font-size: 1.04rem;
   }
 
-  .dashboard-goal-stat .dashboard-goal-details,
-  .dashboard-sales-pace-stat .dashboard-goal-details {
+  .dashboard-goal-stat .dashboard-goal-details {
     font-size: 0.61rem;
     letter-spacing: -0.01em;
+  }
+
+  .dashboard-sales-pace-stat {
+    gap: 6px;
+    padding: 11px;
+  }
+
+  .dashboard-sales-pace-stat > strong {
+    font-size: 1.12rem;
+  }
+
+  .dashboard-pace-details {
+    font-size: 0.64rem;
   }
 }
 

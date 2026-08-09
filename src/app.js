@@ -8843,7 +8843,7 @@ function getMonthlySalesDayPace(todayKey) {
     .split("-")
     .map((value) => Number(value));
   if (![year, month, day].every(Number.isInteger)) {
-    return { completedDays: 0, totalDays: 0, expectedGoalProgress: 0, expectedGoalValue: 0 };
+    return { completedDays: 0, totalDays: 0, expectedGoalProgress: 0 };
   }
 
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -8859,21 +8859,20 @@ function getMonthlySalesDayPace(todayKey) {
   }
 
   const expectedGoalProgress = totalDays ? roundMoney((completedDays / totalDays) * 100) : 0;
-  const expectedGoalValue = roundMoney((MONTHLY_SALES_GOAL_EX_VAT * expectedGoalProgress) / 100);
-  return { completedDays, totalDays, expectedGoalProgress, expectedGoalValue };
+  return { completedDays, totalDays, expectedGoalProgress };
 }
 
 function dashboardMonthlySalesPaceStat(todayKey) {
   const pace = getMonthlySalesDayPace(todayKey);
-  const dayLabel = `${pace.completedDays.toLocaleString("he-IL")} מתוך ${pace.totalDays.toLocaleString("he-IL")} ימי מכירה`;
+  const dayLabel = `${pace.completedDays.toLocaleString("he-IL")}/${pace.totalDays.toLocaleString("he-IL")} ימי עבודה`;
   const progressLabel = `${pace.expectedGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
-  const details = `היום נספר רק בחצות · קצב יעד: ${progressLabel} · ${formatPrice(pace.expectedGoalValue)} ללא מע״מ`;
+  const details = `קצב יעד עד היום: ${progressLabel}`;
 
   return `
-    <div class="dashboard-stat sales-pace dashboard-goal-stat dashboard-sales-pace-stat">
-      ${dashboardStatHeading("קצב יעד החודש", "sales-pace")}
+    <div class="dashboard-stat sales-pace dashboard-sales-pace-stat">
+      ${dashboardStatHeading("ימי עבודה החודש", "sales-pace")}
       <strong>${escapeHtml(dayLabel)}</strong>
-      <small class="dashboard-goal-details">${escapeHtml(details)}</small>
+      <small class="dashboard-pace-details">${escapeHtml(details)}</small>
     </div>
   `;
 }
