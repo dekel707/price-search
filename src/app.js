@@ -8843,7 +8843,7 @@ function getMonthlySalesDayPace(todayKey) {
     .split("-")
     .map((value) => Number(value));
   if (![year, month, day].every(Number.isInteger)) {
-    return { completedDays: 0, totalDays: 0, expectedGoalProgress: 0 };
+    return { completedDays: 0, totalDays: 0 };
   }
 
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -8858,8 +8858,7 @@ function getMonthlySalesDayPace(todayKey) {
     if (calendarDay < day) completedDays += 1;
   }
 
-  const expectedGoalProgress = totalDays ? roundMoney((completedDays / totalDays) * 100) : 0;
-  return { completedDays, totalDays, expectedGoalProgress };
+  return { completedDays, totalDays };
 }
 
 function dashboardMonthlySalesPaceStat(todayKey, grossValue) {
@@ -8869,14 +8868,18 @@ function dashboardMonthlySalesPaceStat(todayKey, grossValue) {
   // portion updates with every qualifying order; only the workday counter is
   // held until Israel midnight.
   const netValue = roundMoney(grossValue / (1 + VAT_RATE));
-  const actualGoalProgress = MONTHLY_SALES_GOAL_EX_VAT > 0 ? roundMoney((netValue / MONTHLY_SALES_GOAL_EX_VAT) * 100) : 0;
-  const actualLabel = `${actualGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
-  const expectedLabel = `${pace.expectedGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
-  const details = `עמידה: ${actualLabel} · נדרש: ${expectedLabel}`;
+  const projectedGoalProgress =
+    pace.completedDays > 0 && pace.totalDays > 0 && MONTHLY_SALES_GOAL_EX_VAT > 0
+      ? roundMoney(((netValue / pace.completedDays) * pace.totalDays * 100) / MONTHLY_SALES_GOAL_EX_VAT)
+      : 0;
+  const projectedLabel = `${projectedGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
+  const details = pace.completedDays
+    ? `קצב נוכחי: ${projectedLabel} מהיעד`
+    : "הקצב יחושב לאחר סיום יום מכירה ראשון";
 
   return `
     <div class="dashboard-stat sales-pace dashboard-sales-pace-stat">
-      ${dashboardStatHeading("ימי עבודה החודש", "sales-pace")}
+      ${dashboardStatHeading("קצב יעד החודש", "sales-pace")}
       <strong>${escapeHtml(dayLabel)}</strong>
       <small class="dashboard-pace-details">${escapeHtml(details)}</small>
     </div>
