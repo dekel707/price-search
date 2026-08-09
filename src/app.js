@@ -8089,7 +8089,7 @@ function renderDashboard() {
     dashboardMoneyStat("מכירות היום", todayRevenue, "today-sales", "today"),
     dashboardMoneyStat("מכירות החודש", monthRevenueAdjustment.grossValue, "sales", "month"),
     dashboardMonthlyGoalStat(monthRevenueAdjustment.grossValue),
-    dashboardMonthlySalesPaceStat(todayKey),
+    dashboardMonthlySalesPaceStat(todayKey, monthRevenueAdjustment.grossValue),
     dashboardStat("הזמנות החודש", monthOrders.length.toLocaleString("he-IL"), "orders"),
     dashboardMoneyStat("מכירות השנה", yearRevenue, "lifetime", "year"),
     dashboardStat("שווי השריון", formatPrice(activeReservationValue), "reservations"),
@@ -8862,11 +8862,17 @@ function getMonthlySalesDayPace(todayKey) {
   return { completedDays, totalDays, expectedGoalProgress };
 }
 
-function dashboardMonthlySalesPaceStat(todayKey) {
+function dashboardMonthlySalesPaceStat(todayKey, grossValue) {
   const pace = getMonthlySalesDayPace(todayKey);
   const dayLabel = `${pace.completedDays.toLocaleString("he-IL")}/${pace.totalDays.toLocaleString("he-IL")} ימי עבודה`;
-  const progressLabel = `${pace.expectedGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
-  const details = `קצב יעד עד היום: ${progressLabel}`;
+  // Use the exact same net monthly sales basis as the monthly-goal card. This
+  // portion updates with every qualifying order; only the workday counter is
+  // held until Israel midnight.
+  const netValue = roundMoney(grossValue / (1 + VAT_RATE));
+  const actualGoalProgress = MONTHLY_SALES_GOAL_EX_VAT > 0 ? roundMoney((netValue / MONTHLY_SALES_GOAL_EX_VAT) * 100) : 0;
+  const actualLabel = `${actualGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
+  const expectedLabel = `${pace.expectedGoalProgress.toLocaleString("he-IL", { maximumFractionDigits: 2 })}%`;
+  const details = `עמידה: ${actualLabel} · נדרש: ${expectedLabel}`;
 
   return `
     <div class="dashboard-stat sales-pace dashboard-sales-pace-stat">
