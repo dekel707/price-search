@@ -232,6 +232,12 @@ const dom = {
   tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
   searchInput: document.querySelector("#searchInput"),
   clearSearch: document.querySelector("#clearSearch"),
+  stockManagerSearch: document.querySelector("#stockManagerSearch"),
+  stockManagerCategory: document.querySelector("#stockManagerCategory"),
+  stockManagerAvailability: document.querySelector("#stockManagerAvailability"),
+  stockManagerSummary: document.querySelector("#stockManagerSummary"),
+  stockManagerStatus: document.querySelector("#stockManagerStatus"),
+  stockManagerList: document.querySelector("#stockManagerList"),
   advancedSearchInput: document.querySelector("#advancedSearchInput"),
   advancedClearSearch: document.querySelector("#advancedClearSearch"),
   advancedCategoryFilters: document.querySelector("#advancedCategoryFilters"),
@@ -780,6 +786,28 @@ function bindEvents() {
   });
   dom.searchInput.addEventListener("input", scheduleProductSearchRender);
   dom.categoryFilter.addEventListener("change", renderProductSearchResults);
+  dom.stockManagerSearch.addEventListener("input", renderStockManagerPanel);
+  dom.stockManagerCategory.addEventListener("change", renderStockManagerPanel);
+  dom.stockManagerAvailability.addEventListener("change", renderStockManagerPanel);
+  dom.stockManagerList.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-stock-quantity]");
+    if (!input) return;
+    const product = products.find((item) => item.skuKey === input.dataset.stockQuantity);
+    const nextQuantity = parseStockQuantity(input.value);
+    const changed = nextQuantity === null || nextQuantity !== Number(product?.stockQuantity);
+    input.closest(".stock-manager-row")?.classList.toggle("is-dirty", changed);
+  });
+  dom.stockManagerList.addEventListener("keydown", (event) => {
+    const input = event.target.closest("[data-stock-quantity]");
+    if (!input || event.key !== "Enter") return;
+    event.preventDefault();
+    saveManualStockQuantity(input.dataset.stockQuantity);
+  });
+  dom.stockManagerList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-save-stock-quantity]");
+    if (!button) return;
+    saveManualStockQuantity(button.dataset.saveStockQuantity);
+  });
   dom.advancedSearchInput.addEventListener("input", () => {
     advancedSearchProximityOverride = null;
     scheduleAdvancedSearchRender();
@@ -2744,6 +2772,7 @@ function ensureGeneralProduct(items) {
 
 function render() {
   renderTabs();
+  if (activeTab === "stock-manager") renderStockManagerPanel();
   if (activeTab === "advanced-search") renderAdvancedSearch();
   renderMetadata();
   renderCategoryControls();
@@ -2831,6 +2860,7 @@ function setActiveTab(tab) {
   localStorage.setItem(ACTIVE_TAB_KEY, JSON.stringify(activeTab));
   renderTabs();
   renderFloatingCart();
+  if (tab === "stock-manager") renderStockManagerPanel();
   if (tab === "advanced-search") renderAdvancedSearch();
   if (tab === "promotions") renderPromotionsPanel();
   if (tab === "customer-year-over-year") renderYearOverYearPanel();
@@ -3024,6 +3054,143 @@ function renderCategoryProductManager() {
     return row;
   });
   dom.categoryProductsList.replaceChildren(...nodes, ...rows);
+}
+
+function getStockManagerAvailability(product) {
+  if (!hasStockQuantity(product)) return "missing";
+  const quantity = Number(product.stockQuantity);
+  if (quantity <= 0) return "zero";
+  if (quantity < 10) return "low";
+  return "positive";
+}
+
+function getStockManagerAvailabilityLabel(availability) {
+  return {
+    positive: "במלאי",
+    low: "מלאי נמוך",
+    zero: "אזל מהמלאי",
+    missing: "ללא כמות",
+  }[availability] || "לא ידוע";
+}
+
+function renderStockManagerPanel() {
+  if (!dom.stockManagerList) return;
+
+  const query = normalizeSearch(dom.stockManagerSearch.value);
+  const selectedCategory = dom.stockManagerCategory.value;
+  const selectedAvailability = dom.stockManagerAvailability.value || "all";
+  const categoryCounts = getCategoryCounts();
+  const knownQuantityCount = products.filter(hasStockQuantity).length;
+  const zeroCount = products.filter((product) => getStockManagerAvailability(product) === "zero").length;
+  const lowCount = products.filter((product) => getStockManagerAvailability(product) === "low").length;
+
+  dom.stockManagerSummary.textContent = `${knownQuantityCount.toLocaleString("he-IL")} מתוך ${products.length.toLocaleString("he-IL")} עם כמות`;
+
+  dom.stockManagerCategory.replaceChildren(createOption("", "כל הקטגוריות", !selectedCategory));
+  categories.forEach((category) => {
+    const count = categoryCounts.get(category) || 0;
+    dom.stockManagerCategory.append(createOption(category, count ? `${category} · ${count}` : category, selectedCategory === category));
+  });
+
+  const visibleProducts = products
+    .filter((product) => {
+      const annotation = getAnnotation(product);
+      if (selectedCategory && annotation.category !== selectedCategory) return false;
+      if (selectedAvailability !== "all" && getStockManagerAvailability(product) !== selectedAvailability) return false;
+      if (!query) return true;
+      return normalizeSearch(`${product.searchText} ${annotation.category} ${formatStockQuantity(product)}`).includes(query);
+    })
+    .sort((left, right) => {
+      const categoryComparison = getAnnotation(left).category.localeCompare(getAnnotation(right).category, "he");
+      return categoryComparison || (left.sku || left.description).localeCompare(right.sku || right.description, "he");
+    });
+
+  dom.stockManagerStatus.textContent = `${visibleProducts.length.toLocaleString("he-IL")} מוצרים מוצגים · ${lowCount.toLocaleString("he-IL")} במלאי נמוך · ${zeroCount.toLocaleString("he-IL")} אזלו מהמלאי`;
+
+  if (!visibleProducts.length) {
+    dom.stockManagerList.replaceChildren(emptyState("לא נמצאו מוצרים לפי הסינון שבחרת."));
+    return;
+  }
+
+  const rows = visibleProducts.map((product) => {
+    const annotation = getAnnotation(product);
+    const availability = getStockManagerAvailability(product);
+    const row = document.createElement("article");
+    row.className = `stock-manager-row stock-manager-${availability}`;
+
+    const details = document.createElement("div");
+    details.className = "stock-manager-details";
+    const sku = document.createElement("strong");
+    sku.textContent = product.sku || "ללא מק״ט";
+    const description = document.createElement("span");
+    description.textContent = product.description || "ללא תיאור";
+    const meta = document.createElement("div");
+    meta.className = "stock-manager-meta";
+    if (annotation.category) {
+      const category = document.createElement("small");
+      category.textContent = annotation.category;
+      meta.append(category);
+    }
+    const availabilityLabel = document.createElement("small");
+    availabilityLabel.className = `stock-manager-availability ${availability}`;
+    availabilityLabel.textContent = getStockManagerAvailabilityLabel(availability);
+    meta.append(availabilityLabel);
+    details.append(sku, description, meta);
+
+    const quantityField = document.createElement("label");
+    quantityField.className = "stock-manager-quantity";
+    const quantityLabel = document.createElement("span");
+    quantityLabel.textContent = "כמות במלאי";
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.step = "1";
+    input.inputMode = "numeric";
+    input.autocomplete = "off";
+    input.placeholder = "לא הוזן";
+    input.value = hasStockQuantity(product) ? String(Number(product.stockQuantity)) : "";
+    input.dataset.stockQuantity = product.skuKey;
+    input.setAttribute("aria-label", `כמות במלאי עבור ${product.sku || product.description}`);
+    quantityField.append(quantityLabel, input);
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "secondary-button stock-manager-save";
+    saveButton.dataset.saveStockQuantity = product.skuKey;
+    saveButton.textContent = "שמור כמות";
+
+    row.append(details, quantityField, saveButton);
+    return row;
+  });
+
+  dom.stockManagerList.replaceChildren(...rows);
+}
+
+function saveManualStockQuantity(productKey) {
+  const product = products.find((item) => item.skuKey === productKey);
+  const input = dom.stockManagerList.querySelector(`[data-stock-quantity="${CSS.escape(productKey)}"]`);
+  if (!product || !input) return;
+
+  const quantity = parseStockQuantity(input.value);
+  if (quantity === null) {
+    dom.stockManagerStatus.textContent = "יש להזין כמות שלמה מאפס ומעלה לפני השמירה.";
+    input.focus();
+    return;
+  }
+
+  if (hasStockQuantity(product) && Number(product.stockQuantity) === quantity) {
+    input.closest(".stock-manager-row")?.classList.remove("is-dirty");
+    showActionToast("לא בוצע שינוי בכמות המלאי.");
+    return;
+  }
+
+  products = products.map((item) => (item.skuKey === productKey ? { ...item, stockQuantity: quantity } : item));
+  saveProductData();
+  queueCloudSave({ action: "stock-quantity-manual-update" });
+  renderProductSearchResults();
+  renderCategoryProductManager();
+  renderStockManagerPanel();
+  showActionToast(`כמות המלאי של ${product.sku || product.description} נשמרה בענן.`);
 }
 
 // Advanced search deliberately works from a read-only view of the existing
