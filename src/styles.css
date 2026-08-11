@@ -1641,6 +1641,16 @@ h2 {
   opacity: 0.46;
 }
 
+/* Immediate feedback for commits and external actions. The visual state also
+   makes an accidental second tap harmless while the first action is handled. */
+:is(.file-button, .secondary-button, .whatsapp-button, .danger-button).is-pending,
+:is(.file-button, .secondary-button, .whatsapp-button, .danger-button)[aria-busy="true"] {
+  cursor: wait;
+  opacity: 0.72;
+  filter: saturate(0.82);
+  pointer-events: none;
+}
+
 .whatsapp-button.compact {
   min-height: 40px;
   padding: 0 12px;
@@ -8817,6 +8827,33 @@ body {
   color: #b9ffda;
   font-size: 0.86rem;
   font-weight: 950;
+}
+
+.action-toast[data-kind="progress"] {
+  border-color: rgba(104, 192, 255, 0.68);
+  background: linear-gradient(145deg, rgba(16, 73, 110, 0.97), rgba(8, 35, 62, 0.98));
+}
+
+.action-toast[data-kind="progress"] .action-toast-icon {
+  border-color: rgba(151, 218, 255, 0.72);
+  background: rgba(66, 165, 245, 0.2);
+  color: #c7ecff;
+  animation: action-toast-pulse 900ms ease-in-out infinite;
+}
+
+.action-toast[data-kind="error"] {
+  border-color: rgba(255, 132, 132, 0.72);
+  background: linear-gradient(145deg, rgba(111, 34, 48, 0.98), rgba(55, 17, 29, 0.99));
+}
+
+.action-toast[data-kind="error"] .action-toast-icon {
+  border-color: rgba(255, 184, 184, 0.72);
+  background: rgba(244, 93, 93, 0.2);
+  color: #ffe1e1;
+}
+
+@keyframes action-toast-pulse {
+  50% { transform: scale(0.86); opacity: 0.7; }
 }
 
 @media (max-width: 640px) {

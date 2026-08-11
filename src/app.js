@@ -1,9 +1,5 @@
 import "./styles.css";
-import { readSheet } from "read-excel-file/browser";
 import { strToU8, zipSync } from "fflate";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
-import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
-import { createWorker } from "tesseract.js";
 import { DEFAULT_RESERVATION_GROUPS, RESERVATION_SEED_VERSION } from "./reservations-data.js";
 import {
   getAutomaticOrderReportDateKey as calculateAutomaticOrderReportDateKey,
@@ -13,8 +9,6 @@ import {
   getUpcomingSundayIsraelDateKey,
   isOrderReportDateCompleted,
 } from "./order-schedule.js";
-
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const STORAGE_KEY = "price-search-products-v1";
 const META_KEY = "price-search-meta-v1";
@@ -556,6 +550,11 @@ let advancedSearchProductsCache = null;
 let advancedSearchProductsCacheSource = null;
 let advancedSearchProductsCacheAttributes = null;
 let advancedSearchProductsCacheManifest = null;
+let advancedSearchMetadataPromise = null;
+let spreadsheetReaderPromise = null;
+let pdfImportModulePromise = null;
+let ocrWorkerFactoryPromise = null;
+const inFlightUiActions = new Set();
 let eitanPortalOrders = [];
 let eitanOrdersLoadState = "idle";
 
@@ -572,9 +571,7 @@ async function startApp() {
   appStarted = true;
   startIsraelClock();
   bindEvents();
-  catalogAttributesBySku = await loadCatalogAttributes();
   defaultProducts = await loadDefaultProducts();
-  specManifest = await loadSpecManifest();
   categories = readCategories();
   annotations = readJson(ANNOTATIONS_KEY) || {};
   cart = readCart();
@@ -637,6 +634,10 @@ async function startApp() {
   if (completeDueOrders()) saveOrders();
 
   render();
+  // Product search is the default screen, so do not hold it behind the large
+  // technical catalog. The optional attributes and PDF links load once the
+  // browser is idle (or immediately when the advanced-search tab is opened).
+  scheduleAdvancedSearchMetadataWarmup();
   loadZmanim();
   registerServiceWorker();
   hydrateCloudState();
@@ -649,10 +650,15 @@ function startIsraelClock() {
   israelClockTimer = window.setInterval(updateIsraelClock, 30_000);
 }
 
-function showActionToast(message) {
+function showActionToast(message, kind = "success") {
   if (!message || !dom.actionToast || !dom.actionToastMessage) return;
   if (actionToastTimer) window.clearTimeout(actionToastTimer);
+  const toastKind = ["success", "progress", "error"].includes(kind) ? kind : "success";
+  const icon = toastKind === "progress" ? "…" : toastKind === "error" ? "!" : "✓";
   dom.actionToastMessage.textContent = message;
+  dom.actionToast.dataset.kind = toastKind;
+  const toastIcon = dom.actionToast.querySelector(".action-toast-icon");
+  if (toastIcon) toastIcon.textContent = icon;
   dom.actionToast.hidden = false;
   dom.actionToast.classList.remove("visible");
   window.requestAnimationFrame(() => dom.actionToast.classList.add("visible"));
@@ -661,7 +667,68 @@ function showActionToast(message) {
     window.setTimeout(() => {
       if (!dom.actionToast.classList.contains("visible")) dom.actionToast.hidden = true;
     }, 180);
-  }, 3_800);
+  }, toastKind === "progress" ? 8_000 : 3_800);
+}
+
+function runUiAction({ key, button, pendingMessage, successMessage = "", failureMessage = "" }, action) {
+  if (inFlightUiActions.has(key)) {
+    showActionToast("הפעולה כבר מתבצעת. אין צורך ללחוץ שוב.", "progress");
+    return Promise.resolve(false);
+  }
+
+  inFlightUiActions.add(key);
+  const originalLabel = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    button.classList.add("is-pending");
+    if (pendingMessage) button.textContent = "מבצע…";
+  }
+  if (pendingMessage) {
+    dom.status.textContent = pendingMessage;
+    showActionToast(pendingMessage, "progress");
+  }
+
+  let result;
+  try {
+    // Invoke immediately rather than after an await. In particular, this
+    // preserves the browser's user gesture so WhatsApp may open directly.
+    result = action();
+  } catch (error) {
+    result = Promise.reject(error);
+  }
+
+  return Promise.resolve(result)
+    .then((value) => {
+      if (!value) {
+        const message = failureMessage || cleanString(dom.aiOrderStatus?.textContent) || cleanString(dom.status.textContent) || "הפעולה לא הושלמה. נסה שוב.";
+        showActionToast(message, "error");
+        return value;
+      }
+      const message = typeof successMessage === "function" ? successMessage(value) : successMessage;
+      if (message) showActionToast(message, "success");
+      return value;
+    })
+    .catch((error) => {
+      console.error("UI action failed", error);
+      const message = failureMessage || "הפעולה לא הושלמה. נסה שוב.";
+      dom.status.textContent = message;
+      showActionToast(message, "error");
+      return false;
+    })
+    .finally(() => {
+      // A short guard blocks accidental double-taps while keeping ordinary
+      // consecutive actions responsive. A render may have replaced the button
+      // already, so restoring this detached node is intentionally harmless.
+      window.setTimeout(() => {
+        inFlightUiActions.delete(key);
+        if (!button) return;
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        button.classList.remove("is-pending");
+        if (originalLabel) button.textContent = originalLabel;
+      }, 450);
+    });
 }
 
 function announceDeletion(message) {
@@ -1523,7 +1590,17 @@ function bindEvents() {
     renderTomorrowOrders();
     renderCustomerHint();
   });
-  dom.clearCart.addEventListener("click", clearCart);
+  dom.clearCart.addEventListener("click", (event) => {
+    runUiAction({
+      key: "cart-clear",
+      button: event.currentTarget,
+      pendingMessage: "מנקה את הסל…",
+      successMessage: "הסל נוקה.",
+    }, () => {
+      clearCart();
+      return true;
+    });
+  });
   dom.saveAsDraft.addEventListener("change", () => {
     renderCart();
   });
@@ -1552,10 +1629,26 @@ function bindEvents() {
       : "תאריך הדיווח יחושב אוטומטית לפי שעת ההקמה.";
   });
   dom.floatingCart.addEventListener("click", () => setActiveTab("cart"));
-  dom.saveOrder.addEventListener("click", () =>
-    editingDraftId || dom.saveAsDraft.checked ? saveDraftOrder() : saveOrder(),
-  );
-  dom.sendWhatsApp.addEventListener("click", sendCurrentOrderToWhatsApp);
+  dom.saveOrder.addEventListener("click", (event) => {
+    runUiAction({
+      // Save and WhatsApp share one lock so a double-tap across both actions
+      // cannot create two copies of the same cart.
+      key: "cart-order-commit",
+      button: event.currentTarget,
+      pendingMessage: "שומר את ההזמנה…",
+      successMessage: () => dom.status.textContent,
+      failureMessage: "ההזמנה לא נשמרה. בדוק את הפרטים ונסה שוב.",
+    }, () => (editingDraftId || dom.saveAsDraft.checked ? saveDraftOrder() : saveOrder()));
+  });
+  dom.sendWhatsApp.addEventListener("click", (event) => {
+    runUiAction({
+      key: "cart-order-commit",
+      button: event.currentTarget,
+      pendingMessage: "שומר ופותח WhatsApp…",
+      successMessage: () => dom.status.textContent,
+      failureMessage: "ההזמנה לא נשמרה ולא נפתחה הודעת WhatsApp. בדוק את פרטי ההזמנה.",
+    }, () => sendCurrentOrderToWhatsApp(event));
+  });
   dom.priceListsPanel?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-price-list-whatsapp]");
     if (!button) return;
@@ -1629,6 +1722,53 @@ async function loadSpecManifest() {
     console.warn("Spec manifest failed to load", error);
     return { items: {}, lookup: {} };
   }
+}
+
+function ensureAdvancedSearchMetadata() {
+  if (advancedSearchMetadataPromise) return advancedSearchMetadataPromise;
+  advancedSearchMetadataPromise = Promise.all([loadCatalogAttributes(), loadSpecManifest()])
+    .then(([attributes, manifest]) => {
+      catalogAttributesBySku = attributes;
+      specManifest = manifest;
+      advancedSearchProductsCache = null;
+      advancedSearchProductsCacheSource = null;
+      advancedSearchProductsCacheAttributes = null;
+      advancedSearchProductsCacheManifest = null;
+      if (activeTab === "advanced-search") renderAdvancedSearch();
+      return { attributes, manifest };
+    })
+    .catch((error) => {
+      // Both loaders already return safe empty values on a network problem.
+      // Keep this final guard so the ordinary product search never fails.
+      console.warn("Advanced-search metadata failed to load", error);
+      return { attributes: {}, manifest: { items: {}, lookup: {} } };
+    });
+  return advancedSearchMetadataPromise;
+}
+
+function scheduleAdvancedSearchMetadataWarmup() {
+  const load = () => { void ensureAdvancedSearchMetadata(); };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(load, { timeout: 3_500 });
+    return;
+  }
+  window.setTimeout(load, 1_200);
+}
+
+async function readSpreadsheetRows(file) {
+  spreadsheetReaderPromise ||= import("read-excel-file/browser");
+  const { readSheet } = await spreadsheetReaderPromise;
+  return readSheet(file);
+}
+
+async function getPdfImportModule() {
+  pdfImportModulePromise ||= import("pdfjs-dist/legacy/build/pdf.mjs");
+  return pdfImportModulePromise;
+}
+
+async function getOcrWorkerFactory() {
+  ocrWorkerFactoryPromise ||= import("tesseract.js").then(({ createWorker }) => createWorker);
+  return ocrWorkerFactoryPromise;
 }
 
 async function hydrateCloudState(options = {}) {
@@ -1864,6 +2004,7 @@ async function parseOrderImportFile(file) {
 
 async function parsePdfOrderFile(file) {
   const data = new Uint8Array(await file.arrayBuffer());
+  const { getDocument } = await getPdfImportModule();
   const documentProxy = await getDocument({ data, disableWorker: true }).promise;
   const rows = [];
 
@@ -1951,6 +2092,7 @@ async function parseImageOrderFile(file) {
 
 async function createOrderOcrWorker() {
   let lastProgress = -1;
+  const createWorker = await getOcrWorkerFactory();
   const worker = await createWorker(["heb", "eng"], 1, {
     logger: ({ status, progress }) => {
       const percentage = Math.round((Number(progress) || 0) * 100);
@@ -2093,7 +2235,7 @@ function getImageImportedQuantity(value) {
 }
 
 async function parseSpreadsheetOrderFile(file) {
-  const rows = await readSheet(file);
+  const rows = await readSpreadsheetRows(file);
   return parseOrderImportRows(rows, file.name);
 }
 
@@ -2527,7 +2669,7 @@ function loadImportedOrderIntoCart() {
 }
 
 async function parseSpreadsheet(file) {
-  const rows = await readSheet(file);
+  const rows = await readSpreadsheetRows(file);
   if (!rows.length) throw new Error("לא נמצאו שורות בקובץ.");
 
   const { columns, headerRowIndex } = detectColumns(rows);
@@ -2579,7 +2721,7 @@ function detectColumns(rows) {
 }
 
 async function parseStockSpreadsheet(file) {
-  const rows = await readSheet(file);
+  const rows = await readSpreadsheetRows(file);
   if (!rows.length) throw new Error("לא נמצאו שורות בקובץ.");
 
   const { columns, headerRowIndex } = detectStockColumns(rows);
@@ -2860,7 +3002,10 @@ function setActiveTab(tab) {
   renderTabs();
   renderFloatingCart();
   if (tab === "stock-manager") renderStockManagerPanel();
-  if (tab === "advanced-search") renderAdvancedSearch();
+  if (tab === "advanced-search") {
+    renderAdvancedSearch();
+    void ensureAdvancedSearchMetadata();
+  }
   if (tab === "promotions") renderPromotionsPanel();
   if (tab === "customer-year-over-year") renderYearOverYearPanel();
 }
@@ -5627,7 +5772,7 @@ function saveImportedReservationReport(report) {
 async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
   const reports = [];
   for (let pass = 0; pass < 3; pass += 1) {
-    reports.push(parseReservationSpreadsheetRows(await readSheet(file), selectedCustomerId));
+    reports.push(parseReservationSpreadsheetRows(await readSpreadsheetRows(file), selectedCustomerId));
   }
   return verifyReservationReportPasses(reports);
 }
@@ -6912,31 +7057,44 @@ function renderAiOrderProposal() {
 
 function handleAiOrderAction(event) {
   event.preventDefault();
-  const action = event.target.closest("[data-ai-order-action]")?.dataset.aiOrderAction;
+  const button = event.currentTarget;
+  const action = button?.dataset.aiOrderAction;
   if (!action) return;
+
+  const isCartAction = action === "cart";
+  runUiAction({
+    key: isCartAction ? "ai-proposal-cart" : "ai-proposal-commit",
+    button,
+    pendingMessage: isCartAction ? "טוען את ההצעה לסל…" : "שומר את הצעת העוזר…",
+    successMessage: () => isCartAction
+      ? "הצעת העוזר נטענה לסל לבדיקה."
+      : dom.status.textContent,
+  }, () => performAiOrderAction(action));
+}
+
+function performAiOrderAction(action) {
   if (aiOrderProposal?.completed) {
     dom.aiOrderStatus.textContent = "ההצעה הזו כבר נשמרה. הכין הצעה חדשה כדי למנוע הזמנה כפולה.";
-    return;
+    return false;
   }
   if (!aiOrderProposal?.ready) {
     dom.aiOrderStatus.textContent = "ההצעה כבר לא פעילה. הכין הצעה חדשה לפני שמירה או שליחה.";
-    return;
+    return false;
   }
 
   if (action === "cart") {
-    loadAiProposalIntoCart({ openCart: true });
-    return;
+    return loadAiProposalIntoCart({ openCart: true });
   }
 
   const loaded = loadAiProposalIntoCart({ openCart: false });
-  if (!loaded) return;
+  if (!loaded) return false;
   const shouldOpenWhatsApp = action === "whatsapp";
   const order = saveOrder({
     status: shouldOpenWhatsApp
       ? "הזמנת העוזר נשמרה. הודעת ה‑WhatsApp נפתחה לשליחה."
       : "הזמנת העוזר נשמרה והשריונים עודכנו.",
   });
-  if (!order) return;
+  if (!order) return false;
 
   // A proposal may only create one order. Marking it completed prevents a
   // delayed second tap on mobile from creating a duplicate, while the visible
@@ -6944,14 +7102,15 @@ function handleAiOrderAction(event) {
   aiOrderProposal = { ...aiOrderProposal, completed: true };
   renderAiOrderProposal();
 
-  if (!shouldOpenWhatsApp) return;
+  if (!shouldOpenWhatsApp) return true;
 
   const url = createWhatsAppUrl(order.items, order);
   if (!url) {
     dom.status.textContent = "ההזמנה נשמרה. כדי לפתוח WhatsApp יש להגדיר מספר קבוע בסל.";
-    return;
+    return true;
   }
   window.open(url, "_blank", "noopener,noreferrer");
+  return true;
 }
 
 function loadAiProposalIntoCart(options = { openCart: true }) {
@@ -11818,7 +11977,7 @@ async function sendCurrentOrderToWhatsApp(event) {
   const url = createWhatsAppUrl(cart);
   if (!url) {
     event.preventDefault();
-    return;
+    return false;
   }
 
   event.preventDefault();
@@ -11833,7 +11992,7 @@ async function sendCurrentOrderToWhatsApp(event) {
       deferCloudSave: true,
       status: "הטיוטה נשמרה ונפתחה מיידית לשליחה ב‑WhatsApp.",
     });
-    if (!draft) return;
+    if (!draft) return false;
     savedOrder = draft;
   } else {
     savedOrder = saveOrder({
@@ -11842,7 +12001,7 @@ async function sendCurrentOrderToWhatsApp(event) {
       deferCloudSave: true,
       status: "ההזמנה נשמרה ונפתחה מיידית לשליחה ב‑WhatsApp.",
     });
-    if (!savedOrder) return;
+    if (!savedOrder) return false;
   }
 
   const message = savingDraft
@@ -11856,6 +12015,7 @@ async function sendCurrentOrderToWhatsApp(event) {
   // open, so the cloud save and immutable backup can run straight afterwards.
   window.open(url, "_blank", "noopener,noreferrer");
   queueCloudSave({ action: savingDraft ? "draft-whatsapp" : "order-whatsapp" });
+  return true;
 }
 
 function renderCart() {

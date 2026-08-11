@@ -17,7 +17,7 @@ assert(page.includes('id="advancedNearbyOptions"'), "חסרות אפשרויות
 assert(page.includes('id="searchInput"'), "שדה החיפוש הקיים אינו קיים");
 assert(page.includes('id="results"'), "תוצאות החיפוש הקיימות אינן קיימות");
 
-assert(app.includes("function renderAdvancedSearch()"), "חסר מנוע התצוגה של החיפוש המתקדם");
+assert(app.includes("function renderAdvancedSearch("), "חסר מנוע התצוגה של החיפוש המתקדם");
 assert(app.includes("ADVANCED_CATEGORY_TABS"), "חסרות קטגוריות מפורטות בחיפוש המתקדם");
 assert(app.includes('key: "top-freezer"'), "חסרה קטגוריית מקפיא עליון");
 assert(app.includes('key: "bottom-freezer"'), "חסרה קטגוריית מקפיא תחתון");
@@ -34,7 +34,7 @@ assert(app.includes('link.className = `advanced-document-link ${productDocument.
 assert(app.includes("details.open = Boolean(activeValue);"), "מסנני החיפוש המתקדם אינם סגורים כברירת מחדל");
 assert(app.includes("advancedSearchQuickFilters[quickGroup] = advancedSearchQuickFilters[quickGroup] === value ? \"\" : value"), "בחירה חוזרת במסנן מהיר אינה מבטלת אותו");
 
-const advancedRendererStart = app.indexOf("function renderAdvancedSearch()");
+const advancedRendererStart = app.indexOf("function renderAdvancedSearch(");
 const advancedRendererEnd = app.indexOf("function searchProducts(query)");
 const advancedRegion = app.slice(advancedRendererStart, advancedRendererEnd);
 assert(advancedRendererStart >= 0 && advancedRendererEnd > advancedRendererStart, "אזור החיפוש המתקדם אינו תחום כראוי");

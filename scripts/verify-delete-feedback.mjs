@@ -11,7 +11,7 @@ const styles = read("src/styles.css");
 
 assert(html.includes('id="actionToast"'), "A global deletion confirmation container must exist.");
 assert(html.includes('id="actionToastMessage"'), "The deletion confirmation needs a readable message.");
-assert(app.includes("function showActionToast(message)"), "Deletion feedback must be displayed globally.");
+assert(app.includes("function showActionToast(message"), "Deletion feedback must be displayed globally.");
 assert(app.includes("function announceDeletion(message)"), "Deletion feedback must also update the accessible status text.");
 assert(app.includes('announceDeletion("הקטגוריה נמחקה.")'));
 assert(app.includes('announceDeletion("ההערה נמחקה.")'));
