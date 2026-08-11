@@ -1209,7 +1209,6 @@ function bindEvents() {
     renderCalendarPanel();
   });
   dom.aiOrderForm.addEventListener("submit", requestAiOrderProposal);
-  dom.aiOrderResult.addEventListener("click", handleAiOrderAction);
   dom.collectionForm.addEventListener("submit", saveCollectionFromForm);
   dom.collectionPaymentForm.addEventListener("submit", saveCollectionPaymentFromForm);
   dom.cancelCollectionEdit.addEventListener("click", resetCollectionForm);
@@ -6901,11 +6900,23 @@ function renderAiOrderProposal() {
       ${actionMarkup}
     </section>
   `;
+
+  // Bind the generated proposal buttons directly. This is more reliable on
+  // mobile browsers than relying on a delegated click from a container whose
+  // contents are replaced after every AI response.
+  dom.aiOrderResult.querySelectorAll("[data-ai-order-action]").forEach((button) => {
+    button.addEventListener("click", handleAiOrderAction);
+  });
 }
 
 function handleAiOrderAction(event) {
+  event.preventDefault();
   const action = event.target.closest("[data-ai-order-action]")?.dataset.aiOrderAction;
-  if (!action || !aiOrderProposal?.ready) return;
+  if (!action) return;
+  if (!aiOrderProposal?.ready) {
+    dom.aiOrderStatus.textContent = "ההצעה כבר לא פעילה. הכין הצעה חדשה לפני שמירה או שליחה.";
+    return;
+  }
 
   if (action === "cart") {
     loadAiProposalIntoCart({ openCart: true });
@@ -6920,7 +6931,14 @@ function handleAiOrderAction(event) {
       ? "הזמנת העוזר נשמרה. הודעת ה‑WhatsApp נפתחה לשליחה."
       : "הזמנת העוזר נשמרה והשריונים עודכנו.",
   });
-  if (!order || !shouldOpenWhatsApp) return;
+  if (!order) return;
+
+  // A proposal may only create one order. Clearing it immediately prevents a
+  // delayed second tap on mobile from creating a duplicate order.
+  aiOrderProposal = null;
+  renderAiOrderEmptyState();
+
+  if (!shouldOpenWhatsApp) return;
 
   const url = createWhatsAppUrl(order.items, order);
   if (!url) {
