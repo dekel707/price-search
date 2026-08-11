@@ -1,10 +1,10 @@
 import { get } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import { readCatalogSpecificationSummaries } from "./catalog-specifications.js";
 
 const STATE_PATH = "price-search/state.json";
 const MAX_INSTRUCTION_LENGTH = 2_000;
 const MAX_ORDER_QUANTITY = 1_000;
+const MAX_OUTPUT_TOKENS = 800;
 
 export const config = {
   api: {
@@ -52,15 +52,9 @@ export default async function handler(request, response) {
     }
 
     const state = await readCloudState();
-    let catalogSearchBySku = new Map();
-    try {
-      catalogSearchBySku = await readCatalogSpecificationSummaries();
-    } catch (error) {
-      // The order assistant must remain available while the optional
-      // technical catalog is being deployed or repaired.
-      console.warn("catalog_specifications_unavailable", error);
-    }
-    const catalog = normalizeCatalog(state.products, catalogSearchBySku);
+    // The AI order flow needs SKU and description only. Loading every
+    // technical specification makes each request much larger and slower.
+    const catalog = normalizeCatalog(state.products);
     const customers = normalizeCustomers(state.customers);
     const reservations = normalizeReservations(state.reservations);
     if (!catalog.length) {
@@ -101,7 +95,7 @@ async function readCloudState() {
 
 async function extractOrderIntent({ instruction, catalog, customers, apiKey }) {
   const catalogText = catalog
-    .map((product) => `${product.sku} | ${product.description}${product.catalogSearch ? ` | מפרט: ${product.catalogSearch}` : ""}`)
+    .map((product) => `${product.sku} | ${product.description}`)
     .join("\n");
   const customerText = customers.map((customer) => `${customer.name}${customer.code ? ` | ${customer.code}` : ""}`).join("\n");
   const prompt = [
@@ -123,10 +117,14 @@ async function extractOrderIntent({ instruction, catalog, customers, apiKey }) {
     body: JSON.stringify({
       model: getEnvValue("OPENAI_MODEL") || "gpt-5",
       store: false,
+      max_output_tokens: MAX_OUTPUT_TOKENS,
       instructions: [
         "אתה עוזר הזמנות למערכת ישראלית בעברית.",
         "חלץ רק את שם/כינוי הלקוח ואת פריטי ההזמנה והכמויות.",
         "בחר לכל מוצר מק״ט מדויק מתוך הקטלוג בלבד. לעולם אל תמציא לקוח, מוצר, מק״ט או כמות.",
+        "בדגמי מקררים, האותיות במק״ט הן חלק מהדגם ולא סימון צבע. אסור למחוק אותיות, להשלים אותיות או להניח שמדובר בצבע.",
+        "כאשר המשתמש כותב מספר דגם חלקי, למשל 338, בחר אותו ללא שאלת הבהרה אם יש מוצר אחד בלבד בקטלוג עם רצף המספרים המדויק הזה בדגם או בתיאור.",
+        "שאל שאלת הבהרה רק אם יש שני מוצרים או יותר שמתאימים לאותו מספר/תיאור, או אם אין התאמה בטוחה.",
         "כאשר יש יותר ממוצר אחד שמתאים לאותו תיאור ואין מספיק מידע לבחור בבטחה, סמן needsClarification=true והסבר בקצרה מה חסר.",
         "אין לחשב מחירים, אין לשמור הזמנה, אין לשלוח הודעות, ואין להחליט על שריונים. המערכת תבצע זאת בעצמה.",
       ].join(" "),
@@ -232,8 +230,12 @@ function createOrderProposal({ intent, catalog, customers, reservations }) {
     };
   });
 
-  const clarification = cleanString(intent?.clarification) || buildClarification({ customerQuery, customer, items, unmatched });
-  const ready = Boolean(customer && items.length && !unmatched.length && !intent?.needsClarification);
+  // The model may be overly cautious about a partial model number. The
+  // deterministic resolver above is the source of truth: it returns no
+  // product for ambiguous matches, and a single product for a unique one.
+  const deterministicClarification = buildClarification({ customerQuery, customer, items, unmatched });
+  const clarification = deterministicClarification || "";
+  const ready = Boolean(customer && items.length && !unmatched.length);
 
   return {
     ready,
@@ -300,15 +302,14 @@ function scoreTextMatch(query, target) {
   return score;
 }
 
-function normalizeCatalog(value, catalogSearchBySku = new Map()) {
+function normalizeCatalog(value) {
   return (Array.isArray(value) ? value : [])
     .map((item) => {
       const sku = cleanString(item?.sku);
       const description = cleanString(item?.description);
       const skuKey = normalizeSku(sku);
       if (!skuKey || !description) return null;
-      const catalogSearch = cleanString(catalogSearchBySku.get(skuKey) || item?.catalogAttributes?.searchSummary).slice(0, 600);
-      return { skuKey, sku, description, price: Math.max(0, toNumber(item?.price)), catalogSearch };
+      return { skuKey, sku, description, price: Math.max(0, toNumber(item?.price)) };
     })
     .filter(Boolean);
 }

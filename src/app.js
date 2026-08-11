@@ -6826,6 +6826,7 @@ function renderAiOrderProposal() {
   }
 
   const proposal = aiOrderProposal;
+  const proposalCompleted = Boolean(proposal.completed);
   const items = Array.isArray(proposal.items) ? proposal.items : [];
   const unmatched = Array.isArray(proposal.unmatched) ? proposal.unmatched : [];
   const customerName = cleanString(proposal.customer?.name || proposal.customerQuery || "לא זוהה לקוח");
@@ -6869,11 +6870,11 @@ function renderAiOrderProposal() {
   const actionMarkup = ready
     ? `
       <div class="ai-order-confirmation">
-        <span>ההצעה לא נשמרה עדיין. בחר מה לעשות:</span>
+        <span>${proposalCompleted ? "ההזמנה כבר נשמרה. הכפתורים נשארים מוצגים כדי שיהיה ברור מה בוצע." : "ההצעה לא נשמרה עדיין. בחר מה לעשות:"}</span>
         <div class="ai-order-confirmation-actions">
-          <button class="secondary-button" type="button" data-ai-order-action="cart">טען לסל לבדיקה</button>
-          <button class="file-button" type="button" data-ai-order-action="save">שמור הזמנה</button>
-          <button class="whatsapp-button" type="button" data-ai-order-action="whatsapp">שמור ופתח WhatsApp</button>
+          <button class="secondary-button" type="button" data-ai-order-action="cart"${proposalCompleted ? " disabled" : ""}>טען לסל לבדיקה</button>
+          <button class="file-button" type="button" data-ai-order-action="save"${proposalCompleted ? " disabled" : ""}>שמור הזמנה</button>
+          <button class="whatsapp-button" type="button" data-ai-order-action="whatsapp"${proposalCompleted ? " disabled" : ""}>שמור ופתח WhatsApp</button>
         </div>
       </div>
     `
@@ -6913,6 +6914,10 @@ function handleAiOrderAction(event) {
   event.preventDefault();
   const action = event.target.closest("[data-ai-order-action]")?.dataset.aiOrderAction;
   if (!action) return;
+  if (aiOrderProposal?.completed) {
+    dom.aiOrderStatus.textContent = "ההצעה הזו כבר נשמרה. הכין הצעה חדשה כדי למנוע הזמנה כפולה.";
+    return;
+  }
   if (!aiOrderProposal?.ready) {
     dom.aiOrderStatus.textContent = "ההצעה כבר לא פעילה. הכין הצעה חדשה לפני שמירה או שליחה.";
     return;
@@ -6933,10 +6938,11 @@ function handleAiOrderAction(event) {
   });
   if (!order) return;
 
-  // A proposal may only create one order. Clearing it immediately prevents a
-  // delayed second tap on mobile from creating a duplicate order.
-  aiOrderProposal = null;
-  renderAiOrderEmptyState();
+  // A proposal may only create one order. Marking it completed prevents a
+  // delayed second tap on mobile from creating a duplicate, while the visible
+  // buttons remain as a clear record of the completed action.
+  aiOrderProposal = { ...aiOrderProposal, completed: true };
+  renderAiOrderProposal();
 
   if (!shouldOpenWhatsApp) return;
 
