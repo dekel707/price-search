@@ -62,7 +62,12 @@ export default async function handler(request, response) {
       return;
     }
 
-    const intent = await extractOrderIntent({ instruction, catalog, customers, apiKey });
+    // Keep the fast, deterministic cases out of the model call.  Besides
+    // making the common "customer + one model" order instant, this also
+    // guarantees that a unique partial model number (for example "338") is
+    // not treated as an ambiguous colour suffix.
+    const directIntent = resolveDirectOrderIntent({ instruction, catalog, customers });
+    const intent = directIntent || (await extractOrderIntent({ instruction, catalog, customers, apiKey }));
     const proposal = createOrderProposal({ intent, catalog, customers, reservations });
     sendJson(response, 200, { ok: true, proposal });
   } catch (error) {
@@ -183,6 +188,61 @@ async function extractOrderIntent({ instruction, catalog, customers, apiKey }) {
     error.cause = cause;
     throw error;
   }
+}
+
+function resolveDirectOrderIntent({ instruction, catalog, customers }) {
+  const customer = resolveCustomerMention(instruction, customers);
+  if (!customer || hasMultipleOrderSeparators(instruction)) return null;
+
+  const product = resolveUniqueProductMention(instruction, catalog);
+  if (!product) return null;
+
+  return {
+    customerQuery: customer.name,
+    items: [
+      {
+        productQuery: product.sku,
+        sku: product.sku,
+        quantity: extractDirectQuantity(instruction),
+      },
+    ],
+    needsClarification: false,
+    clarification: "",
+  };
+}
+
+function resolveCustomerMention(instruction, customers) {
+  const instructionKey = normalizeIdentity(instruction);
+  if (!instructionKey) return null;
+  const matches = customers.filter((customer) => {
+    const nameKey = normalizeIdentity(customer.name);
+    return nameKey.length >= 3 && instructionKey.includes(nameKey);
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function resolveUniqueProductMention(instruction, catalog) {
+  const compactInstruction = normalizeSearchText(instruction);
+  const exactSkuMatches = catalog.filter((product) => compactInstruction.includes(normalizeSearchText(product.sku)));
+  if (exactSkuMatches.length === 1) return exactSkuMatches[0];
+  if (exactSkuMatches.length > 1) return null;
+
+  const modelNumbers = [...new Set((instruction.match(/\d{3,}/g) || []).sort((left, right) => right.length - left.length))];
+  for (const number of modelNumbers) {
+    const matches = catalog.filter((product) => normalizeSearchText(`${product.sku} ${product.description}`).includes(number));
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) return null;
+  }
+  return null;
+}
+
+function extractDirectQuantity(instruction) {
+  const quantityMatch = instruction.match(/(?:^|\s)(\d{1,4})\s*(?:יח(?:ידה|ידות|׳)|pcs?\.?|x|×)(?:\s|$)/iu);
+  return clampQuantity(quantityMatch?.[1]) || 1;
+}
+
+function hasMultipleOrderSeparators(instruction) {
+  return /(?:,|\+|\n|\sו(?:עוד|גם)?\s)/u.test(instruction);
 }
 
 function createOrderProposal({ intent, catalog, customers, reservations }) {
@@ -345,6 +405,10 @@ function extractOutputText(output) {
 }
 
 function normalizeIdentity(value) {
+  return cleanString(value).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+function normalizeSearchText(value) {
   return cleanString(value).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
