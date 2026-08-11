@@ -4,7 +4,11 @@ import { isAuthorized } from "./_auth.js";
 const STATE_PATH = "price-search/state.json";
 const MAX_INSTRUCTION_LENGTH = 2_000;
 const MAX_ORDER_QUANTITY = 1_000;
-const MAX_OUTPUT_TOKENS = 800;
+// GPT-5's reasoning tokens count toward this limit.  A small cap can return
+// an incomplete response before the JSON proposal is produced, so keep a
+// modest but reliable ceiling and request low-effort reasoning for this
+// structured extraction task.
+const MAX_OUTPUT_TOKENS = 1_600;
 
 export const config = {
   api: {
@@ -122,6 +126,7 @@ async function extractOrderIntent({ instruction, catalog, customers, apiKey }) {
     body: JSON.stringify({
       model: getEnvValue("OPENAI_MODEL") || "gpt-5",
       store: false,
+      reasoning: { effort: "low" },
       max_output_tokens: MAX_OUTPUT_TOKENS,
       instructions: [
         "אתה עוזר הזמנות למערכת ישראלית בעברית.",
