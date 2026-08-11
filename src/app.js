@@ -6970,7 +6970,7 @@ function loadAiProposalIntoCart(options = { openCart: true }) {
 
   const proposalProducts = proposal.items.map((item) => ({
     item,
-    product: products.find((product) => product.skuKey === item.skuKey),
+    product: findAiProposalProduct(item),
   }));
   if (proposalProducts.some(({ product }) => !product)) {
     dom.aiOrderStatus.textContent = "אחד המוצרים כבר לא קיים במחירון. הכין הצעה חדשה.";
@@ -7015,6 +7015,16 @@ function loadAiProposalIntoCart(options = { openCart: true }) {
   dom.status.textContent = "הצעת העוזר נטענה לסל. בדוק אותה לפני שמירה.";
   if (options.openCart) setActiveTab("cart");
   return true;
+}
+
+function findAiProposalProduct(item) {
+  const proposalSkuKey = getSkuKey(item?.skuKey || item?.sku);
+  const proposalModelKey = getModelKey(item?.sku || item?.skuKey);
+  return (
+    products.find((product) => product.skuKey === proposalSkuKey)
+    || products.find((product) => getModelKey(product.sku) === proposalModelKey)
+    || null
+  );
 }
 
 function renderCollectionsPanel() {
