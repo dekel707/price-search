@@ -660,9 +660,19 @@ function cartWhatsAppPreview(customer) {
 }
 
 function currentCartCustomer() {
-  const customer = findCustomer(state.customerId);
+  const customerInput = $("#customerSelect");
+  // On some mobile browsers a value selected from a datalist is committed only
+  // when the user presses the send button. Do not reject a full cart merely
+  // because the change event has not fired yet: resolve the visible value once
+  // more at the point of saving and make it the active order customer.
+  const displayedCustomer = resolveCustomerInput(customerInput);
+  const activeCustomer = findCustomer(state.customerId);
+  const customer = activeCustomer || displayedCustomer;
   if (!customer || !state.cart.length) { $("#cartMessage").textContent = "יש לבחור לקוח ולהוסיף מוצרים לפני שמירת ההזמנה."; return null; }
-  const displayedCustomer = resolveCustomerInput($("#customerSelect"));
+  if (!activeCustomer && displayedCustomer) {
+    state.customerId = displayedCustomer.id;
+    syncActiveCustomerInputs();
+  }
   if (!displayedCustomer || displayedCustomer.id !== customer.id) {
     syncActiveCustomerInputs();
     $("#cartMessage").textContent = "הסל משויך ללקוח הפעיל. נקה את ההזמנה כדי לבחור לקוח אחר.";
@@ -757,6 +767,17 @@ $("#openCartFromSearch").addEventListener("click", () => setTab("cart"));
 $("#backToOrderSearch").addEventListener("click", () => setTab("search"));
 $("#portalFloatingCart").addEventListener("click", () => setTab("cart"));
 $("#customerSelect").addEventListener("change", () => { selectActiveCustomer($("#customerSelect")); renderCart(); renderOrderSearch(); });
+$("#customerSelect").addEventListener("input", () => {
+  // Keep typing free, but immediately commit an exact datalist choice. This
+  // avoids the Android/Samsung-browser case where choosing a client and then
+  // pressing send never emits a separate change event.
+  const input = $("#customerSelect");
+  if (findCustomer(input.value) || !String(input.value || "").trim()) {
+    selectActiveCustomer(input);
+    renderCart();
+    renderOrderSearch();
+  }
+});
 $("#clearCart").addEventListener("click", () => clearCart("ההזמנה נוקתה והלקוח שוחרר."));
 $("#categoryFilters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
