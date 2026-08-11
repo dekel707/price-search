@@ -6975,7 +6975,10 @@ function renderAiOrderProposal() {
   const items = Array.isArray(proposal.items) ? proposal.items : [];
   const unmatched = Array.isArray(proposal.unmatched) ? proposal.unmatched : [];
   const customerName = cleanString(proposal.customer?.name || proposal.customerQuery || "לא זוהה לקוח");
-  const issueMessages = [cleanString(proposal.clarification), ...unmatched.map((item) => `לא נמצא: ${item.query}`)].filter(Boolean);
+  const issueMessages = [
+    cleanString(proposal.clarification),
+    ...unmatched.map((item) => `${item.reason === "omitted_from_request" ? "חסר בהצעה" : "לא נמצא"}: ${item.query}`),
+  ].filter(Boolean);
   const ready = Boolean(proposal.ready && proposal.customer?.id && items.length && !unmatched.length);
   const reservationUnits = items.reduce((sum, item) => sum + parseNonNegativeInteger(item.reservedQuantity), 0);
   const paidUnits = items.reduce((sum, item) => sum + parseNonNegativeInteger(item.paidQuantity), 0);

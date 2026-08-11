@@ -4,6 +4,26 @@ import { isAuthorized } from "./_auth.js";
 const STATE_PATH = "price-search/state.json";
 const MAX_INSTRUCTION_LENGTH = 2_000;
 const MAX_ORDER_QUANTITY = 1_000;
+// These are meaningful product families in the Hebrew catalogue. They are a
+// safety net around the model: a requested family may never disappear from an
+// order proposal merely because the model chose to omit an ambiguous line.
+const ORDER_REQUEST_MENTION_PATTERNS = [
+  { label: "מקרר משרדי", expression: /מקרר\s*משרדי/iu, category: "refrigerator" },
+  { label: "מקרר ויטרינה", expression: /מקרר\s*ויטרינה/iu, category: "refrigerator" },
+  { label: "מקרר יין", expression: /מקרר\s*יין/iu, category: "refrigerator" },
+  { label: "מקרר אינטגרלי", expression: /מקרר\s*אינטגרלי/iu, category: "refrigerator" },
+  { label: "מקרר 4 דלתות", expression: /מקרר\s*4\s*דלתות/iu, category: "refrigerator" },
+  { label: "מכונת כביסה", expression: /מכונת?\s*כביסה/iu },
+  { label: "מייבש", expression: /מייבש(?:\s*כביסה)?/iu },
+  { label: "מדיח", expression: /מדיח(?:\s*כלים)?/iu },
+  { label: "תנור", expression: /תנור(?:ים)?/iu },
+  { label: "כיריים", expression: /כיריים/iu },
+  { label: "מקפיא", expression: /מקפיא(?:ים)?/iu },
+  { label: "מיקרוגל", expression: /מיקרוגל(?:ים)?/iu },
+  { label: "קולט אדים", expression: /קולט\s*אדים/iu },
+  { label: "טלוויזיה", expression: /טלוויזיה|טלויזיה|מסך/iu },
+  { label: "מקרר", expression: /מקרר(?:ים)?/iu, generic: true, category: "refrigerator" },
+];
 // GPT-5's reasoning tokens count toward this limit.  A small cap can return
 // an incomplete response before the JSON proposal is produced, so keep a
 // modest but reliable ceiling and request low-effort reasoning for this
@@ -72,7 +92,7 @@ export default async function handler(request, response) {
     // not treated as an ambiguous colour suffix.
     const directIntent = resolveDirectOrderIntent({ instruction, catalog, customers });
     const intent = directIntent || (await extractOrderIntent({ instruction, catalog, customers, apiKey }));
-    const proposal = createOrderProposal({ intent, catalog, customers, reservations });
+    const proposal = createOrderProposal({ instruction, intent, catalog, customers, reservations });
     sendJson(response, 200, { ok: true, proposal });
   } catch (error) {
     console.error("AI order proposal failed", error);
@@ -136,6 +156,7 @@ async function extractOrderIntent({ instruction, catalog, customers, apiKey }) {
         "כאשר המשתמש כותב מספר דגם חלקי, למשל 338, בחר אותו ללא שאלת הבהרה אם יש מוצר אחד בלבד בקטלוג עם רצף המספרים המדויק הזה בדגם או בתיאור.",
         "שאל שאלת הבהרה רק אם יש שני מוצרים או יותר שמתאימים לאותו מספר/תיאור, או אם אין התאמה בטוחה.",
         "כאשר יש יותר ממוצר אחד שמתאים לאותו תיאור ואין מספיק מידע לבחור בבטחה, סמן needsClarification=true והסבר בקצרה מה חסר.",
+        "אסור להשמיט פריט שהמשתמש ביקש. אם אינך מצליח לזהות דגם עבור פריט, החזר אותו ב-items עם productQuery מדויק ו-sku ריק כדי שהמערכת תחסום שמירה ותציג את הפריט החסר.",
         "אין לחשב מחירים, אין לשמור הזמנה, אין לשלוח הודעות, ואין להחליט על שריונים. המערכת תבצע זאת בעצמה.",
       ].join(" "),
       input: prompt,
@@ -250,7 +271,7 @@ function hasMultipleOrderSeparators(instruction) {
   return /(?:,|\+|\n|\sו(?:עוד|גם)?\s)/u.test(instruction);
 }
 
-function createOrderProposal({ intent, catalog, customers, reservations }) {
+function createOrderProposal({ instruction = "", intent, catalog, customers, reservations }) {
   const customerQuery = cleanString(intent?.customerQuery);
   const customer = resolveCustomer(customerQuery, customers);
   const itemsBySku = new Map();
@@ -295,6 +316,10 @@ function createOrderProposal({ intent, catalog, customers, reservations }) {
     };
   });
 
+  findUnrepresentedInstructionMentions({ instruction, rawItems, items, catalog }).forEach((mention) => {
+    unmatched.push({ query: mention, quantity: 0, reason: "omitted_from_request" });
+  });
+
   // The model may be overly cautious about a partial model number. The
   // deterministic resolver above is the source of truth: it returns no
   // product for ambiguous matches, and a single product for a unique one.
@@ -315,9 +340,37 @@ function createOrderProposal({ intent, catalog, customers, reservations }) {
 
 function buildClarification({ customerQuery, customer, items, unmatched }) {
   if (!customer) return customerQuery ? `לא מצאתי לקוח בשם „${customerQuery}”.` : "לא זוהה לקוח לבקשה.";
+  if (unmatched.some((item) => item.reason === "omitted_from_request")) {
+    return "חלק מהפריטים שביקשת לא הופיעו בהצעה. בחר דגם או נסח אותו במדויק לפני השמירה.";
+  }
   if (unmatched.length) return "חלק מהמוצרים לא זוהו בוודאות.";
   if (!items.length) return "לא זוהו פריטים להזמנה.";
   return "";
+}
+
+function findUnrepresentedInstructionMentions({ instruction, rawItems, items, catalog }) {
+  const requestText = cleanString(instruction);
+  if (!requestText) return [];
+  const alreadyMentioned = (Array.isArray(rawItems) ? rawItems : [])
+    .map((item) => `${cleanString(item?.sku)} ${cleanString(item?.productQuery)}`)
+    .join(" ");
+  const resolvedText = (Array.isArray(items) ? items : [])
+    .map((item) => `${cleanString(item?.sku)} ${cleanString(item?.description)}`)
+    .join(" ");
+  const explicitlyRequestedModels = (Array.isArray(catalog) ? catalog : [])
+    .filter((product) => normalizeSearchText(requestText).includes(normalizeSearchText(product.sku)))
+    .map((product) => product.sku);
+
+  const missingModels = explicitlyRequestedModels.filter((sku) => !normalizeSearchText(resolvedText).includes(normalizeSearchText(sku)));
+  const requestedFamilies = ORDER_REQUEST_MENTION_PATTERNS
+    .filter(({ expression }) => expression.test(requestText));
+  const hasSpecificRefrigeratorRequest = requestedFamilies.some(({ generic, category }) => category === "refrigerator" && !generic);
+  const missingFamilies = requestedFamilies
+    .filter(({ generic }) => !generic || !hasSpecificRefrigeratorRequest)
+    .filter(({ expression }) => !expression.test(alreadyMentioned) && !expression.test(resolvedText))
+    .map(({ label }) => label);
+
+  return [...new Set([...missingModels, ...missingFamilies])];
 }
 
 function resolveCustomer(query, customers) {
@@ -458,6 +511,13 @@ function getEnvValue(name) {
 function cleanString(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
+
+// Exported only for deterministic local verification. The request handler
+// remains the sole production entry point.
+export const __test = {
+  createOrderProposal,
+  findUnrepresentedInstructionMentions,
+};
 
 async function readJsonBody(request) {
   if (Buffer.isBuffer(request.body)) return JSON.parse(request.body.toString("utf8") || "{}");
