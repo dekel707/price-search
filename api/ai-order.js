@@ -418,7 +418,11 @@ function normalizeSearchText(value) {
 }
 
 function normalizeSku(value) {
-  return cleanString(value).toUpperCase().replace(/[^A-Z0-9]+/g, "");
+  // Keep the same SKU identity used by the browser app.  The client stores
+  // human-readable models with their dashes (for example FJ-NF338W), so
+  // stripping punctuation here made an AI proposal impossible to load into
+  // the cart even though the matching product existed.
+  return cleanString(value).toLocaleUpperCase("en-US");
 }
 
 function clampQuantity(value) {
