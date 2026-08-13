@@ -2,6 +2,7 @@ import { BlobPreconditionFailedError, get, list, put } from "@vercel/blob";
 import {
   cancelScheduledEmailReminder as cancelDatabaseReminder,
   createScheduledEmailReminder as createDatabaseReminder,
+  deleteScheduledEmailReminder as deleteDatabaseReminder,
   getScheduledEmailReminder as getDatabaseReminder,
   hasDatabaseStorageCredentials,
   listScheduledEmailReminders as listDatabaseReminders,
@@ -29,6 +30,10 @@ export async function listScheduledEmailReminders(limit = 120) {
   }));
   return records
     .filter(Boolean)
+    // A deletion hides the operational reminder from the user without ever
+    // touching the shared business-state file. The small event history stays
+    // on the private reminder record for recovery/audit purposes.
+    .filter((reminder) => reminder.status !== "deleted")
     .sort((left, right) => String(right.dueAt).localeCompare(String(left.dueAt)))
     .slice(0, safeLimit);
 }
@@ -92,6 +97,22 @@ export async function cancelScheduledEmailReminder(id) {
   return { missing: false, alreadyCancelled: false, reminder };
 }
 
+export async function deleteScheduledEmailReminder(id) {
+  if (!hasBlobStorageCredentials()) return deleteDatabaseReminder(id);
+  const existing = await getScheduledEmailReminder(id);
+  if (!existing) return { missing: true, alreadyDeleted: false, reminder: null };
+  if (existing.status === "deleted") return { missing: false, alreadyDeleted: true, reminder: existing };
+
+  const reminder = await updateBlobReminder(id, (current, now) => ({
+    ...current,
+    status: "deleted",
+    deletedAt: now,
+    updatedAt: now,
+    events: appendEvent(current.events, createEvent("deleted", { providerId: current.providerId }, now)),
+  }));
+  return { missing: false, alreadyDeleted: false, reminder };
+}
+
 async function updateBlobReminder(id, makeNext) {
   const pathname = reminderPath(id);
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -144,6 +165,7 @@ function normalizeReminder(value) {
     createdAt: reminder.createdAt ? new Date(reminder.createdAt).toISOString() : "",
     updatedAt: reminder.updatedAt ? new Date(reminder.updatedAt).toISOString() : "",
     cancelledAt: reminder.cancelledAt ? new Date(reminder.cancelledAt).toISOString() : "",
+    deletedAt: reminder.deletedAt ? new Date(reminder.deletedAt).toISOString() : "",
     events: Array.isArray(reminder.events) ? reminder.events.slice(-MAX_EVENT_HISTORY) : [],
   };
 }

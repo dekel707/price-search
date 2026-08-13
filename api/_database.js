@@ -214,6 +214,7 @@ export async function listScheduledEmailReminders(limit = 120) {
            provider_id, provider_status, last_error, created_at, updated_at,
            cancelled_at
     FROM price_search_scheduled_reminders
+    WHERE status <> 'deleted'
     ORDER BY due_at DESC, created_at DESC
     LIMIT ${safeLimit}
   `;
@@ -349,6 +350,41 @@ export async function cancelScheduledEmailReminder(id) {
       VALUES (${safeId}, 'cancelled', ${JSON.stringify({ providerId: String(current.provider_id || "") })}::jsonb, ${now})
     `;
     return { missing: false, alreadyCancelled: false, reminder: scheduledReminderRecord(cancelled) };
+  });
+}
+
+export async function deleteScheduledEmailReminder(id) {
+  const sql = await getSql();
+  const safeId = String(id || "");
+  const now = new Date();
+
+  return sql.begin(async (transaction) => {
+    const [current] = await transaction`
+      SELECT id, title, message, recipient_email, due_at, timezone, status,
+             provider_id, provider_status, last_error, created_at, updated_at,
+             cancelled_at
+      FROM price_search_scheduled_reminders
+      WHERE id = ${safeId}
+      FOR UPDATE
+    `;
+    if (!current) return { missing: true, alreadyDeleted: false, reminder: null };
+    if (String(current.status) === "deleted") {
+      return { missing: false, alreadyDeleted: true, reminder: scheduledReminderRecord(current) };
+    }
+
+    const [deleted] = await transaction`
+      UPDATE price_search_scheduled_reminders
+      SET status = 'deleted', updated_at = ${now}
+      WHERE id = ${safeId}
+      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+                provider_id, provider_status, last_error, created_at, updated_at,
+                cancelled_at
+    `;
+    await transaction`
+      INSERT INTO price_search_scheduled_reminder_events (reminder_id, event_type, details, created_at)
+      VALUES (${safeId}, 'deleted', ${JSON.stringify({ providerId: String(current.provider_id || "") })}::jsonb, ${now})
+    `;
+    return { missing: false, alreadyDeleted: false, reminder: scheduledReminderRecord(deleted) };
   });
 }
 

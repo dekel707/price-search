@@ -1263,6 +1263,8 @@ function bindEvents() {
   dom.scheduledReminderList.addEventListener("click", (event) => {
     const cancelButton = event.target.closest("[data-cancel-scheduled-reminder]");
     if (cancelButton) void cancelScheduledEmailReminderFromList(cancelButton.dataset.cancelScheduledReminder, cancelButton);
+    const deleteButton = event.target.closest("[data-delete-scheduled-reminder]");
+    if (deleteButton) void deleteScheduledEmailReminderFromList(deleteButton.dataset.deleteScheduledReminder, deleteButton);
   });
   dom.cancelReminderEdit.addEventListener("click", resetReminderForm);
   dom.showAllReminders.addEventListener("click", () => {
@@ -6417,7 +6419,7 @@ function renderScheduledEmailReminderPanel() {
 
   const visible = scheduledEmailReminders
     .slice()
-    .sort((left, right) => new Date(left.dueAt || 0) - new Date(right.dueAt || 0));
+    .sort(compareScheduledEmailReminders);
   if (!visible.length) {
     dom.scheduledReminderList.replaceChildren(
       emptyState(loading ? "טוען תזכורות מתוזמנות…" : "אין עדיין תזכורות מייל מתוזמנות."),
@@ -6465,8 +6467,33 @@ function renderScheduledEmailReminderRow(reminder) {
     cancel.textContent = "בטל שליחה";
     actions.append(cancel);
   }
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "danger-button scheduled-reminder-delete";
+  remove.dataset.deleteScheduledReminder = reminder.id;
+  remove.textContent = "מחק";
+  actions.append(remove);
   row.append(body, status, actions);
   return row;
+}
+
+function compareScheduledEmailReminders(left, right) {
+  const priority = (reminder) => {
+    const status = cleanString(reminder?.status).toLowerCase();
+    if (status === "scheduled") return 0;
+    if (status === "failed") return 1;
+    if (["sent", "delivered", "opened", "clicked"].includes(status)) return 2;
+    if (status === "cancelled") return 3;
+    return 1;
+  };
+  const leftPriority = priority(left);
+  const rightPriority = priority(right);
+  if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+  const leftTime = new Date(left?.dueAt || 0).getTime();
+  const rightTime = new Date(right?.dueAt || 0).getTime();
+  // Pending and failed reminders are urgent: earliest deadline first. Finished
+  // history is newest first, while cancelled items always remain at the bottom.
+  return leftPriority <= 1 ? leftTime - rightTime : rightTime - leftTime;
 }
 
 async function saveScheduledEmailReminderFromForm(event) {
@@ -6556,6 +6583,39 @@ async function cancelScheduledEmailReminderFromList(reminderId, button) {
     },
   );
   if (cancelled) dom.status.textContent = "המייל המתוזמן בוטל ולא יישלח.";
+}
+
+async function deleteScheduledEmailReminderFromList(reminderId, button) {
+  const reminder = scheduledEmailReminders.find((item) => item.id === reminderId);
+  if (!reminder) return;
+  const pendingWarning = reminder.status === "scheduled" ? " המייל המתוזמן יבוטל ולא יישלח." : "";
+  if (!window.confirm(`למחוק את התזכורת "${reminder.title}"?${pendingWarning}`)) return;
+  const deleted = await runUiAction(
+    {
+      key: `delete-scheduled-email-reminder-${reminderId}`,
+      button,
+      pendingMessage: "מוחק תזכורת…",
+      successMessage: "התזכורת נמחקה מהרשימה.",
+      failureMessage: "לא ניתן היה למחוק את התזכורת.",
+    },
+    async () => {
+      const response = await fetch(SCHEDULED_REMINDERS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "delete", id: reminderId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.reminder) {
+        dom.status.textContent = data?.message || "לא ניתן היה למחוק את התזכורת.";
+        return false;
+      }
+      scheduledEmailReminders = scheduledEmailReminders.filter((item) => item.id !== reminderId);
+      renderScheduledEmailReminderPanel();
+      return true;
+    },
+  );
+  if (deleted) dom.status.textContent = "התזכורת נמחקה מהרשימה.";
 }
 
 function resetScheduledEmailReminderForm() {

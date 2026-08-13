@@ -784,7 +784,8 @@
 
       <section class="tab-panel" data-tab-panel="reminders">
         <section class="reminders-panel" aria-label="תזכורות">
-          <div class="panel-header">
+          <div class="legacy-reminders-area" hidden aria-hidden="true">
+            <div class="panel-header">
             <div>
               <p class="eyebrow">משימות ומעקב</p>
               <h2>תזכורות</h2>
@@ -793,9 +794,9 @@
               <button class="secondary-button" id="showAllReminders" type="button">הצג את כל התזכורות</button>
               <div class="cart-summary" id="remindersSummary">0 פתוחות</div>
             </div>
-          </div>
+            </div>
 
-          <form class="reminder-form" id="reminderForm">
+            <form class="reminder-form" id="reminderForm">
             <input id="reminderId" type="hidden" />
             <label class="field-wrap reminder-title-field">
               <span>תזכורת</span>
@@ -813,7 +814,8 @@
               <button class="file-button" type="submit">שמור תזכורת</button>
               <button class="secondary-button" id="cancelReminderEdit" type="button">נקה</button>
             </div>
-          </form>
+            </form>
+          </div>
 
           <section class="scheduled-reminders-card" aria-label="תזכורות במייל">
             <div class="scheduled-reminders-header">
@@ -852,7 +854,8 @@
             <div class="scheduled-reminder-list" id="scheduledReminderList"></div>
           </section>
 
-          <div class="reminder-filters">
+          <div class="legacy-reminders-area" hidden aria-hidden="true">
+            <div class="reminder-filters">
             <label class="field-wrap">
               <span>מצב</span>
               <select id="reminderStatusFilter">
@@ -865,9 +868,10 @@
               <span>לקוח</span>
               <select id="reminderCustomerFilter"></select>
             </label>
-          </div>
+            </div>
 
-          <div class="reminders-list" id="remindersList"></div>
+            <div class="reminders-list" id="remindersList"></div>
+          </div>
         </section>
       </section>
 

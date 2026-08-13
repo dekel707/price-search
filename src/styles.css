@@ -1003,11 +1003,19 @@ h2 {
 .scheduled-reminder-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
 }
 
 .scheduled-reminder-actions .danger-button {
   min-height: 36px;
   padding-inline: 10px;
+}
+
+.scheduled-reminder-actions .scheduled-reminder-delete {
+  border-color: rgba(248, 113, 113, 0.54);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.26);
 }
 
 .reminder-header-actions {

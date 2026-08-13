@@ -2,6 +2,7 @@ import { isAuthorized } from "./_auth.js";
 import {
   cancelScheduledEmailReminder,
   createScheduledEmailReminder,
+  deleteScheduledEmailReminder,
   getScheduledEmailReminder,
   hasScheduledReminderStorage,
   listScheduledEmailReminders,
@@ -59,6 +60,10 @@ export default async function handleScheduledReminders(request, response) {
     }
     if (action === "cancel") {
       await cancelReminder(body, response);
+      return;
+    }
+    if (action === "delete") {
+      await deleteReminder(body, response);
       return;
     }
     sendJson(response, 400, { error: "invalid_action" });
@@ -191,6 +196,47 @@ async function cancelReminder(body, response) {
   }
   const result = await cancelScheduledEmailReminder(id);
   sendJson(response, 200, { ok: true, reminder: result.reminder, alreadyCancelled: result.alreadyCancelled });
+}
+
+async function deleteReminder(body, response) {
+  const id = cleanId(body?.id);
+  if (!id) {
+    sendJson(response, 400, { error: "invalid_reminder" });
+    return;
+  }
+  const reminder = await getScheduledEmailReminder(id);
+  if (!reminder) {
+    sendJson(response, 404, { error: "reminder_not_found" });
+    return;
+  }
+  if (reminder.status === "deleted") {
+    sendJson(response, 200, { ok: true, reminder, alreadyDeleted: true });
+    return;
+  }
+
+  // A future reminder must be cancelled at Resend before we hide it locally;
+  // otherwise "delete" could leave an invisible email that still sends later.
+  if (reminder.status === "scheduled" && reminder.providerId) {
+    const config = getPrivateEmailConfig();
+    if (!config.enabled) {
+      sendJson(response, 503, {
+        error: "email_not_configured",
+        message: "לא ניתן למחוק בבטחה תזכורת שממתינה לשליחה לפני שחיבור המייל מוגדר.",
+      });
+      return;
+    }
+    const refreshed = await refreshReminderProviderStatus(reminder, config);
+    if (refreshed.status === "scheduled") {
+      await cancelResendEmail(refreshed.providerId, config.apiKey);
+    }
+  }
+
+  const result = await deleteScheduledEmailReminder(id);
+  if (result.missing || !result.reminder) {
+    sendJson(response, 404, { error: "reminder_not_found" });
+    return;
+  }
+  sendJson(response, 200, { ok: true, reminder: result.reminder, alreadyDeleted: result.alreadyDeleted });
 }
 
 async function scheduleResendEmail({ id, title, message, recipientEmail, dueAt, config }) {
