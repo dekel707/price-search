@@ -359,6 +359,7 @@ const dom = {
   scheduledReminderPriority: document.querySelector("#scheduledReminderPriority"),
   scheduledReminderRecurrence: document.querySelector("#scheduledReminderRecurrence"),
   scheduledReminderSubmit: document.querySelector("#scheduledReminderSubmit"),
+  cancelScheduledReminderEdit: document.querySelector("#cancelScheduledReminderEdit"),
   scheduledReminderConfig: document.querySelector("#scheduledReminderConfig"),
   scheduledReminderList: document.querySelector("#scheduledReminderList"),
   refreshScheduledReminders: document.querySelector("#refreshScheduledReminders"),
@@ -1268,14 +1269,26 @@ function bindEvents() {
     button.addEventListener("click", () => selectScheduledReminderType(button.dataset.scheduledReminderType));
   });
   dom.scheduledReminderSource.addEventListener("change", applyScheduledReminderSource);
+  dom.cancelScheduledReminderEdit.addEventListener("click", resetScheduledEmailReminderForm);
   dom.refreshScheduledReminders.addEventListener("click", () => {
     void loadScheduledEmailReminders({ announce: true });
   });
   dom.scheduledReminderList.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-edit-scheduled-reminder]");
+    if (editButton) {
+      editScheduledEmailReminderFromList(editButton.dataset.editScheduledReminder);
+      return;
+    }
     const cancelButton = event.target.closest("[data-cancel-scheduled-reminder]");
-    if (cancelButton) void cancelScheduledEmailReminderFromList(cancelButton.dataset.cancelScheduledReminder, cancelButton);
+    if (cancelButton) {
+      void cancelScheduledEmailReminderFromList(cancelButton.dataset.cancelScheduledReminder, cancelButton);
+      return;
+    }
     const snoozeButton = event.target.closest("[data-snooze-scheduled-reminder]");
-    if (snoozeButton) void snoozeScheduledEmailReminderFromList(snoozeButton.dataset.snoozeScheduledReminder, snoozeButton.dataset.snoozeMode, snoozeButton);
+    if (snoozeButton) {
+      void snoozeScheduledEmailReminderFromList(snoozeButton.dataset.snoozeScheduledReminder, snoozeButton.dataset.snoozeMode, snoozeButton);
+      return;
+    }
     const deleteButton = event.target.closest("[data-delete-scheduled-reminder]");
     if (deleteButton) void deleteScheduledEmailReminderFromList(deleteButton.dataset.deleteScheduledReminder, deleteButton);
   });
@@ -6611,6 +6624,11 @@ function renderScheduledEmailReminderRow(reminder) {
   const actions = document.createElement("div");
   actions.className = "scheduled-reminder-actions";
   if (reminder.status === "scheduled") {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary-button compact-button";
+    edit.dataset.editScheduledReminder = reminder.id;
+    edit.textContent = "עריכה";
     const snoozeHour = document.createElement("button");
     snoozeHour.type = "button";
     snoozeHour.className = "secondary-button compact-button";
@@ -6628,7 +6646,7 @@ function renderScheduledEmailReminderRow(reminder) {
     cancel.className = "danger-button";
     cancel.dataset.cancelScheduledReminder = reminder.id;
     cancel.textContent = "בטל שליחה";
-    actions.append(snoozeHour, snoozeTomorrow, cancel);
+    actions.append(edit, snoozeHour, snoozeTomorrow, cancel);
   }
   const remove = document.createElement("button");
   remove.type = "button";
@@ -6670,13 +6688,15 @@ async function saveScheduledEmailReminderFromForm(event) {
     showActionToast("יש לחבר קודם את שירות המייל ב־Vercel.", "error");
     return;
   }
-  const id = cleanString(dom.scheduledReminderId.value) || createScheduledReminderId();
+  const editingId = cleanString(dom.scheduledReminderId.value);
+  const id = editingId || createScheduledReminderId();
   dom.scheduledReminderId.value = id;
   const recipientEmail = scheduledEmailReminderConfig.defaultRecipient || dom.scheduledReminderRecipient.value;
   dom.scheduledReminderRecipient.value = recipientEmail;
   const payload = {
-    action: "create",
+    action: editingId ? "update" : "create",
     id,
+    ...(editingId ? { nextId: createScheduledReminderId() } : {}),
     title: dom.scheduledReminderTitle.value,
     message: dom.scheduledReminderMessage.value,
     recipientEmail,
@@ -6690,9 +6710,9 @@ async function saveScheduledEmailReminderFromForm(event) {
     {
       key: `scheduled-email-reminder-${id}`,
       button: dom.scheduledReminderSubmit,
-      pendingMessage: "מתזמן מייל…",
-      successMessage: "התזכורת תישלח במייל בשעה שבחרת.",
-      failureMessage: "לא הצלחנו לתזמן את המייל. שום תזכורת לא נשמרה.",
+      pendingMessage: editingId ? "מעדכן תזכורת…" : "מתזמן מייל…",
+      successMessage: editingId ? "התזכורת עודכנה ונשמרה." : "התזכורת תישלח במייל בשעה שבחרת.",
+      failureMessage: editingId ? "לא הצלחנו לעדכן. התזכורת המקורית נשארה פעילה." : "לא הצלחנו לתזמן את המייל. שום תזכורת לא נשמרה.",
     },
     async () => {
       const response = await fetch(SCHEDULED_REMINDERS_ENDPOINT, {
@@ -6706,17 +6726,35 @@ async function saveScheduledEmailReminderFromForm(event) {
         dom.status.textContent = data?.message || "לא ניתן היה לתזמן את המייל.";
         return false;
       }
-      scheduledEmailReminders = [
-        data.reminder,
-        ...scheduledEmailReminders.filter((reminder) => reminder.id !== data.reminder.id),
-      ];
+      scheduledEmailReminders = [data.reminder, ...scheduledEmailReminders.filter((reminder) => reminder.id !== id && reminder.id !== data.reminder.id)];
       scheduledEmailReminderLoadState = "ready";
       resetScheduledEmailReminderForm();
       renderScheduledEmailReminderPanel();
       return true;
     },
   );
-  if (saved) dom.status.textContent = "המייל תוזמן ונשמר במרכז התזכורות.";
+  if (saved) dom.status.textContent = editingId ? "התזכורת עודכנה והמייל הישן בוטל." : "המייל תוזמן ונשמר במרכז התזכורות.";
+}
+
+function editScheduledEmailReminderFromList(reminderId) {
+  const reminder = scheduledEmailReminders.find((item) => item.id === reminderId);
+  if (!reminder || reminder.status !== "scheduled") return;
+  dom.scheduledReminderId.value = reminder.id;
+  dom.scheduledReminderType.value = normalizeScheduledReminderType(reminder.type);
+  dom.scheduledReminderTitle.value = reminder.title || "";
+  dom.scheduledReminderMessage.value = reminder.message || "";
+  const dueParts = getIsraelDateTimeParts(reminder.dueAt);
+  dom.scheduledReminderDate.value = dueParts.date;
+  dom.scheduledReminderTime.value = dueParts.time;
+  dom.scheduledReminderPriority.value = normalizeScheduledReminderPriority(reminder.priority);
+  dom.scheduledReminderRecurrence.value = normalizeScheduledReminderRecurrence(reminder.recurrence);
+  dom.scheduledReminderRecipient.value = scheduledEmailReminderConfig.defaultRecipient || reminder.recipientEmail || "";
+  dom.scheduledReminderSubmit.textContent = "עדכן תזכורת";
+  dom.cancelScheduledReminderEdit.hidden = false;
+  renderScheduledReminderComposer();
+  dom.scheduledReminderTitle.focus();
+  dom.status.textContent = "מצב עריכה: שמירה תבטל את המייל הישן ותיצור את המעודכן.";
+  showActionToast("אפשר לערוך ולשמור את התזכורת.");
 }
 
 async function snoozeScheduledEmailReminderFromList(reminderId, mode, button) {
@@ -6769,27 +6807,26 @@ function getScheduledReminderHourSnoozeTarget() {
 
 async function cancelScheduledEmailReminderFromList(reminderId, button) {
   const reminder = scheduledEmailReminders.find((item) => item.id === reminderId);
-  if (!reminder || !window.confirm(`לבטל את המייל המתוזמן "${reminder.title}"?`)) return;
+  if (!reminder || !window.confirm(`לבטל ולמחוק את התזכורת "${reminder.title}"? המייל לא יישלח.`)) return;
   const cancelled = await runUiAction(
     {
       key: `cancel-scheduled-email-reminder-${reminderId}`,
       button,
-      pendingMessage: "מבטל מייל מתוזמן…",
-      successMessage: "המייל המתוזמן בוטל.",
-      failureMessage: "לא ניתן היה לבטל את המייל. הוא נשאר מתוזמן.",
+      pendingMessage: "מבטל ומוחק תזכורת…",
+      successMessage: "השליחה בוטלה והתזכורת נמחקה.",
+      failureMessage: "לא ניתן היה לבטל. התזכורת נשארה מתוזמנת.",
     },
     async () => {
       const response = await fetch(SCHEDULED_REMINDERS_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ action: "cancel", id: reminderId }),
+        body: JSON.stringify({ action: "delete", id: reminderId }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.reminder) {
-        // When Resend reports that the email already left the queue, it also
-        // returns the refreshed state. Show it immediately instead of leaving
-        // a stale “pending” badge beside a cancellation error.
+        // When the provider reports that the email already left the queue,
+        // show the refreshed state instead of hiding a real delivery result.
         if (data?.reminder) {
           scheduledEmailReminders = scheduledEmailReminders.map((item) => item.id === reminderId ? data.reminder : item);
           renderScheduledEmailReminderPanel();
@@ -6797,12 +6834,12 @@ async function cancelScheduledEmailReminderFromList(reminderId, button) {
         dom.status.textContent = data?.message || "לא ניתן היה לבטל את המייל.";
         return false;
       }
-      scheduledEmailReminders = scheduledEmailReminders.map((item) => item.id === reminderId ? data.reminder : item);
+      scheduledEmailReminders = scheduledEmailReminders.filter((item) => item.id !== reminderId);
       renderScheduledEmailReminderPanel();
       return true;
     },
   );
-  if (cancelled) dom.status.textContent = "המייל המתוזמן בוטל ולא יישלח.";
+  if (cancelled) dom.status.textContent = "השליחה בוטלה והתזכורת נמחקה לגמרי מהרשימה.";
 }
 
 async function deleteScheduledEmailReminderFromList(reminderId, button) {
@@ -6849,6 +6886,8 @@ function resetScheduledEmailReminderForm() {
   dom.scheduledReminderRecurrence.value = "none";
   dom.scheduledReminderSource.value = "";
   dom.scheduledReminderRecipient.value = scheduledEmailReminderConfig.defaultRecipient || "";
+  dom.scheduledReminderSubmit.textContent = "תזמן מייל";
+  dom.cancelScheduledReminderEdit.hidden = true;
   renderScheduledReminderComposer();
 }
 
@@ -6899,6 +6938,21 @@ function formatScheduledReminderDateTime(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function getIsraelDateTimeParts(value) {
+  const date = getSafeDate(value);
+  if (!date || Number.isNaN(date.getTime())) return { date: "", time: "" };
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date).map(({ type, value: partValue }) => [type, partValue]));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
 }
 
 function scheduledReminderStatusLabel(status, providerStatus = "") {

@@ -947,6 +947,15 @@ h2 {
   grid-column: span 2;
 }
 
+.scheduled-reminder-edit-cancel {
+  grid-column: span 2;
+  min-height: 46px;
+}
+
+.scheduled-reminder-edit-cancel[hidden] {
+  display: none;
+}
+
 .scheduled-reminder-message-field textarea {
   min-height: 70px;
   resize: vertical;
@@ -4246,6 +4255,10 @@ h2 {
   .scheduled-reminder-submit {
     grid-column: auto;
     min-height: 46px;
+  }
+
+  .scheduled-reminder-edit-cancel {
+    grid-column: auto;
   }
 
   .scheduled-reminder-row {

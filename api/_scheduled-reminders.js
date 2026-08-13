@@ -59,8 +59,14 @@ export default async function handleScheduledReminders(request, response) {
       await createReminder(body, response);
       return;
     }
+    if (action === "update") {
+      await updateReminder(body, response);
+      return;
+    }
     if (action === "cancel") {
-      await cancelReminder(body, response);
+      // Older tabs may still call `cancel`. Keep their behaviour aligned with
+      // the current UI: stop the provider automation and remove the reminder.
+      await deleteReminder(body, response);
       return;
     }
     if (action === "snooze") {
@@ -158,6 +164,103 @@ async function createReminder(body, response) {
       });
     } catch (recordError) {
       console.error("scheduled_reminder_failure_record_failed", recordError);
+    }
+    throw error;
+  }
+}
+
+async function updateReminder(body, response) {
+  const id = cleanId(body?.id);
+  const nextId = cleanId(body?.nextId) || createServerReminderId();
+  const title = cleanText(body?.title, 160);
+  const message = cleanText(body?.message, 3_000);
+  const recipientEmail = cleanEmail(body?.recipientEmail);
+  const dueAt = israelDateTimeToIso(body?.dueDate, body?.dueTime);
+  const priority = normalizeReminderPriority(body?.priority);
+  const type = normalizeReminderType(body?.type);
+  const recurrence = normalizeReminderRecurrence(body?.recurrence);
+
+  if (!id || !nextId || nextId === id || !title || !recipientEmail || !dueAt) {
+    sendJson(response, 400, { error: "invalid_reminder", message: "יש למלא כותרת, מייל, תאריך ושעה תקינים." });
+    return;
+  }
+  assertScheduleWindow(dueAt);
+
+  const original = await getScheduledEmailReminder(id);
+  if (!original) {
+    sendJson(response, 404, { error: "reminder_not_found" });
+    return;
+  }
+  if (original.status !== "scheduled") {
+    sendJson(response, 409, { error: "email_already_processed", message: "אפשר לערוך רק תזכורת שממתינה לשליחה." });
+    return;
+  }
+
+  const config = getPrivateEmailConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, { error: "email_not_configured", message: "חיבור המייל אינו זמין כרגע." });
+    return;
+  }
+  if (original.providerId) {
+    const refreshed = await refreshReminderProviderStatus(original, config);
+    if (refreshed.status !== "scheduled") {
+      sendJson(response, 409, {
+        error: "email_already_processed",
+        message: "המייל כבר יצא לשליחה ולכן אי אפשר לערוך אותו יותר.",
+        reminder: refreshed,
+      });
+      return;
+    }
+  }
+
+  let replacementCreated = false;
+  let provider = null;
+  try {
+    const created = await createScheduledEmailReminder({
+      id: nextId,
+      title,
+      message,
+      recipientEmail,
+      dueAt,
+      timezone: TIMEZONE,
+      priority,
+      type,
+      recurrence,
+      repeatCount: 1,
+      status: "scheduling",
+      providerStatus: "",
+      eventType: "updated",
+    });
+    if (created.alreadyExists) {
+      throw new PublicError(409, "reminder_update_conflict", "נוצרה התנגשות בעריכה. נסה לשמור שוב.");
+    }
+    replacementCreated = true;
+    provider = await scheduleResendAutomation({ id: nextId, title, message, recipientEmail, dueAt, recurrence, config });
+
+    // The replacement is accepted first, so a scheduling problem cannot make
+    // the user lose the original reminder. Only then stop the old automation.
+    if (original.providerId) await cancelResendEmail(original.providerId, config.apiKey);
+    await deleteScheduledEmailReminder(id);
+    const replacement = await updateScheduledEmailReminderDelivery(nextId, {
+      status: "scheduled",
+      providerId: provider.id,
+      providerStatus: "scheduled",
+      priority,
+      type,
+      recurrence,
+      repeatCount: provider.repeatCount,
+    });
+    sendJson(response, 201, { ok: true, reminder: replacement, replacedId: id });
+  } catch (error) {
+    if (provider?.id) {
+      await cancelResendEmail(provider.id, config.apiKey).catch((cancelError) => {
+        console.error("scheduled_reminder_update_provider_cleanup_failed", cancelError);
+      });
+    }
+    if (replacementCreated) {
+      await deleteScheduledEmailReminder(nextId).catch((recordError) => {
+        console.error("scheduled_reminder_update_record_cleanup_failed", recordError);
+      });
     }
     throw error;
   }
