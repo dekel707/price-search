@@ -210,7 +210,7 @@ export async function listScheduledEmailReminders(limit = 120) {
   const sql = await getSql();
   const safeLimit = Math.max(1, Math.min(300, Number.parseInt(limit, 10) || 120));
   const rows = await sql`
-    SELECT id, title, message, recipient_email, due_at, timezone, status,
+    SELECT id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
            provider_id, provider_status, last_error, created_at, updated_at,
            cancelled_at
     FROM price_search_scheduled_reminders
@@ -224,7 +224,7 @@ export async function listScheduledEmailReminders(limit = 120) {
 export async function getScheduledEmailReminder(id) {
   const sql = await getSql();
   const [row] = await sql`
-    SELECT id, title, message, recipient_email, due_at, timezone, status,
+    SELECT id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
            provider_id, provider_status, last_error, created_at, updated_at,
            cancelled_at
     FROM price_search_scheduled_reminders
@@ -241,7 +241,7 @@ export async function createScheduledEmailReminder(reminder) {
 
   return sql.begin(async (transaction) => {
     const [existing] = await transaction`
-      SELECT id, title, message, recipient_email, due_at, timezone, status,
+      SELECT id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
              provider_id, provider_status, last_error, created_at, updated_at,
              cancelled_at
       FROM price_search_scheduled_reminders
@@ -252,7 +252,7 @@ export async function createScheduledEmailReminder(reminder) {
 
     const [created] = await transaction`
       INSERT INTO price_search_scheduled_reminders (
-        id, title, message, recipient_email, due_at, timezone, status,
+        id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
         provider_id, provider_status, last_error, created_at, updated_at
       )
       VALUES (
@@ -260,6 +260,10 @@ export async function createScheduledEmailReminder(reminder) {
         ${String(reminder.title || "")},
         ${String(reminder.message || "")},
         ${String(reminder.recipientEmail || "")},
+        ${normalizeScheduledReminderPriority(reminder.priority)},
+        ${normalizeScheduledReminderType(reminder.type)},
+        ${normalizeScheduledReminderRecurrence(reminder.recurrence)},
+        ${normalizeScheduledReminderRepeatCount(reminder.repeatCount)},
         ${new Date(reminder.dueAt)},
         ${String(reminder.timezone || "Asia/Jerusalem")},
         ${String(reminder.status || "scheduled")},
@@ -269,7 +273,7 @@ export async function createScheduledEmailReminder(reminder) {
         ${now},
         ${now}
       )
-      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+      RETURNING id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
                 provider_id, provider_status, last_error, created_at, updated_at,
                 cancelled_at
     `;
@@ -300,7 +304,7 @@ export async function updateScheduledEmailReminderDelivery(id, { status, provide
           last_error = ${String(lastError || "")},
           updated_at = ${now}
       WHERE id = ${safeId}
-      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+      RETURNING id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
                 provider_id, provider_status, last_error, created_at, updated_at,
                 cancelled_at
     `;
@@ -325,7 +329,7 @@ export async function cancelScheduledEmailReminder(id) {
 
   return sql.begin(async (transaction) => {
     const [current] = await transaction`
-      SELECT id, title, message, recipient_email, due_at, timezone, status,
+      SELECT id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
              provider_id, provider_status, last_error, created_at, updated_at,
              cancelled_at
       FROM price_search_scheduled_reminders
@@ -341,7 +345,7 @@ export async function cancelScheduledEmailReminder(id) {
       UPDATE price_search_scheduled_reminders
       SET status = 'cancelled', provider_status = 'cancelled', cancelled_at = ${now}, updated_at = ${now}
       WHERE id = ${safeId}
-      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+      RETURNING id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
                 provider_id, provider_status, last_error, created_at, updated_at,
                 cancelled_at
     `;
@@ -360,7 +364,7 @@ export async function deleteScheduledEmailReminder(id) {
 
   return sql.begin(async (transaction) => {
     const [current] = await transaction`
-      SELECT id, title, message, recipient_email, due_at, timezone, status,
+      SELECT id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
              provider_id, provider_status, last_error, created_at, updated_at,
              cancelled_at
       FROM price_search_scheduled_reminders
@@ -376,7 +380,7 @@ export async function deleteScheduledEmailReminder(id) {
       UPDATE price_search_scheduled_reminders
       SET status = 'deleted', updated_at = ${now}
       WHERE id = ${safeId}
-      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+      RETURNING id, title, message, recipient_email, priority, reminder_type, recurrence, repeat_count, due_at, timezone, status,
                 provider_id, provider_status, last_error, created_at, updated_at,
                 cancelled_at
     `;
@@ -447,6 +451,10 @@ async function ensureSchema(sql) {
           title TEXT NOT NULL,
           message TEXT NOT NULL DEFAULT '',
           recipient_email TEXT NOT NULL,
+          priority TEXT NOT NULL DEFAULT 'normal',
+          reminder_type TEXT NOT NULL DEFAULT 'task',
+          recurrence TEXT NOT NULL DEFAULT 'none',
+          repeat_count INTEGER NOT NULL DEFAULT 1,
           due_at TIMESTAMPTZ NOT NULL,
           timezone TEXT NOT NULL DEFAULT 'Asia/Jerusalem',
           status TEXT NOT NULL DEFAULT 'scheduled',
@@ -458,6 +466,10 @@ async function ensureSchema(sql) {
           cancelled_at TIMESTAMPTZ
         )
       `;
+      await sql`ALTER TABLE price_search_scheduled_reminders ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'normal'`;
+      await sql`ALTER TABLE price_search_scheduled_reminders ADD COLUMN IF NOT EXISTS reminder_type TEXT NOT NULL DEFAULT 'task'`;
+      await sql`ALTER TABLE price_search_scheduled_reminders ADD COLUMN IF NOT EXISTS recurrence TEXT NOT NULL DEFAULT 'none'`;
+      await sql`ALTER TABLE price_search_scheduled_reminders ADD COLUMN IF NOT EXISTS repeat_count INTEGER NOT NULL DEFAULT 1`;
       await sql`
         CREATE INDEX IF NOT EXISTS price_search_scheduled_reminders_due_at_idx
         ON price_search_scheduled_reminders (due_at DESC)
@@ -513,6 +525,10 @@ function scheduledReminderRecord(row) {
     title: String(row.title || ""),
     message: String(row.message || ""),
     recipientEmail: String(row.recipient_email || ""),
+    priority: normalizeScheduledReminderPriority(row.priority),
+    type: normalizeScheduledReminderType(row.reminder_type),
+    recurrence: normalizeScheduledReminderRecurrence(row.recurrence),
+    repeatCount: normalizeScheduledReminderRepeatCount(row.repeat_count),
     dueAt: row.due_at ? new Date(row.due_at).toISOString() : "",
     timezone: String(row.timezone || "Asia/Jerusalem"),
     status: String(row.status || "scheduled"),
@@ -523,6 +539,25 @@ function scheduledReminderRecord(row) {
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : "",
     cancelledAt: row.cancelled_at ? new Date(row.cancelled_at).toISOString() : "",
   };
+}
+
+function normalizeScheduledReminderPriority(value) {
+  const priority = String(value || "normal").trim().toLowerCase();
+  return ["urgent", "high", "normal", "low"].includes(priority) ? priority : "normal";
+}
+
+function normalizeScheduledReminderType(value) {
+  const type = String(value || "task").trim().toLowerCase();
+  return ["task", "future-stock", "collection", "evening-summary"].includes(type) ? type : "task";
+}
+
+function normalizeScheduledReminderRecurrence(value) {
+  const recurrence = String(value || "none").trim().toLowerCase();
+  return ["none", "daily", "weekly", "workdays"].includes(recurrence) ? recurrence : "none";
+}
+
+function normalizeScheduledReminderRepeatCount(value) {
+  return Math.max(1, Math.min(31, Math.floor(Number(value) || 1)));
 }
 
 function getDatabaseUrl() {

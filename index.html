@@ -828,6 +828,17 @@
             <p class="scheduled-reminder-config" id="scheduledReminderConfig">טוען את מרכז התזכורות…</p>
             <form class="scheduled-reminder-form" id="scheduledReminderForm">
               <input id="scheduledReminderId" type="hidden" />
+              <input id="scheduledReminderType" type="hidden" value="task" />
+              <div class="scheduled-reminder-types" role="tablist" aria-label="סוג תזכורת">
+                <button class="scheduled-reminder-type active" type="button" data-scheduled-reminder-type="task" role="tab" aria-selected="true">משימה</button>
+                <button class="scheduled-reminder-type" type="button" data-scheduled-reminder-type="future-stock" role="tab" aria-selected="false">מלאי עתידי</button>
+                <button class="scheduled-reminder-type" type="button" data-scheduled-reminder-type="collection" role="tab" aria-selected="false">גבייה</button>
+                <button class="scheduled-reminder-type" type="button" data-scheduled-reminder-type="evening-summary" role="tab" aria-selected="false">סיכום ערב</button>
+              </div>
+              <label class="field-wrap scheduled-reminder-source-field" id="scheduledReminderSourceWrap" hidden>
+                <span id="scheduledReminderSourceLabel">בחירת מקור</span>
+                <select id="scheduledReminderSource"></select>
+              </label>
               <label class="field-wrap scheduled-reminder-title-field">
                 <span>כותרת</span>
                 <input id="scheduledReminderTitle" type="text" autocomplete="off" required maxlength="160" placeholder="למשל: לדבר עם איתן על מלאי" />
@@ -848,6 +859,24 @@
               <label class="field-wrap scheduled-reminder-message-field">
                 <span>פירוט להודעה (אופציונלי)</span>
                 <textarea id="scheduledReminderMessage" rows="2" maxlength="3000" placeholder="מה חשוב לזכור או לבצע?"></textarea>
+              </label>
+              <label class="field-wrap scheduled-reminder-priority-field">
+                <span>עדיפות</span>
+                <select id="scheduledReminderPriority">
+                  <option value="urgent">דחוף</option>
+                  <option value="high">גבוהה</option>
+                  <option value="normal" selected>רגילה</option>
+                  <option value="low">נמוכה</option>
+                </select>
+              </label>
+              <label class="field-wrap scheduled-reminder-repeat-field">
+                <span>חזרה</span>
+                <select id="scheduledReminderRecurrence">
+                  <option value="none" selected>חד־פעמי</option>
+                  <option value="daily">כל יום</option>
+                  <option value="workdays">ימי עבודה</option>
+                  <option value="weekly">כל שבוע</option>
+                </select>
               </label>
               <button class="file-button scheduled-reminder-submit" id="scheduledReminderSubmit" type="submit">תזמן מייל</button>
             </form>

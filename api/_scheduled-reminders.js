@@ -63,6 +63,10 @@ export default async function handleScheduledReminders(request, response) {
       await cancelReminder(body, response);
       return;
     }
+    if (action === "snooze") {
+      await snoozeReminder(body, response);
+      return;
+    }
     if (action === "delete") {
       await deleteReminder(body, response);
       return;
@@ -84,6 +88,9 @@ async function createReminder(body, response) {
   const message = cleanText(body?.message, 3_000);
   const recipientEmail = cleanEmail(body?.recipientEmail);
   const dueAt = israelDateTimeToIso(body?.dueDate, body?.dueTime);
+  const priority = normalizeReminderPriority(body?.priority);
+  const type = normalizeReminderType(body?.type);
+  const recurrence = normalizeReminderRecurrence(body?.recurrence);
 
   if (!id || !title || !recipientEmail || !dueAt) {
     sendJson(response, 400, { error: "invalid_reminder", message: "יש למלא כותרת, מייל, תאריך ושעה תקינים." });
@@ -100,18 +107,7 @@ async function createReminder(body, response) {
     return;
   }
 
-  const millisecondsUntilSend = new Date(dueAt).getTime() - Date.now();
-  if (millisecondsUntilSend < MIN_SCHEDULE_AHEAD_MS) {
-    sendJson(response, 400, { error: "schedule_too_soon", message: "יש לבחור שעה שלפחות דקה קדימה." });
-    return;
-  }
-  if (millisecondsUntilSend > MAX_SCHEDULE_AHEAD_MS) {
-    sendJson(response, 400, {
-      error: "schedule_too_far",
-      message: "בגרסה הראשונה אפשר לתזמן מייל עד 30 ימים קדימה.",
-    });
-    return;
-  }
+  assertScheduleWindow(dueAt);
 
   const config = getPrivateEmailConfig();
   if (!config.enabled) {
@@ -130,6 +126,10 @@ async function createReminder(body, response) {
       recipientEmail,
       dueAt,
       timezone: TIMEZONE,
+      priority,
+      type,
+      recurrence,
+      repeatCount: 1,
       status: "scheduling",
       providerStatus: "",
       eventType: "schedule-requested",
@@ -138,11 +138,15 @@ async function createReminder(body, response) {
   }
 
   try {
-    const provider = await scheduleResendAutomation({ id, title, message, recipientEmail, dueAt, config });
+    const provider = await scheduleResendAutomation({ id, title, message, recipientEmail, dueAt, recurrence, config });
     const reminder = await updateScheduledEmailReminderDelivery(id, {
       status: "scheduled",
       providerId: provider.id,
       providerStatus: "scheduled",
+      priority,
+      type,
+      recurrence,
+      repeatCount: provider.repeatCount,
     });
     sendJson(response, 201, { ok: true, reminder, alreadyScheduled: false });
   } catch (error) {
@@ -154,6 +158,104 @@ async function createReminder(body, response) {
       });
     } catch (recordError) {
       console.error("scheduled_reminder_failure_record_failed", recordError);
+    }
+    throw error;
+  }
+}
+
+async function snoozeReminder(body, response) {
+  const id = cleanId(body?.id);
+  const dueAt = parseFutureIso(body?.dueAt) || israelDateTimeToIso(body?.dueDate, body?.dueTime);
+  if (!id || !dueAt) {
+    sendJson(response, 400, { error: "invalid_snooze", message: "לא נבחר מועד דחייה תקין." });
+    return;
+  }
+  assertScheduleWindow(dueAt);
+
+  const reminder = await getScheduledEmailReminder(id);
+  if (!reminder) {
+    sendJson(response, 404, { error: "reminder_not_found" });
+    return;
+  }
+  if (reminder.status !== "scheduled") {
+    sendJson(response, 409, { error: "email_already_processed", message: "אפשר לדחות רק תזכורת שממתינה לשליחה." });
+    return;
+  }
+
+  const config = getPrivateEmailConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, { error: "email_not_configured", message: "חיבור המייל אינו זמין כרגע." });
+    return;
+  }
+
+  if (reminder.providerId) {
+    const refreshed = await refreshReminderProviderStatus(reminder, config);
+    if (refreshed.status !== "scheduled") {
+      sendJson(response, 409, {
+        error: "email_already_processed",
+        message: "המייל כבר יצא לשליחה ולכן אי אפשר לדחות אותו.",
+        reminder: refreshed,
+      });
+      return;
+    }
+  }
+
+  const nextId = cleanId(body?.nextId) || createServerReminderId();
+  const title = cleanText(reminder.title, 160);
+  const message = cleanText(reminder.message, 3_000);
+  const recipientEmail = cleanEmail(reminder.recipientEmail);
+  const priority = normalizeReminderPriority(reminder.priority);
+  const type = normalizeReminderType(reminder.type);
+  const recurrence = normalizeReminderRecurrence(reminder.recurrence);
+  let provider = null;
+  try {
+    await createScheduledEmailReminder({
+      id: nextId,
+      title,
+      message,
+      recipientEmail,
+      dueAt,
+      timezone: TIMEZONE,
+      priority,
+      type,
+      recurrence,
+      repeatCount: 1,
+      status: "scheduling",
+      providerStatus: "",
+      eventType: "snoozed",
+    });
+    provider = await scheduleResendAutomation({ id: nextId, title, message, recipientEmail, dueAt, recurrence, config });
+    // The new reminder is accepted before the old one is stopped, so a
+    // temporary provider failure cannot make a user lose the original task.
+    if (reminder.providerId) await cancelResendEmail(reminder.providerId, config.apiKey);
+    await cancelScheduledEmailReminder(id);
+    const nextReminder = await updateScheduledEmailReminderDelivery(nextId, {
+      status: "scheduled",
+      providerId: provider.id,
+      providerStatus: "scheduled",
+      priority,
+      type,
+      recurrence,
+      repeatCount: provider.repeatCount,
+    });
+    sendJson(response, 201, { ok: true, reminder: nextReminder, replacedId: id });
+  } catch (error) {
+    if (provider?.id) {
+      await cancelResendEmail(provider.id, config.apiKey).catch((cancelError) => {
+        console.error("scheduled_reminder_snooze_provider_cleanup_failed", cancelError);
+      });
+    }
+    try {
+      await updateScheduledEmailReminderDelivery(nextId, {
+        status: "failed",
+        providerStatus: "failed",
+        priority,
+        type,
+        recurrence,
+        lastError: error instanceof PublicError ? error.message : "לא ניתן היה לדחות את המייל.",
+      });
+    } catch (recordError) {
+      console.error("scheduled_reminder_snooze_failure_record_failed", recordError);
     }
     throw error;
   }
@@ -240,7 +342,7 @@ async function deleteReminder(body, response) {
   sendJson(response, 200, { ok: true, reminder: result.reminder, alreadyDeleted: result.alreadyDeleted });
 }
 
-async function scheduleResendAutomation({ id, title, message, recipientEmail, dueAt, config }) {
+async function scheduleResendAutomation({ id, title, message, recipientEmail, dueAt, recurrence = "none", config }) {
   if (!config.automationTemplateId) {
     throw new PublicError(503, "email_scheduler_not_configured", "מנגנון התזמון החדש עדיין לא הוגדר. נסה שוב בעוד רגע.");
   }
@@ -249,37 +351,44 @@ async function scheduleResendAutomation({ id, title, message, recipientEmail, du
   // when dispatching it. Each reminder now gets an isolated Automation run:
   // event -> delay -> normal email send. A cancellation can therefore stop only
   // this reminder and never affect any business-state data or other reminders.
-  const millisecondsUntilSend = new Date(dueAt).getTime() - Date.now();
-  const delayMinutes = Math.max(1, Math.ceil(millisecondsUntilSend / (60 * 1000)));
+  const occurrences = buildReminderOccurrences(dueAt, recurrence);
   const eventName = `price_search_reminder_${id}`;
+  const steps = [{ key: "start", type: "trigger", config: { event_name: eventName } }];
+  const connections = [];
+  let previousKey = "start";
+  let previousAt = Date.now();
+  occurrences.forEach((scheduledAt, index) => {
+    const delayKey = `wait_${index + 1}`;
+    const sendKey = `send_${index + 1}`;
+    const delayMinutes = Math.max(1, Math.ceil((scheduledAt.getTime() - previousAt) / (60 * 1000)));
+    steps.push({ key: delayKey, type: "delay", config: { duration: `${delayMinutes} minutes` } });
+    steps.push({
+      key: sendKey,
+      type: "send_email",
+      config: {
+        template: {
+          id: config.automationTemplateId,
+          variables: {
+            TITLE: { var: "event.title" },
+            MESSAGE: { var: "event.message" },
+            DUE_LABEL: formatIsraelDateTime(scheduledAt),
+          },
+        },
+        from: config.from,
+      },
+    });
+    connections.push({ from: previousKey, to: delayKey, type: "default" });
+    connections.push({ from: delayKey, to: sendKey, type: "default" });
+    previousKey = sendKey;
+    previousAt = scheduledAt.getTime();
+  });
   const automation = await resendRequest("/automations", config.apiKey, {
     method: "POST",
     body: JSON.stringify({
       name: `Price Search reminder ${id}`,
       status: "enabled",
-      steps: [
-        { key: "start", type: "trigger", config: { event_name: eventName } },
-        { key: "wait", type: "delay", config: { duration: `${delayMinutes} minutes` } },
-        {
-          key: "send",
-          type: "send_email",
-          config: {
-            template: {
-              id: config.automationTemplateId,
-              variables: {
-                TITLE: { var: "event.title" },
-                MESSAGE: { var: "event.message" },
-                DUE_LABEL: { var: "event.dueLabel" },
-              },
-            },
-            from: config.from,
-          },
-        },
-      ],
-      connections: [
-        { from: "start", to: "wait", type: "default" },
-        { from: "wait", to: "send", type: "default" },
-      ],
+      steps,
+      connections,
     }),
     idempotencyKey: `price-search-reminder-automation-${id}`,
   });
@@ -310,7 +419,7 @@ async function scheduleResendAutomation({ id, title, message, recipientEmail, du
     });
     throw error;
   }
-  return { id: `${AUTOMATION_PROVIDER_PREFIX}${automation.id}` };
+  return { id: `${AUTOMATION_PROVIDER_PREFIX}${automation.id}`, repeatCount: occurrences.length };
 }
 
 async function cancelResendEmail(providerId, apiKey) {
@@ -442,6 +551,42 @@ function getAutomationId(providerId) {
   return value.startsWith(AUTOMATION_PROVIDER_PREFIX) ? value.slice(AUTOMATION_PROVIDER_PREFIX.length) : "";
 }
 
+function buildReminderOccurrences(dueAt, recurrence) {
+  const first = new Date(dueAt);
+  const normalizedRecurrence = normalizeReminderRecurrence(recurrence);
+  if (normalizedRecurrence === "none") return [first];
+
+  const horizon = Math.min(
+    Date.now() + MAX_SCHEDULE_AHEAD_MS,
+    first.getTime() + MAX_SCHEDULE_AHEAD_MS,
+  );
+  const occurrences = [first];
+  let cursor = first;
+  while (occurrences.length < 31) {
+    cursor = nextRecurringOccurrence(cursor, normalizedRecurrence);
+    if (cursor.getTime() > horizon) break;
+    occurrences.push(cursor);
+  }
+  return occurrences;
+}
+
+function nextRecurringOccurrence(previous, recurrence) {
+  const next = new Date(previous);
+  if (recurrence === "weekly") {
+    next.setUTCDate(next.getUTCDate() + 7);
+    return next;
+  }
+  do {
+    next.setUTCDate(next.getUTCDate() + 1);
+  } while (recurrence === "workdays" && !isIsraelWorkday(next));
+  return next;
+}
+
+function isIsraelWorkday(value) {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: TIMEZONE, weekday: "short" }).format(value);
+  return weekday !== "Fri" && weekday !== "Sat";
+}
+
 function normalizeProviderStatus(value) {
   return String(value || "scheduled").trim().toLowerCase().replace(/^email\./, "");
 }
@@ -467,6 +612,41 @@ function getPrivateEmailConfig() {
   const from = getEnvValue("REMINDER_EMAIL_FROM");
   const automationTemplateId = getEnvValue("REMINDER_AUTOMATION_TEMPLATE_ID");
   return { apiKey, from, automationTemplateId, enabled: Boolean(apiKey && from) };
+}
+
+function assertScheduleWindow(dueAt) {
+  const millisecondsUntilSend = new Date(dueAt).getTime() - Date.now();
+  if (millisecondsUntilSend < MIN_SCHEDULE_AHEAD_MS) {
+    throw new PublicError(400, "schedule_too_soon", "יש לבחור שעה שלפחות דקה קדימה.");
+  }
+  if (millisecondsUntilSend > MAX_SCHEDULE_AHEAD_MS) {
+    throw new PublicError(400, "schedule_too_far", "אפשר לתזמן מייל עד 30 ימים קדימה.");
+  }
+}
+
+function parseFutureIso(value) {
+  const candidate = new Date(String(value || ""));
+  return Number.isNaN(candidate.getTime()) ? "" : candidate.toISOString();
+}
+
+function normalizeReminderPriority(value) {
+  const priority = String(value || "normal").trim().toLowerCase();
+  return ["urgent", "high", "normal", "low"].includes(priority) ? priority : "normal";
+}
+
+function normalizeReminderType(value) {
+  const type = String(value || "task").trim().toLowerCase();
+  return ["task", "future-stock", "collection", "evening-summary"].includes(type) ? type : "task";
+}
+
+function normalizeReminderRecurrence(value) {
+  const recurrence = String(value || "none").trim().toLowerCase();
+  return ["none", "daily", "weekly", "workdays"].includes(recurrence) ? recurrence : "none";
+}
+
+function createServerReminderId() {
+  const random = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `mailrem-${String(random).replace(/[^a-zA-Z0-9_-]/g, "")}`;
 }
 
 function israelDateTimeToIso(rawDate, rawTime) {

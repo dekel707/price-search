@@ -889,13 +889,57 @@ h2 {
   align-items: end;
 }
 
+.scheduled-reminder-types {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 4px;
+  border: 1px solid rgba(128, 203, 191, 0.2);
+  border-radius: 12px;
+  background: rgba(5, 18, 24, 0.42);
+}
+
+.scheduled-reminder-type {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(129, 166, 191, 0.3);
+  border-radius: 9px;
+  color: #bdd4da;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.scheduled-reminder-type.active {
+  border-color: rgba(49, 220, 199, 0.72);
+  color: #e4fffb;
+  background: linear-gradient(135deg, rgba(11, 112, 103, 0.64), rgba(16, 59, 76, 0.7));
+  box-shadow: inset 0 0 0 1px rgba(95, 255, 229, 0.14), 0 5px 15px rgba(7, 146, 133, 0.13);
+}
+
+.scheduled-reminder-source-field {
+  grid-column: 1 / -1;
+}
+
 .scheduled-reminder-title-field,
 .scheduled-reminder-recipient-field {
   grid-column: span 2;
 }
 
 .scheduled-reminder-message-field {
-  grid-column: 1 / -2;
+  grid-column: 1 / -1;
+}
+
+.scheduled-reminder-priority-field,
+.scheduled-reminder-repeat-field {
+  min-width: 0;
+}
+
+.scheduled-reminder-submit {
+  grid-column: span 2;
 }
 
 .scheduled-reminder-message-field textarea {
@@ -921,7 +965,7 @@ h2 {
   line-height: 1.35;
 }
 
-.scheduled-reminder-submit {
+.scheduled-reminder-form > .scheduled-reminder-submit {
   min-height: 70px;
 }
 
@@ -939,6 +983,67 @@ h2 {
   border: 1px solid rgba(128, 203, 191, 0.25);
   border-radius: 12px;
   background: rgba(6, 18, 22, 0.58);
+}
+
+.scheduled-reminder-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.scheduled-reminder-tag {
+  padding: 3px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 999px;
+  color: #cbd5e1;
+  background: rgba(71, 85, 105, 0.16);
+  font-size: 0.68rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.scheduled-reminder-tag.priority-urgent {
+  border-color: rgba(248, 113, 113, 0.62);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+}
+
+.scheduled-reminder-tag.priority-high {
+  border-color: rgba(251, 191, 36, 0.58);
+  color: #fde68a;
+  background: rgba(120, 78, 10, 0.25);
+}
+
+.scheduled-reminder-tag.priority-normal,
+.scheduled-reminder-tag.type-task {
+  border-color: rgba(56, 189, 248, 0.42);
+  color: #bae6fd;
+  background: rgba(7, 89, 133, 0.18);
+}
+
+.scheduled-reminder-tag.priority-low {
+  color: #bbf7d0;
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(20, 83, 45, 0.18);
+}
+
+.scheduled-reminder-tag.type-future-stock {
+  border-color: rgba(45, 212, 191, 0.46);
+  color: #ccfbf1;
+  background: rgba(15, 118, 110, 0.2);
+}
+
+.scheduled-reminder-tag.type-collection {
+  border-color: rgba(192, 132, 252, 0.46);
+  color: #e9d5ff;
+  background: rgba(107, 33, 168, 0.19);
+}
+
+.scheduled-reminder-tag.type-evening-summary,
+.scheduled-reminder-tag.recurring {
+  border-color: rgba(251, 191, 36, 0.42);
+  color: #fef3c7;
+  background: rgba(120, 78, 10, 0.2);
 }
 
 .scheduled-reminder-row[data-state="cancelled"] {
@@ -4119,11 +4224,22 @@ h2 {
 
   .scheduled-reminder-title-field,
   .scheduled-reminder-recipient-field,
-  .scheduled-reminder-message-field {
+  .scheduled-reminder-message-field,
+  .scheduled-reminder-source-field {
     grid-column: auto;
   }
 
+  .scheduled-reminder-types {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scheduled-reminder-type {
+    width: 100%;
+  }
+
   .scheduled-reminder-submit {
+    grid-column: auto;
     min-height: 46px;
   }
 

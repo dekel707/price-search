@@ -76,6 +76,10 @@ export async function updateScheduledEmailReminderDelivery(id, update) {
     providerId: String(update.providerId || ""),
     providerStatus: String(update.providerStatus || ""),
     lastError: String(update.lastError || ""),
+    priority: normalizeReminderPriority(update.priority || current.priority),
+    type: normalizeReminderType(update.type || current.type),
+    recurrence: normalizeReminderRecurrence(update.recurrence || current.recurrence),
+    repeatCount: normalizeRepeatCount(update.repeatCount ?? current.repeatCount),
     updatedAt: now,
     events: appendEvent(current.events, createEvent(update.status || "scheduled", update, now)),
   }));
@@ -156,6 +160,10 @@ function normalizeReminder(value) {
     title: String(reminder.title || ""),
     message: String(reminder.message || ""),
     recipientEmail: String(reminder.recipientEmail || ""),
+    priority: normalizeReminderPriority(reminder.priority),
+    type: normalizeReminderType(reminder.type),
+    recurrence: normalizeReminderRecurrence(reminder.recurrence),
+    repeatCount: normalizeRepeatCount(reminder.repeatCount),
     dueAt: reminder.dueAt ? new Date(reminder.dueAt).toISOString() : "",
     timezone: String(reminder.timezone || "Asia/Jerusalem"),
     status: String(reminder.status || "scheduled"),
@@ -168,6 +176,25 @@ function normalizeReminder(value) {
     deletedAt: reminder.deletedAt ? new Date(reminder.deletedAt).toISOString() : "",
     events: Array.isArray(reminder.events) ? reminder.events.slice(-MAX_EVENT_HISTORY) : [],
   };
+}
+
+function normalizeReminderPriority(value) {
+  const priority = String(value || "normal").trim().toLowerCase();
+  return ["urgent", "high", "normal", "low"].includes(priority) ? priority : "normal";
+}
+
+function normalizeReminderType(value) {
+  const type = String(value || "task").trim().toLowerCase();
+  return ["task", "future-stock", "collection", "evening-summary"].includes(type) ? type : "task";
+}
+
+function normalizeReminderRecurrence(value) {
+  const recurrence = String(value || "none").trim().toLowerCase();
+  return ["none", "daily", "weekly", "workdays"].includes(recurrence) ? recurrence : "none";
+}
+
+function normalizeRepeatCount(value) {
+  return Math.max(1, Math.min(31, Math.floor(Number(value) || 1)));
 }
 
 function createEvent(type, details, createdAt) {
