@@ -12,6 +12,7 @@ import {
 const TIMEZONE = "Asia/Jerusalem";
 const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_SCHEDULE_AHEAD_MS = 60 * 1000;
+const AUTOMATION_PROVIDER_PREFIX = "automation:";
 
 // This is a private module imported by the existing /api/state function.
 // Keeping it out of a public route keeps the app within Vercel Hobby's
@@ -137,7 +138,7 @@ async function createReminder(body, response) {
   }
 
   try {
-    const provider = await scheduleResendEmail({ id, title, message, recipientEmail, dueAt, config });
+    const provider = await scheduleResendAutomation({ id, title, message, recipientEmail, dueAt, config });
     const reminder = await updateScheduledEmailReminderDelivery(id, {
       status: "scheduled",
       providerId: provider.id,
@@ -239,40 +240,85 @@ async function deleteReminder(body, response) {
   sendJson(response, 200, { ok: true, reminder: result.reminder, alreadyDeleted: result.alreadyDeleted });
 }
 
-async function scheduleResendEmail({ id, title, message, recipientEmail, dueAt, config }) {
-  const text = [
-    `תזכורת: ${title}`,
-    message,
-    `מועד: ${formatIsraelDateTime(new Date(dueAt))}`,
-  ].filter(Boolean).join("\n\n");
-  const upstream = await fetch("https://api.resend.com/emails", {
+async function scheduleResendAutomation({ id, title, message, recipientEmail, dueAt, config }) {
+  if (!config.automationTemplateId) {
+    throw new PublicError(503, "email_scheduler_not_configured", "מנגנון התזמון החדש עדיין לא הוגדר. נסה שוב בעוד רגע.");
+  }
+
+  // Resend's direct `scheduled_at` endpoint accepted a reminder and then failed
+  // when dispatching it. Each reminder now gets an isolated Automation run:
+  // event -> delay -> normal email send. A cancellation can therefore stop only
+  // this reminder and never affect any business-state data or other reminders.
+  const millisecondsUntilSend = new Date(dueAt).getTime() - Date.now();
+  const delayMinutes = Math.max(1, Math.ceil(millisecondsUntilSend / (60 * 1000)));
+  const eventName = `price_search_reminder_${id}`;
+  const automation = await resendRequest("/automations", config.apiKey, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": `price-search-reminder-${id}`,
-    },
     body: JSON.stringify({
-      from: config.from,
-      to: [recipientEmail],
-      subject: `תזכורת · ${title}`,
-      text,
-      scheduled_at: dueAt,
-      tags: [
-        { name: "source", value: "price-search-reminder" },
-        { name: "reminder_id", value: id },
+      name: `Price Search reminder ${id}`,
+      status: "enabled",
+      steps: [
+        { key: "start", type: "trigger", config: { event_name: eventName } },
+        { key: "wait", type: "delay", config: { duration: `${delayMinutes} minutes` } },
+        {
+          key: "send",
+          type: "send_email",
+          config: {
+            template: {
+              id: config.automationTemplateId,
+              variables: {
+                TITLE: { var: "event.title" },
+                MESSAGE: { var: "event.message" },
+                DUE_LABEL: { var: "event.dueLabel" },
+              },
+            },
+            from: config.from,
+          },
+        },
+      ],
+      connections: [
+        { from: "start", to: "wait", type: "default" },
+        { from: "wait", to: "send", type: "default" },
       ],
     }),
+    idempotencyKey: `price-search-reminder-automation-${id}`,
   });
-  const payload = await upstream.json().catch(() => ({}));
-  if (!upstream.ok || !payload?.id) {
-    console.error("resend_schedule_failed", upstream.status, payload?.message || payload?.name || "unknown");
+
+  if (!automation?.id) {
     throw new PublicError(502, "email_schedule_failed", "שירות המייל לא אישר את התזכורת. היא לא נשמרה ולא תישלח.");
   }
-  return { id: String(payload.id) };
+
+  try {
+    await resendRequest("/events/send", config.apiKey, {
+      method: "POST",
+      body: JSON.stringify({
+        event: eventName,
+        email: recipientEmail,
+        payload: {
+          title,
+          message,
+          dueLabel: formatIsraelDateTime(new Date(dueAt)),
+        },
+      }),
+      idempotencyKey: `price-search-reminder-event-${id}`,
+    });
+  } catch (error) {
+    // Do not leave a silent future Automation behind when its trigger was not
+    // accepted. The local reminder will be marked failed by the caller.
+    await stopResendAutomation(String(automation.id), config.apiKey).catch((stopError) => {
+      console.error("resend_automation_cleanup_failed", stopError);
+    });
+    throw error;
+  }
+  return { id: `${AUTOMATION_PROVIDER_PREFIX}${automation.id}` };
 }
 
 async function cancelResendEmail(providerId, apiKey) {
+  const automationId = getAutomationId(providerId);
+  if (automationId) {
+    await stopResendAutomation(automationId, apiKey);
+    return;
+  }
   const upstream = await fetch(`https://api.resend.com/emails/${encodeURIComponent(providerId)}/cancel`, {
     method: "POST",
     headers: {
@@ -285,6 +331,39 @@ async function cancelResendEmail(providerId, apiKey) {
     console.error("resend_cancel_failed", upstream.status, payload?.message || payload?.name || "unknown");
     throw new PublicError(502, "email_cancel_failed", "לא ניתן היה לבטל את המייל מול שירות הדיוור. התזכורת נשארה פעילה." );
   }
+}
+
+async function stopResendAutomation(automationId, apiKey) {
+  const upstream = await fetch(`https://api.resend.com/automations/${encodeURIComponent(automationId)}/stop`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!upstream.ok) {
+    const payload = await upstream.json().catch(() => ({}));
+    console.error("resend_automation_stop_failed", upstream.status, payload?.message || payload?.name || "unknown");
+    throw new PublicError(502, "email_cancel_failed", "לא ניתן היה לבטל את המייל מול שירות הדיוור. התזכורת נשארה פעילה.");
+  }
+}
+
+async function resendRequest(path, apiKey, options = {}) {
+  const upstream = await fetch(`https://api.resend.com${path}`, {
+    method: options.method || "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+    },
+    ...(options.body ? { body: options.body } : {}),
+  });
+  const payload = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) {
+    console.error("resend_request_failed", path, upstream.status, payload?.message || payload?.name || "unknown");
+    throw new PublicError(502, "email_schedule_failed", "שירות המייל לא אישר את התזכורת. היא לא נשמרה ולא תישלח.");
+  }
+  return payload;
 }
 
 // Resend is the source of truth for delivery. We refresh only reminders that
@@ -316,6 +395,10 @@ async function refreshDueReminderStatuses(reminders) {
 
 async function refreshReminderProviderStatus(reminder, config) {
   if (!reminder?.providerId) return reminder;
+  const automationId = getAutomationId(reminder.providerId);
+  if (automationId) {
+    return refreshAutomationReminderStatus(reminder, automationId, config);
+  }
   const upstream = await fetch(`https://api.resend.com/emails/${encodeURIComponent(reminder.providerId)}`, {
     headers: { Authorization: `Bearer ${config.apiKey}` },
   });
@@ -334,12 +417,38 @@ async function refreshReminderProviderStatus(reminder, config) {
   });
 }
 
+async function refreshAutomationReminderStatus(reminder, automationId, config) {
+  const upstream = await fetch(`https://api.resend.com/automations/${encodeURIComponent(automationId)}/runs?limit=5`, {
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+  });
+  const payload = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) {
+    throw new PublicError(502, "email_status_failed", "לא ניתן היה לרענן את סטטוס המייל מול שירות הדיוור.");
+  }
+  const latestRun = Array.isArray(payload?.data) ? payload.data[0] : null;
+  const providerStatus = normalizeProviderStatus(latestRun?.status || "scheduled");
+  const status = providerStatusToReminderStatus(providerStatus, reminder.status);
+  if (status === reminder.status && providerStatus === reminder.providerStatus) return reminder;
+  return updateScheduledEmailReminderDelivery(reminder.id, {
+    status,
+    providerId: reminder.providerId,
+    providerStatus,
+    lastError: status === "failed" ? "שירות הדיוור דיווח שהמייל לא נמסר." : "",
+  });
+}
+
+function getAutomationId(providerId) {
+  const value = String(providerId || "");
+  return value.startsWith(AUTOMATION_PROVIDER_PREFIX) ? value.slice(AUTOMATION_PROVIDER_PREFIX.length) : "";
+}
+
 function normalizeProviderStatus(value) {
   return String(value || "scheduled").trim().toLowerCase().replace(/^email\./, "");
 }
 
 function providerStatusToReminderStatus(providerStatus, fallback) {
-  if (["scheduled", "queued"].includes(providerStatus)) return "scheduled";
+  if (["scheduled", "queued", "running"].includes(providerStatus)) return "scheduled";
+  if (["completed"].includes(providerStatus)) return "sent";
   if (["sent"].includes(providerStatus)) return "sent";
   if (["delivered"].includes(providerStatus)) return "delivered";
   if (["opened"].includes(providerStatus)) return "opened";
@@ -356,7 +465,8 @@ function getPublicEmailConfig() {
 function getPrivateEmailConfig() {
   const apiKey = getEnvValue("RESEND_API_KEY");
   const from = getEnvValue("REMINDER_EMAIL_FROM");
-  return { apiKey, from, enabled: Boolean(apiKey && from) };
+  const automationTemplateId = getEnvValue("REMINDER_AUTOMATION_TEMPLATE_ID");
+  return { apiKey, from, automationTemplateId, enabled: Boolean(apiKey && from) };
 }
 
 function israelDateTimeToIso(rawDate, rawTime) {
