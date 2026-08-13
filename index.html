@@ -815,6 +815,42 @@
             </div>
           </form>
 
+          <section class="scheduled-reminders-card" aria-label="תזכורות במייל">
+            <div class="scheduled-reminders-header">
+              <div>
+                <p class="eyebrow">התראה אוטומטית</p>
+                <h3>תזכורת מתוזמנת למייל</h3>
+              </div>
+              <button class="secondary-button compact-button" id="refreshScheduledReminders" type="button">רענן</button>
+            </div>
+            <p class="scheduled-reminder-config" id="scheduledReminderConfig">טוען את מרכז התזכורות…</p>
+            <form class="scheduled-reminder-form" id="scheduledReminderForm">
+              <input id="scheduledReminderId" type="hidden" />
+              <label class="field-wrap scheduled-reminder-title-field">
+                <span>כותרת</span>
+                <input id="scheduledReminderTitle" type="text" autocomplete="off" required maxlength="160" placeholder="למשל: לדבר עם איתן על מלאי" />
+              </label>
+              <label class="field-wrap">
+                <span>תאריך</span>
+                <input id="scheduledReminderDate" type="date" required />
+              </label>
+              <label class="field-wrap">
+                <span>שעה בישראל</span>
+                <input id="scheduledReminderTime" type="time" required />
+              </label>
+              <label class="field-wrap scheduled-reminder-recipient-field">
+                <span>מייל יעד</span>
+                <input id="scheduledReminderRecipient" type="email" autocomplete="email" required placeholder="name@example.com" />
+              </label>
+              <label class="field-wrap scheduled-reminder-message-field">
+                <span>פירוט להודעה (אופציונלי)</span>
+                <textarea id="scheduledReminderMessage" rows="2" maxlength="3000" placeholder="מה חשוב לזכור או לבצע?"></textarea>
+              </label>
+              <button class="file-button scheduled-reminder-submit" id="scheduledReminderSubmit" type="submit">תזמן מייל</button>
+            </form>
+            <div class="scheduled-reminder-list" id="scheduledReminderList"></div>
+          </section>
+
           <div class="reminder-filters">
             <label class="field-wrap">
               <span>מצב</span>

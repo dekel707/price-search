@@ -202,6 +202,156 @@ export async function readCatalogSpecifications() {
   return Object.fromEntries(rows.map((row) => [String(row.sku_key), typeof row.attributes === "string" ? JSON.parse(row.attributes) : row.attributes]));
 }
 
+// Scheduled email reminders intentionally live in their own table rather than
+// inside price_search_state. They are operational notifications, not business
+// data, so creating or cancelling one can never overwrite orders, customers,
+// stock or reservations in the shared state document.
+export async function listScheduledEmailReminders(limit = 120) {
+  const sql = await getSql();
+  const safeLimit = Math.max(1, Math.min(300, Number.parseInt(limit, 10) || 120));
+  const rows = await sql`
+    SELECT id, title, message, recipient_email, due_at, timezone, status,
+           provider_id, provider_status, last_error, created_at, updated_at,
+           cancelled_at
+    FROM price_search_scheduled_reminders
+    ORDER BY due_at DESC, created_at DESC
+    LIMIT ${safeLimit}
+  `;
+  return rows.map(scheduledReminderRecord);
+}
+
+export async function getScheduledEmailReminder(id) {
+  const sql = await getSql();
+  const [row] = await sql`
+    SELECT id, title, message, recipient_email, due_at, timezone, status,
+           provider_id, provider_status, last_error, created_at, updated_at,
+           cancelled_at
+    FROM price_search_scheduled_reminders
+    WHERE id = ${String(id || "")}
+    LIMIT 1
+  `;
+  return row ? scheduledReminderRecord(row) : null;
+}
+
+export async function createScheduledEmailReminder(reminder) {
+  const sql = await getSql();
+  const now = new Date();
+  const id = String(reminder.id || "");
+
+  return sql.begin(async (transaction) => {
+    const [existing] = await transaction`
+      SELECT id, title, message, recipient_email, due_at, timezone, status,
+             provider_id, provider_status, last_error, created_at, updated_at,
+             cancelled_at
+      FROM price_search_scheduled_reminders
+      WHERE id = ${id}
+      FOR UPDATE
+    `;
+    if (existing) return { reminder: scheduledReminderRecord(existing), alreadyExists: true };
+
+    const [created] = await transaction`
+      INSERT INTO price_search_scheduled_reminders (
+        id, title, message, recipient_email, due_at, timezone, status,
+        provider_id, provider_status, last_error, created_at, updated_at
+      )
+      VALUES (
+        ${id},
+        ${String(reminder.title || "")},
+        ${String(reminder.message || "")},
+        ${String(reminder.recipientEmail || "")},
+        ${new Date(reminder.dueAt)},
+        ${String(reminder.timezone || "Asia/Jerusalem")},
+        ${String(reminder.status || "scheduled")},
+        ${String(reminder.providerId || "")},
+        ${String(reminder.providerStatus || "scheduled")},
+        ${String(reminder.lastError || "")},
+        ${now},
+        ${now}
+      )
+      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+                provider_id, provider_status, last_error, created_at, updated_at,
+                cancelled_at
+    `;
+    const eventType = String(reminder.eventType || reminder.status || "scheduled");
+    await transaction`
+      INSERT INTO price_search_scheduled_reminder_events (reminder_id, event_type, details, created_at)
+      VALUES (
+        ${id},
+        ${eventType},
+        ${JSON.stringify({ dueAt: new Date(reminder.dueAt).toISOString(), providerId: String(reminder.providerId || "") })}::jsonb,
+        ${now}
+      )
+    `;
+    return { reminder: scheduledReminderRecord(created), alreadyExists: false };
+  });
+}
+
+export async function updateScheduledEmailReminderDelivery(id, { status, providerId = "", providerStatus = "", lastError = "" }) {
+  const sql = await getSql();
+  const safeId = String(id || "");
+  const now = new Date();
+  return sql.begin(async (transaction) => {
+    const [updated] = await transaction`
+      UPDATE price_search_scheduled_reminders
+      SET status = ${String(status || "scheduled")},
+          provider_id = ${String(providerId || "")},
+          provider_status = ${String(providerStatus || "")},
+          last_error = ${String(lastError || "")},
+          updated_at = ${now}
+      WHERE id = ${safeId}
+      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+                provider_id, provider_status, last_error, created_at, updated_at,
+                cancelled_at
+    `;
+    if (!updated) return null;
+    await transaction`
+      INSERT INTO price_search_scheduled_reminder_events (reminder_id, event_type, details, created_at)
+      VALUES (
+        ${safeId},
+        ${String(status || "scheduled")},
+        ${JSON.stringify({ providerId: String(providerId || ""), error: String(lastError || "") })}::jsonb,
+        ${now}
+      )
+    `;
+    return scheduledReminderRecord(updated);
+  });
+}
+
+export async function cancelScheduledEmailReminder(id) {
+  const sql = await getSql();
+  const safeId = String(id || "");
+  const now = new Date();
+
+  return sql.begin(async (transaction) => {
+    const [current] = await transaction`
+      SELECT id, title, message, recipient_email, due_at, timezone, status,
+             provider_id, provider_status, last_error, created_at, updated_at,
+             cancelled_at
+      FROM price_search_scheduled_reminders
+      WHERE id = ${safeId}
+      FOR UPDATE
+    `;
+    if (!current) return { missing: true, reminder: null };
+    if (String(current.status) === "cancelled") {
+      return { missing: false, alreadyCancelled: true, reminder: scheduledReminderRecord(current) };
+    }
+
+    const [cancelled] = await transaction`
+      UPDATE price_search_scheduled_reminders
+      SET status = 'cancelled', provider_status = 'cancelled', cancelled_at = ${now}, updated_at = ${now}
+      WHERE id = ${safeId}
+      RETURNING id, title, message, recipient_email, due_at, timezone, status,
+                provider_id, provider_status, last_error, created_at, updated_at,
+                cancelled_at
+    `;
+    await transaction`
+      INSERT INTO price_search_scheduled_reminder_events (reminder_id, event_type, details, created_at)
+      VALUES (${safeId}, 'cancelled', ${JSON.stringify({ providerId: String(current.provider_id || "") })}::jsonb, ${now})
+    `;
+    return { missing: false, alreadyCancelled: false, reminder: scheduledReminderRecord(cancelled) };
+  });
+}
+
 async function getSql() {
   const url = getDatabaseUrl();
   if (!url) throw new Error("database_not_configured");
@@ -255,6 +405,40 @@ async function ensureSchema(sql) {
         CREATE INDEX IF NOT EXISTS price_search_catalog_specifications_updated_at_idx
         ON price_search_catalog_specifications (updated_at DESC)
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS price_search_scheduled_reminders (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL DEFAULT '',
+          recipient_email TEXT NOT NULL,
+          due_at TIMESTAMPTZ NOT NULL,
+          timezone TEXT NOT NULL DEFAULT 'Asia/Jerusalem',
+          status TEXT NOT NULL DEFAULT 'scheduled',
+          provider_id TEXT NOT NULL DEFAULT '',
+          provider_status TEXT NOT NULL DEFAULT '',
+          last_error TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          cancelled_at TIMESTAMPTZ
+        )
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS price_search_scheduled_reminders_due_at_idx
+        ON price_search_scheduled_reminders (due_at DESC)
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS price_search_scheduled_reminder_events (
+          id BIGSERIAL PRIMARY KEY,
+          reminder_id TEXT NOT NULL REFERENCES price_search_scheduled_reminders(id) ON DELETE CASCADE,
+          event_type TEXT NOT NULL,
+          details JSONB NOT NULL DEFAULT '{}'::jsonb,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS price_search_scheduled_reminder_events_reminder_idx
+        ON price_search_scheduled_reminder_events (reminder_id, created_at DESC)
+      `;
     })().catch((error) => {
       schemaPromise = null;
       throw error;
@@ -284,6 +468,24 @@ function databaseRecord(row) {
     state: typeof row.state === "string" ? JSON.parse(row.state) : row.state,
     version: String(row.version),
     updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+function scheduledReminderRecord(row) {
+  return {
+    id: String(row.id || ""),
+    title: String(row.title || ""),
+    message: String(row.message || ""),
+    recipientEmail: String(row.recipient_email || ""),
+    dueAt: row.due_at ? new Date(row.due_at).toISOString() : "",
+    timezone: String(row.timezone || "Asia/Jerusalem"),
+    status: String(row.status || "scheduled"),
+    providerId: String(row.provider_id || ""),
+    providerStatus: String(row.provider_status || ""),
+    lastError: String(row.last_error || ""),
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : "",
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : "",
+    cancelledAt: row.cancelled_at ? new Date(row.cancelled_at).toISOString() : "",
   };
 }
 

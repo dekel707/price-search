@@ -50,6 +50,7 @@ const AUTH_ENDPOINT = "/api/auth";
 const COLLECTION_IMPORT_ENDPOINT = "/api/import-collections";
 const AI_ORDER_ENDPOINT = "/api/ai-order";
 const ZMANIM_ENDPOINT = "/api/zmanim";
+const SCHEDULED_REMINDERS_ENDPOINT = "/api/scheduled-reminders";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
 const CATALOG_ATTRIBUTES_ENDPOINT = "/api/catalog-specifications";
 const PRICE_LIST_DOCUMENTS = {
@@ -341,6 +342,17 @@ const dom = {
   reservationsList: document.querySelector("#reservationsList"),
   remindersSummary: document.querySelector("#remindersSummary"),
   showAllReminders: document.querySelector("#showAllReminders"),
+  scheduledReminderForm: document.querySelector("#scheduledReminderForm"),
+  scheduledReminderId: document.querySelector("#scheduledReminderId"),
+  scheduledReminderTitle: document.querySelector("#scheduledReminderTitle"),
+  scheduledReminderMessage: document.querySelector("#scheduledReminderMessage"),
+  scheduledReminderRecipient: document.querySelector("#scheduledReminderRecipient"),
+  scheduledReminderDate: document.querySelector("#scheduledReminderDate"),
+  scheduledReminderTime: document.querySelector("#scheduledReminderTime"),
+  scheduledReminderSubmit: document.querySelector("#scheduledReminderSubmit"),
+  scheduledReminderConfig: document.querySelector("#scheduledReminderConfig"),
+  scheduledReminderList: document.querySelector("#scheduledReminderList"),
+  refreshScheduledReminders: document.querySelector("#refreshScheduledReminders"),
   reminderForm: document.querySelector("#reminderForm"),
   reminderId: document.querySelector("#reminderId"),
   reminderTitle: document.querySelector("#reminderTitle"),
@@ -484,6 +496,9 @@ let lastPrices = {};
 let reservations = [];
 let reservationSeedVersion = 0;
 let reminders = [];
+let scheduledEmailReminders = [];
+let scheduledEmailReminderConfig = { emailConfigured: false, defaultRecipient: "" };
+let scheduledEmailReminderLoadState = "idle";
 let collections = [];
 let promotions = [];
 let customerYearOverYear = null;
@@ -641,6 +656,7 @@ async function startApp() {
   loadZmanim();
   registerServiceWorker();
   hydrateCloudState();
+  void loadScheduledEmailReminders();
   startCloudLiveRefresh();
 }
 
@@ -1238,6 +1254,14 @@ function bindEvents() {
     deleteReservation(deleteButton.dataset.deleteReservation);
   });
   dom.reminderForm.addEventListener("submit", saveReminderFromForm);
+  dom.scheduledReminderForm.addEventListener("submit", saveScheduledEmailReminderFromForm);
+  dom.refreshScheduledReminders.addEventListener("click", () => {
+    void loadScheduledEmailReminders({ announce: true });
+  });
+  dom.scheduledReminderList.addEventListener("click", (event) => {
+    const cancelButton = event.target.closest("[data-cancel-scheduled-reminder]");
+    if (cancelButton) void cancelScheduledEmailReminderFromList(cancelButton.dataset.cancelScheduledReminder, cancelButton);
+  });
   dom.cancelReminderEdit.addEventListener("click", resetReminderForm);
   dom.showAllReminders.addEventListener("click", () => {
     remindersDateFilter = "";
@@ -6149,6 +6173,7 @@ function sanitizeFileName(value) {
 }
 
 function renderRemindersPanel() {
+  renderScheduledEmailReminderPanel();
   const formCustomer = dom.reminderCustomer.value;
   dom.reminderCustomer.replaceChildren(createOption("", "ללא שיוך ללקוח", !formCustomer));
   customers.forEach((customer) => {
@@ -6335,6 +6360,222 @@ function deleteReminder(reminderId) {
   renderRemindersPanel();
   renderDashboard();
   announceDeletion("התזכורת נמחקה.");
+}
+
+async function loadScheduledEmailReminders({ announce = false } = {}) {
+  scheduledEmailReminderLoadState = "loading";
+  renderScheduledEmailReminderPanel();
+  try {
+    const response = await fetch(SCHEDULED_REMINDERS_ENDPOINT, { cache: "no-store", credentials: "same-origin" });
+    if (response.status === 401) {
+      lockApp("יש להתחבר מחדש כדי לטעון תזכורות מתוזמנות.");
+      return false;
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || `Scheduled reminders failed: ${response.status}`);
+    scheduledEmailReminders = Array.isArray(data?.reminders) ? data.reminders : [];
+    scheduledEmailReminderConfig = {
+      emailConfigured: Boolean(data?.config?.emailConfigured),
+      defaultRecipient: cleanString(data?.config?.defaultRecipient),
+    };
+    if (!dom.scheduledReminderRecipient.value && scheduledEmailReminderConfig.defaultRecipient) {
+      dom.scheduledReminderRecipient.value = scheduledEmailReminderConfig.defaultRecipient;
+    }
+    scheduledEmailReminderLoadState = "ready";
+    renderScheduledEmailReminderPanel();
+    if (announce) {
+      dom.status.textContent = "התזכורות המתוזמנות עודכנו.";
+      showActionToast("התזכורות המתוזמנות עודכנו.");
+    }
+    return true;
+  } catch (error) {
+    console.warn("Scheduled reminders load failed", error);
+    scheduledEmailReminderLoadState = "error";
+    renderScheduledEmailReminderPanel();
+    if (announce) {
+      dom.status.textContent = "לא ניתן היה לטעון תזכורות מתוזמנות כרגע.";
+      showActionToast("לא ניתן היה לטעון תזכורות מתוזמנות כרגע.", "error");
+    }
+    return false;
+  }
+}
+
+function renderScheduledEmailReminderPanel() {
+  if (!dom.scheduledReminderConfig || !dom.scheduledReminderList || !dom.scheduledReminderSubmit) return;
+  const configured = scheduledEmailReminderConfig.emailConfigured;
+  const loading = scheduledEmailReminderLoadState === "loading";
+  dom.scheduledReminderConfig.textContent = loading
+    ? "טוען את מרכז התזכורות…"
+    : configured
+      ? "המייל מחובר. התזכורת תישלח אוטומטית גם כשהאתר סגור."
+      : "השליחה עדיין כבויה: יש להוסיף RESEND_API_KEY ו־REMINDER_EMAIL_FROM ב־Vercel לפני הפעלה.";
+  dom.scheduledReminderConfig.dataset.state = loading ? "loading" : configured ? "ready" : "setup";
+  dom.scheduledReminderSubmit.disabled = loading || !configured;
+  dom.refreshScheduledReminders.disabled = loading;
+
+  const visible = scheduledEmailReminders
+    .slice()
+    .sort((left, right) => new Date(left.dueAt || 0) - new Date(right.dueAt || 0));
+  if (!visible.length) {
+    dom.scheduledReminderList.replaceChildren(
+      emptyState(loading ? "טוען תזכורות מתוזמנות…" : "אין עדיין תזכורות מייל מתוזמנות."),
+    );
+    return;
+  }
+  dom.scheduledReminderList.replaceChildren(...visible.map(renderScheduledEmailReminderRow));
+}
+
+function renderScheduledEmailReminderRow(reminder) {
+  const row = document.createElement("article");
+  row.className = "scheduled-reminder-row";
+  row.dataset.state = reminder.status || "scheduled";
+
+  const body = document.createElement("div");
+  body.className = "scheduled-reminder-body";
+  const title = document.createElement("strong");
+  title.textContent = reminder.title || "תזכורת";
+  const detail = document.createElement("span");
+  detail.textContent = [formatScheduledReminderDateTime(reminder.dueAt), reminder.recipientEmail].filter(Boolean).join(" · ");
+  body.append(title, detail);
+  if (reminder.message) {
+    const message = document.createElement("small");
+    message.textContent = reminder.message;
+    body.append(message);
+  }
+  if (reminder.lastError) {
+    const error = document.createElement("small");
+    error.className = "scheduled-reminder-error";
+    error.textContent = reminder.lastError;
+    body.append(error);
+  }
+
+  const status = document.createElement("span");
+  status.className = "scheduled-reminder-status";
+  status.textContent = scheduledReminderStatusLabel(reminder.status);
+
+  const actions = document.createElement("div");
+  actions.className = "scheduled-reminder-actions";
+  if (reminder.status === "scheduled") {
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "danger-button";
+    cancel.dataset.cancelScheduledReminder = reminder.id;
+    cancel.textContent = "בטל מייל";
+    actions.append(cancel);
+  }
+  row.append(body, status, actions);
+  return row;
+}
+
+async function saveScheduledEmailReminderFromForm(event) {
+  event.preventDefault();
+  if (!scheduledEmailReminderConfig.emailConfigured) {
+    dom.status.textContent = "יש לחבר קודם את שירות המייל ב־Vercel.";
+    showActionToast("יש לחבר קודם את שירות המייל ב־Vercel.", "error");
+    return;
+  }
+  const id = cleanString(dom.scheduledReminderId.value) || createScheduledReminderId();
+  dom.scheduledReminderId.value = id;
+  const payload = {
+    action: "create",
+    id,
+    title: dom.scheduledReminderTitle.value,
+    message: dom.scheduledReminderMessage.value,
+    recipientEmail: dom.scheduledReminderRecipient.value,
+    dueDate: dom.scheduledReminderDate.value,
+    dueTime: dom.scheduledReminderTime.value,
+  };
+  const saved = await runUiAction(
+    {
+      key: `scheduled-email-reminder-${id}`,
+      button: dom.scheduledReminderSubmit,
+      pendingMessage: "מתזמן מייל…",
+      successMessage: "התזכורת תישלח במייל בשעה שבחרת.",
+      failureMessage: "לא הצלחנו לתזמן את המייל. שום תזכורת לא נשמרה.",
+    },
+    async () => {
+      const response = await fetch(SCHEDULED_REMINDERS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.reminder) {
+        dom.status.textContent = data?.message || "לא ניתן היה לתזמן את המייל.";
+        return false;
+      }
+      scheduledEmailReminders = [
+        data.reminder,
+        ...scheduledEmailReminders.filter((reminder) => reminder.id !== data.reminder.id),
+      ];
+      scheduledEmailReminderLoadState = "ready";
+      resetScheduledEmailReminderForm();
+      renderScheduledEmailReminderPanel();
+      return true;
+    },
+  );
+  if (saved) dom.status.textContent = "המייל תוזמן ונשמר במרכז התזכורות.";
+}
+
+async function cancelScheduledEmailReminderFromList(reminderId, button) {
+  const reminder = scheduledEmailReminders.find((item) => item.id === reminderId);
+  if (!reminder || !window.confirm(`לבטל את המייל המתוזמן "${reminder.title}"?`)) return;
+  const cancelled = await runUiAction(
+    {
+      key: `cancel-scheduled-email-reminder-${reminderId}`,
+      button,
+      pendingMessage: "מבטל מייל מתוזמן…",
+      successMessage: "המייל המתוזמן בוטל.",
+      failureMessage: "לא ניתן היה לבטל את המייל. הוא נשאר מתוזמן.",
+    },
+    async () => {
+      const response = await fetch(SCHEDULED_REMINDERS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "cancel", id: reminderId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.reminder) {
+        dom.status.textContent = data?.message || "לא ניתן היה לבטל את המייל.";
+        return false;
+      }
+      scheduledEmailReminders = scheduledEmailReminders.map((item) => item.id === reminderId ? data.reminder : item);
+      renderScheduledEmailReminderPanel();
+      return true;
+    },
+  );
+  if (cancelled) dom.status.textContent = "המייל המתוזמן בוטל ולא יישלח.";
+}
+
+function resetScheduledEmailReminderForm() {
+  dom.scheduledReminderId.value = "";
+  dom.scheduledReminderTitle.value = "";
+  dom.scheduledReminderMessage.value = "";
+  dom.scheduledReminderDate.value = "";
+  dom.scheduledReminderTime.value = "";
+  dom.scheduledReminderRecipient.value = scheduledEmailReminderConfig.defaultRecipient || "";
+}
+
+function createScheduledReminderId() {
+  const random = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 12);
+  return `mailrem-${String(random).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
+
+function formatScheduledReminderDateTime(value) {
+  const date = getSafeDate(value);
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function scheduledReminderStatusLabel(status) {
+  const labels = { scheduled: "מייל מתוזמן", cancelled: "בוטל", failed: "שגיאה", sent: "נשלח" };
+  return labels[status] || "בטיפול";
 }
 
 function startOfLocalMonth(value) {

@@ -840,6 +840,143 @@ h2 {
   flex: 1;
 }
 
+.scheduled-reminders-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(240, 198, 111, 0.34);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(74, 50, 15, 0.2), rgba(8, 20, 24, 0.72));
+}
+
+.scheduled-reminders-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.scheduled-reminders-header h3 {
+  margin: 2px 0 0;
+  color: #fff2c4;
+  font-size: 1rem;
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 7px 11px;
+}
+
+.scheduled-reminder-config {
+  margin: 0;
+  color: #c7d9d3;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.scheduled-reminder-config[data-state="setup"] {
+  color: #fed7aa;
+}
+
+.scheduled-reminder-config[data-state="ready"] {
+  color: #b7f5db;
+}
+
+.scheduled-reminder-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(145px, 0.65fr) minmax(115px, 0.5fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.scheduled-reminder-title-field,
+.scheduled-reminder-recipient-field {
+  grid-column: span 2;
+}
+
+.scheduled-reminder-message-field {
+  grid-column: 1 / -2;
+}
+
+.scheduled-reminder-message-field textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.scheduled-reminder-submit {
+  min-height: 70px;
+}
+
+.scheduled-reminder-list {
+  display: grid;
+  gap: 8px;
+}
+
+.scheduled-reminder-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(128, 203, 191, 0.25);
+  border-radius: 12px;
+  background: rgba(6, 18, 22, 0.58);
+}
+
+.scheduled-reminder-row[data-state="cancelled"] {
+  opacity: 0.6;
+}
+
+.scheduled-reminder-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.scheduled-reminder-body strong {
+  color: #f7fffb;
+  overflow-wrap: anywhere;
+}
+
+.scheduled-reminder-body span,
+.scheduled-reminder-body small {
+  color: #a6c2bb;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.scheduled-reminder-body .scheduled-reminder-error {
+  color: #fecaca;
+}
+
+.scheduled-reminder-status {
+  padding: 5px 8px;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 999px;
+  color: #b8f6d1;
+  background: rgba(20, 83, 45, 0.25);
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.scheduled-reminder-row[data-state="cancelled"] .scheduled-reminder-status {
+  border-color: rgba(148, 163, 184, 0.38);
+  color: #cbd5e1;
+  background: rgba(71, 85, 105, 0.2);
+}
+
+.scheduled-reminder-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.scheduled-reminder-actions .danger-button {
+  min-height: 36px;
+  padding-inline: 10px;
+}
+
 .reminder-header-actions {
   display: flex;
   align-items: center;
@@ -3827,6 +3964,7 @@ h2 {
   .reservation-import,
   .reservation-row,
   .reminder-form,
+  .scheduled-reminder-form,
   .reminder-filters,
   .customer-sales-summary-row,
   .customer-sales-month-row,
@@ -3936,6 +4074,28 @@ h2 {
 
   .reminder-form-actions {
     grid-column: auto;
+  }
+
+  .scheduled-reminder-title-field,
+  .scheduled-reminder-recipient-field,
+  .scheduled-reminder-message-field {
+    grid-column: auto;
+  }
+
+  .scheduled-reminder-submit {
+    min-height: 46px;
+  }
+
+  .scheduled-reminder-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .scheduled-reminder-actions {
+    grid-column: 1 / -1;
+  }
+
+  .scheduled-reminder-actions .danger-button {
+    width: 100%;
   }
 
   .reminder-row {
