@@ -3,10 +3,10 @@ import {
   cancelScheduledEmailReminder,
   createScheduledEmailReminder,
   getScheduledEmailReminder,
-  hasDatabaseStorageCredentials,
+  hasScheduledReminderStorage,
   listScheduledEmailReminders,
   updateScheduledEmailReminderDelivery,
-} from "./_database.js";
+} from "./_scheduled-reminder-store.js";
 
 const TIMEZONE = "Asia/Jerusalem";
 const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
@@ -31,7 +31,7 @@ export default async function handleScheduledReminders(request, response) {
     sendJson(response, 401, { error: "unauthorized" });
     return;
   }
-  if (!hasDatabaseStorageCredentials()) {
+  if (!hasScheduledReminderStorage()) {
     sendJson(response, 503, { error: "scheduled_reminders_storage_unavailable" });
     return;
   }
