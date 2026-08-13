@@ -903,6 +903,24 @@ h2 {
   resize: vertical;
 }
 
+/* Native date/time inputs inherit RTL from the app on some mobile browsers,
+   which can visually reverse numeric parts. Keep just the numbers LTR while
+   all labels and explanatory copy remain Hebrew. */
+.scheduled-reminder-form input[type="date"],
+.scheduled-reminder-form input[type="time"] {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
+
+.scheduled-reminder-time-help {
+  display: block;
+  margin-top: 5px;
+  color: #91aaa3;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .scheduled-reminder-submit {
   min-height: 70px;
 }

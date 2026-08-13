@@ -832,11 +832,12 @@
               </label>
               <label class="field-wrap">
                 <span>תאריך</span>
-                <input id="scheduledReminderDate" type="date" required />
+                <input id="scheduledReminderDate" type="date" dir="ltr" required />
               </label>
               <label class="field-wrap">
-                <span>שעה בישראל</span>
-                <input id="scheduledReminderTime" type="time" required />
+                <span>שעה בישראל (24 שעות)</span>
+                <input id="scheduledReminderTime" type="time" dir="ltr" inputmode="numeric" step="300" required aria-describedby="scheduledReminderTimeHelp" />
+                <small class="scheduled-reminder-time-help" id="scheduledReminderTimeHelp">לדוגמה: 09:00. התזכורת תישלח לפי שעון ישראל.</small>
               </label>
               <label class="field-wrap scheduled-reminder-recipient-field">
                 <span>מייל יעד</span>
