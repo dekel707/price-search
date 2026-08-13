@@ -6382,8 +6382,14 @@ async function loadScheduledEmailReminders({ announce = false } = {}) {
       emailConfigured: Boolean(data?.config?.emailConfigured),
       defaultRecipient: cleanString(data?.config?.defaultRecipient),
     };
-    if (!dom.scheduledReminderRecipient.value && scheduledEmailReminderConfig.defaultRecipient) {
+    // Email reminders are personal: always use the verified default recipient
+    // returned by the server. This also replaces a stale email that may be
+    // preserved in an already-open browser tab after the address is changed.
+    if (scheduledEmailReminderConfig.defaultRecipient) {
       dom.scheduledReminderRecipient.value = scheduledEmailReminderConfig.defaultRecipient;
+      dom.scheduledReminderRecipient.readOnly = true;
+    } else {
+      dom.scheduledReminderRecipient.readOnly = false;
     }
     scheduledEmailReminderLoadState = "ready";
     renderScheduledEmailReminderPanel();
@@ -6505,12 +6511,14 @@ async function saveScheduledEmailReminderFromForm(event) {
   }
   const id = cleanString(dom.scheduledReminderId.value) || createScheduledReminderId();
   dom.scheduledReminderId.value = id;
+  const recipientEmail = scheduledEmailReminderConfig.defaultRecipient || dom.scheduledReminderRecipient.value;
+  dom.scheduledReminderRecipient.value = recipientEmail;
   const payload = {
     action: "create",
     id,
     title: dom.scheduledReminderTitle.value,
     message: dom.scheduledReminderMessage.value,
-    recipientEmail: dom.scheduledReminderRecipient.value,
+    recipientEmail,
     dueDate: dom.scheduledReminderDate.value,
     dueTime: dom.scheduledReminderTime.value,
   };
