@@ -12,7 +12,11 @@ const TIMEZONE = "Asia/Jerusalem";
 const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_SCHEDULE_AHEAD_MS = 60 * 1000;
 
-export default async function handler(request, response) {
+// This is a private module imported by the existing /api/state function.
+// Keeping it out of a public route keeps the app within Vercel Hobby's
+// serverless-function limit while its storage remains fully independent of
+// the business state document.
+export default async function handleScheduledReminders(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");

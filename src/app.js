@@ -50,7 +50,9 @@ const AUTH_ENDPOINT = "/api/auth";
 const COLLECTION_IMPORT_ENDPOINT = "/api/import-collections";
 const AI_ORDER_ENDPOINT = "/api/ai-order";
 const ZMANIM_ENDPOINT = "/api/zmanim";
-const SCHEDULED_REMINDERS_ENDPOINT = "/api/scheduled-reminders";
+// The scope is isolated server-side: it only accesses the reminder tables,
+// never the shared business state document.
+const SCHEDULED_REMINDERS_ENDPOINT = "/api/state?scope=scheduled-reminders";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
 const CATALOG_ATTRIBUTES_ENDPOINT = "/api/catalog-specifications";
 const PRICE_LIST_DOCUMENTS = {

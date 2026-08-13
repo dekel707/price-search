@@ -1,6 +1,7 @@
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
 import { findUnexpectedOrderRemovals, mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
+import handleScheduledReminders from "./_scheduled-reminders.js";
 import {
   hasDatabaseStorageCredentials,
   initializeDatabaseState,
@@ -51,6 +52,16 @@ export default async function handler(request, response) {
 
   if (!isAuthorized(request)) {
     sendJson(response, 401, { error: "unauthorized" });
+    return;
+  }
+
+  // Scheduled email reminders deliberately use the same public endpoint as
+  // state, but only behind this explicit scope flag. Their handler writes to
+  // its own database tables and never reads or saves the business state.
+  // This keeps the deployment within Vercel Hobby's function limit without
+  // coupling reminders to orders, customers, reservations or stock.
+  if (getRequestQueryValue(request, "scope") === "scheduled-reminders") {
+    await handleScheduledReminders(request, response);
     return;
   }
 
@@ -360,6 +371,19 @@ export default async function handler(request, response) {
 function getRequestHeader(request, name) {
   const value = request.headers?.[name] || request.headers?.[name.toLowerCase()];
   return Array.isArray(value) ? String(value[0] || "") : String(value || "");
+}
+
+function getRequestQueryValue(request, name) {
+  const queryValue = request.query?.[name];
+  if (Array.isArray(queryValue)) return String(queryValue[0] || "");
+  if (queryValue !== undefined) return String(queryValue || "");
+
+  const host = getRequestHeader(request, "host") || "localhost";
+  try {
+    return new URL(request.url || "/", `https://${host}`).searchParams.get(name) || "";
+  } catch {
+    return "";
+  }
 }
 
 function getSafeActionName(value) {
