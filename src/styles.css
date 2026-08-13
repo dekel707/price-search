@@ -924,6 +924,11 @@ h2 {
   grid-column: 1 / -1;
 }
 
+/* `.field-wrap` is a grid, so explicitly preserve the native hidden state. */
+.scheduled-reminder-source-field[hidden] {
+  display: none;
+}
+
 .scheduled-reminder-title-field,
 .scheduled-reminder-recipient-field {
   grid-column: span 2;
