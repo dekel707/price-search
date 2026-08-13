@@ -38,8 +38,9 @@ export default async function handleScheduledReminders(request, response) {
 
   try {
     if (request.method === "GET") {
+      const reminders = await refreshDueReminderStatuses(await listScheduledEmailReminders());
       sendJson(response, 200, {
-        reminders: await listScheduledEmailReminders(),
+        reminders,
         config: getPublicEmailConfig(),
       });
       return;
@@ -176,7 +177,18 @@ async function cancelReminder(body, response) {
     });
     return;
   }
-  if (reminder.providerId) await cancelResendEmail(reminder.providerId, config.apiKey);
+  if (reminder.providerId) {
+    const refreshed = await refreshReminderProviderStatus(reminder, config);
+    if (refreshed.status !== "scheduled") {
+      sendJson(response, 409, {
+        error: "email_already_processed",
+        message: "המייל כבר יצא לשליחה או נמסר, ולכן אי אפשר לבטל אותו יותר.",
+        reminder: refreshed,
+      });
+      return;
+    }
+    await cancelResendEmail(reminder.providerId, config.apiKey);
+  }
   const result = await cancelScheduledEmailReminder(id);
   sendJson(response, 200, { ok: true, reminder: result.reminder, alreadyCancelled: result.alreadyCancelled });
 }
@@ -215,15 +227,79 @@ async function scheduleResendEmail({ id, title, message, recipientEmail, dueAt, 
 }
 
 async function cancelResendEmail(providerId, apiKey) {
-  const upstream = await fetch(`https://api.resend.com/emails/${encodeURIComponent(providerId)}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${apiKey}` },
+  const upstream = await fetch(`https://api.resend.com/emails/${encodeURIComponent(providerId)}/cancel`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
   });
   if (!upstream.ok) {
     const payload = await upstream.json().catch(() => ({}));
     console.error("resend_cancel_failed", upstream.status, payload?.message || payload?.name || "unknown");
     throw new PublicError(502, "email_cancel_failed", "לא ניתן היה לבטל את המייל מול שירות הדיוור. התזכורת נשארה פעילה." );
   }
+}
+
+// Resend is the source of truth for delivery. We refresh only reminders that
+// are due (or almost due), so opening the panel stays fast and does not waste
+// API calls on a long list of future reminders.
+async function refreshDueReminderStatuses(reminders) {
+  const config = getPrivateEmailConfig();
+  if (!config.enabled) return reminders;
+  const now = Date.now();
+  const candidates = reminders
+    .filter((reminder) => reminder?.status === "scheduled" && reminder.providerId)
+    .filter((reminder) => new Date(reminder.dueAt).getTime() <= now + 5 * 60 * 1000)
+    .slice(0, 4);
+  if (!candidates.length) return reminders;
+
+  const updatedById = new Map();
+  for (const reminder of candidates) {
+    try {
+      const updated = await refreshReminderProviderStatus(reminder, config);
+      if (updated) updatedById.set(updated.id, updated);
+    } catch (error) {
+      // A status refresh must never hide an existing reminder or prevent the
+      // user from seeing it. The next manual refresh can retry safely.
+      console.error("resend_status_refresh_failed", error);
+    }
+  }
+  return reminders.map((reminder) => updatedById.get(reminder.id) || reminder);
+}
+
+async function refreshReminderProviderStatus(reminder, config) {
+  if (!reminder?.providerId) return reminder;
+  const upstream = await fetch(`https://api.resend.com/emails/${encodeURIComponent(reminder.providerId)}`, {
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+  });
+  const payload = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) {
+    throw new PublicError(502, "email_status_failed", "לא ניתן היה לרענן את סטטוס המייל מול שירות הדיוור.");
+  }
+  const providerStatus = normalizeProviderStatus(payload?.last_event);
+  const status = providerStatusToReminderStatus(providerStatus, reminder.status);
+  if (status === reminder.status && providerStatus === reminder.providerStatus) return reminder;
+  return updateScheduledEmailReminderDelivery(reminder.id, {
+    status,
+    providerId: reminder.providerId,
+    providerStatus,
+    lastError: status === "failed" ? "שירות הדיוור דיווח שהמייל לא נמסר." : "",
+  });
+}
+
+function normalizeProviderStatus(value) {
+  return String(value || "scheduled").trim().toLowerCase().replace(/^email\./, "");
+}
+
+function providerStatusToReminderStatus(providerStatus, fallback) {
+  if (["scheduled", "queued"].includes(providerStatus)) return "scheduled";
+  if (["sent"].includes(providerStatus)) return "sent";
+  if (["delivered"].includes(providerStatus)) return "delivered";
+  if (["opened"].includes(providerStatus)) return "opened";
+  if (["clicked"].includes(providerStatus)) return "clicked";
+  if (["bounced", "complained", "suppressed", "failed", "delivery_delayed"].includes(providerStatus)) return "failed";
+  return fallback || "scheduled";
 }
 
 function getPublicEmailConfig() {

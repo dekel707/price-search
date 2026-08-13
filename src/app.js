@@ -6453,7 +6453,7 @@ function renderScheduledEmailReminderRow(reminder) {
 
   const status = document.createElement("span");
   status.className = "scheduled-reminder-status";
-  status.textContent = scheduledReminderStatusLabel(reminder.status);
+  status.textContent = scheduledReminderStatusLabel(reminder.status, reminder.providerStatus);
 
   const actions = document.createElement("div");
   actions.className = "scheduled-reminder-actions";
@@ -6462,7 +6462,7 @@ function renderScheduledEmailReminderRow(reminder) {
     cancel.type = "button";
     cancel.className = "danger-button";
     cancel.dataset.cancelScheduledReminder = reminder.id;
-    cancel.textContent = "בטל מייל";
+    cancel.textContent = "בטל שליחה";
     actions.append(cancel);
   }
   row.append(body, status, actions);
@@ -6540,6 +6540,13 @@ async function cancelScheduledEmailReminderFromList(reminderId, button) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.reminder) {
+        // When Resend reports that the email already left the queue, it also
+        // returns the refreshed state. Show it immediately instead of leaving
+        // a stale “pending” badge beside a cancellation error.
+        if (data?.reminder) {
+          scheduledEmailReminders = scheduledEmailReminders.map((item) => item.id === reminderId ? data.reminder : item);
+          renderScheduledEmailReminderPanel();
+        }
         dom.status.textContent = data?.message || "לא ניתן היה לבטל את המייל.";
         return false;
       }
@@ -6575,8 +6582,30 @@ function formatScheduledReminderDateTime(value) {
   }).format(date);
 }
 
-function scheduledReminderStatusLabel(status) {
-  const labels = { scheduled: "מייל מתוזמן", cancelled: "בוטל", failed: "שגיאה", sent: "נשלח" };
+function scheduledReminderStatusLabel(status, providerStatus = "") {
+  const labels = {
+    scheduled: "ממתין לשליחה",
+    cancelled: "בוטל",
+    failed: "נכשל",
+    sent: "נשלח",
+    delivered: "נמסר",
+    opened: "נפתח",
+    clicked: "נפתח קישור",
+  };
+  const providerLabels = {
+    scheduled: "ממתין לשליחה",
+    queued: "ממתין לשליחה",
+    sent: "נשלח",
+    delivered: "נמסר",
+    opened: "נפתח",
+    clicked: "נפתח קישור",
+    bounced: "נכשל",
+    complained: "נכשל",
+    suppressed: "נכשל",
+    failed: "נכשל",
+  };
+  const normalizedProviderStatus = cleanString(providerStatus).toLowerCase().replace(/^email\./, "");
+  if (providerLabels[normalizedProviderStatus]) return providerLabels[normalizedProviderStatus];
   return labels[status] || "בטיפול";
 }
 

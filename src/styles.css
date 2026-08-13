@@ -970,13 +970,28 @@ h2 {
 
 .scheduled-reminder-status {
   padding: 5px 8px;
-  border: 1px solid rgba(74, 222, 128, 0.35);
+  border: 1px solid rgba(251, 191, 36, 0.42);
   border-radius: 999px;
-  color: #b8f6d1;
-  background: rgba(20, 83, 45, 0.25);
+  color: #fde68a;
+  background: rgba(120, 78, 10, 0.23);
   font-size: 0.76rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.scheduled-reminder-row[data-state="sent"] .scheduled-reminder-status,
+.scheduled-reminder-row[data-state="delivered"] .scheduled-reminder-status,
+.scheduled-reminder-row[data-state="opened"] .scheduled-reminder-status,
+.scheduled-reminder-row[data-state="clicked"] .scheduled-reminder-status {
+  border-color: rgba(74, 222, 128, 0.4);
+  color: #b8f6d1;
+  background: rgba(20, 83, 45, 0.25);
+}
+
+.scheduled-reminder-row[data-state="failed"] .scheduled-reminder-status {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.22);
 }
 
 .scheduled-reminder-row[data-state="cancelled"] .scheduled-reminder-status {
