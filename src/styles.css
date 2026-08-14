@@ -8094,7 +8094,7 @@ body {
 
 .dashboard-quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 9px;
 }
 
@@ -8134,6 +8134,7 @@ body {
 .dashboard-quick-action:nth-child(3) .dashboard-stat-icon { color: #82d3ff; }
 .dashboard-quick-action:nth-child(4) .dashboard-stat-icon { color: #f4c56d; }
 .dashboard-quick-action:nth-child(5) .dashboard-stat-icon { color: #c0adff; }
+.dashboard-quick-action:nth-child(6) .dashboard-stat-icon { color: #72e3d3; }
 
 .dashboard-quick-action > span {
   display: grid;
@@ -8357,10 +8358,6 @@ body {
   .dashboard-quick-action {
     min-height: 68px;
     padding: 9px;
-  }
-
-  .dashboard-quick-action:last-child {
-    grid-column: 1 / -1;
   }
 
   .dashboard-operational-grid {

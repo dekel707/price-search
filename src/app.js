@@ -3094,6 +3094,13 @@ function handleDashboardAction(action) {
     return;
   }
 
+  if (action === "advanced-search") {
+    setActiveTab("advanced-search");
+    window.setTimeout(() => dom.advancedSearchInput?.focus(), 0);
+    dom.status.textContent = "נפתח החיפוש המתקדם לפי דגם, מידה ומפרט.";
+    return;
+  }
+
   if (action === "new-reminder") {
     setActiveTab("reminders");
     window.setTimeout(() => dom.reminderTitle?.focus(), 0);
@@ -9863,6 +9870,7 @@ function dashboardIcon(name) {
     receipt: '<path d="M6 3h12v18l-2.5-1.5L12 21l-3.5-1.5L6 21zM9 8h6M9 12h6M9 16h4" />',
     release: '<path d="M4 7h11v10H4zM15 10h3l2 2v5h-5zM8 17v2M17 17v2M3 19h7M14 19h6M11 3v7M8 7l3 3 3-3" />',
     reservations: '<path d="m4 7 8-4 8 4-8 4zM4 7v10l8 4V11M20 7v10l-8 4" />',
+    search: '<circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5M8 9h6M8 12h4" />',
     target: '<circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v2M22 12h-2M12 22v-2M2 12h2" />',
     trend: '<path d="M4 19V5M4 19h16M7 15l3-3 3 2 6-7M15 7h4v4" />',
     wallet: '<path d="M4 7h15a2 2 0 0 1 2 2v10H4zM4 7V5a2 2 0 0 1 2-2h12M21 13h-6v4h6" />',
@@ -11387,6 +11395,7 @@ function renderDashboardQuickActions() {
 
   const actions = [
     { action: "new-order", label: "הזמנה חדשה", detail: "חיפוש והוספה לסל", icon: "orders" },
+    { action: "advanced-search", label: "חיפוש מתקדם", detail: "דגמים, מידות ומפרטים", icon: "search" },
     { action: "new-reminder", label: "תזכורת חדשה", detail: "תזמון ומעקב", icon: "bell" },
     { action: "update-stock", label: "עדכון מלאי", detail: "כמויות וחוסרים", icon: "arrival" },
     { action: "open-collections", label: "גבייה", detail: "יתרות פתוחות", icon: "wallet" },
@@ -15664,20 +15673,38 @@ function queueCloudSave(request = {}) {
   if (CLOUD_SYNC_DISABLED) return;
 
   const { delay, action } = normalizeCloudSaveRequest(request);
-  pendingCloudSave = createPendingCloudSaveEnvelope(action);
+  const queuedEnvelope = pendingCloudSave || readPendingCloudSave();
+  pendingCloudSave = createPendingCloudSaveEnvelope(getCoalescedCloudSaveAction(queuedEnvelope?.action, action));
   persistPendingCloudSave(pendingCloudSave);
+  const pendingSaveId = pendingCloudSave.id;
 
   if (!cloudHydrated) {
     cloudSaveAgain = true;
-    return;
+    return pendingSaveId;
   }
 
   if (cloudSaveInFlight) {
     cloudSaveAgain = true;
-    return;
+    return pendingSaveId;
   }
 
   schedulePendingCloudSave(delay);
+  return pendingSaveId;
+}
+
+function getCoalescedCloudSaveAction(previousAction, nextAction) {
+  // A later UI change may replace the pending full-state envelope while an
+  // explicit order deletion is still waiting for the network. Preserve the
+  // removal authorization so the API does not reject and restore that order.
+  const removalActions = new Set(["order-delete", "order-to-draft"]);
+  return removalActions.has(previousAction) ? previousAction : nextAction;
+}
+
+function rebaseQueuedCloudSaveVersion(completedEnvelopeId, nextStateVersion) {
+  if (!nextStateVersion || !pendingCloudSave?.id || pendingCloudSave.id === completedEnvelopeId) return false;
+  pendingCloudSave = { ...pendingCloudSave, stateVersion: nextStateVersion };
+  persistPendingCloudSave(pendingCloudSave);
+  return true;
 }
 
 function rememberCloudSaveResult(id, saved) {
@@ -15812,6 +15839,11 @@ async function saveSharedStateNow() {
       await hydrateCloudState();
       return;
     }
+    // A later action may have been queued while this ordinary request was in
+    // flight. Its snapshot already includes this completed local change, so
+    // only its optimistic version needs rebasing before the next save is sent.
+    // Conflict-recovery responses reload first and intentionally skip this.
+    rebaseQueuedCloudSaveVersion(envelope.id, cloudStateVersion);
     rememberCloudSaveResult(envelope.id, true);
     clearPendingCloudSave(envelope.id);
     if (envelope.resume) {
