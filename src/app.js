@@ -6463,6 +6463,7 @@ function renderScheduledEmailReminderPanel() {
 }
 
 function renderScheduledReminderComposer() {
+  ensureScheduledReminderDefaultDateTime();
   const type = normalizeScheduledReminderType(dom.scheduledReminderType.value);
   dom.scheduledReminderType.value = type;
   dom.scheduledReminderTypeButtons.forEach((button) => {
@@ -6889,6 +6890,15 @@ function resetScheduledEmailReminderForm() {
   dom.scheduledReminderSubmit.textContent = "תזמן מייל";
   dom.cancelScheduledReminderEdit.hidden = true;
   renderScheduledReminderComposer();
+}
+
+function ensureScheduledReminderDefaultDateTime() {
+  if (dom.scheduledReminderDate.value && dom.scheduledReminderTime.value) return;
+  const target = new Date(Date.now() + 5 * 60 * 1000);
+  target.setSeconds(0, 0);
+  const parts = getIsraelDateTimeParts(target);
+  if (!dom.scheduledReminderDate.value) dom.scheduledReminderDate.value = parts.date;
+  if (!dom.scheduledReminderTime.value) dom.scheduledReminderTime.value = parts.time;
 }
 
 function normalizeScheduledReminderPriority(value) {

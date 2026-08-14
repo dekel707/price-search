@@ -12,6 +12,7 @@ import {
 const TIMEZONE = "Asia/Jerusalem";
 const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_SCHEDULE_AHEAD_MS = 60 * 1000;
+const SCHEDULE_GRACE_MS = 2 * 60 * 1000;
 const AUTOMATION_PROVIDER_PREFIX = "automation:";
 
 // This is a private module imported by the existing /api/state function.
@@ -93,7 +94,7 @@ async function createReminder(body, response) {
   const title = cleanText(body?.title, 160);
   const message = cleanText(body?.message, 3_000);
   const recipientEmail = cleanEmail(body?.recipientEmail);
-  const dueAt = israelDateTimeToIso(body?.dueDate, body?.dueTime);
+  let dueAt = israelDateTimeToIso(body?.dueDate, body?.dueTime);
   const priority = normalizeReminderPriority(body?.priority);
   const type = normalizeReminderType(body?.type);
   const recurrence = normalizeReminderRecurrence(body?.recurrence);
@@ -113,7 +114,7 @@ async function createReminder(body, response) {
     return;
   }
 
-  assertScheduleWindow(dueAt);
+  dueAt = normalizeScheduleWindow(dueAt);
 
   const config = getPrivateEmailConfig();
   if (!config.enabled) {
@@ -175,7 +176,7 @@ async function updateReminder(body, response) {
   const title = cleanText(body?.title, 160);
   const message = cleanText(body?.message, 3_000);
   const recipientEmail = cleanEmail(body?.recipientEmail);
-  const dueAt = israelDateTimeToIso(body?.dueDate, body?.dueTime);
+  let dueAt = israelDateTimeToIso(body?.dueDate, body?.dueTime);
   const priority = normalizeReminderPriority(body?.priority);
   const type = normalizeReminderType(body?.type);
   const recurrence = normalizeReminderRecurrence(body?.recurrence);
@@ -184,7 +185,7 @@ async function updateReminder(body, response) {
     sendJson(response, 400, { error: "invalid_reminder", message: "יש למלא כותרת, מייל, תאריך ושעה תקינים." });
     return;
   }
-  assertScheduleWindow(dueAt);
+  dueAt = normalizeScheduleWindow(dueAt);
 
   const original = await getScheduledEmailReminder(id);
   if (!original) {
@@ -268,12 +269,12 @@ async function updateReminder(body, response) {
 
 async function snoozeReminder(body, response) {
   const id = cleanId(body?.id);
-  const dueAt = parseFutureIso(body?.dueAt) || israelDateTimeToIso(body?.dueDate, body?.dueTime);
+  let dueAt = parseFutureIso(body?.dueAt) || israelDateTimeToIso(body?.dueDate, body?.dueTime);
   if (!id || !dueAt) {
     sendJson(response, 400, { error: "invalid_snooze", message: "לא נבחר מועד דחייה תקין." });
     return;
   }
-  assertScheduleWindow(dueAt);
+  dueAt = normalizeScheduleWindow(dueAt);
 
   const reminder = await getScheduledEmailReminder(id);
   if (!reminder) {
@@ -717,14 +718,25 @@ function getPrivateEmailConfig() {
   return { apiKey, from, automationTemplateId, enabled: Boolean(apiKey && from) };
 }
 
-function assertScheduleWindow(dueAt) {
-  const millisecondsUntilSend = new Date(dueAt).getTime() - Date.now();
-  if (millisecondsUntilSend < MIN_SCHEDULE_AHEAD_MS) {
-    throw new PublicError(400, "schedule_too_soon", "יש לבחור שעה שלפחות דקה קדימה.");
+function normalizeScheduleWindow(dueAt) {
+  const timestamp = new Date(dueAt).getTime();
+  const now = Date.now();
+  const millisecondsUntilSend = timestamp - now;
+  if (millisecondsUntilSend < -SCHEDULE_GRACE_MS) {
+    throw new PublicError(400, "schedule_too_soon", "השעה שנבחרה כבר עברה. יש לבחור שעה עתידית.");
   }
   if (millisecondsUntilSend > MAX_SCHEDULE_AHEAD_MS) {
     throw new PublicError(400, "schedule_too_far", "אפשר לתזמן מייל עד 30 ימים קדימה.");
   }
+  // Native time inputs only store minutes. Choosing the current minute could
+  // arrive at the server a few seconds late, so schedule it safely for the
+  // next usable minute instead of failing the user action.
+  if (millisecondsUntilSend < MIN_SCHEDULE_AHEAD_MS) {
+    const nextUsableMinute = new Date(now + SCHEDULE_GRACE_MS);
+    nextUsableMinute.setUTCSeconds(0, 0);
+    return nextUsableMinute.toISOString();
+  }
+  return new Date(timestamp).toISOString();
 }
 
 function parseFutureIso(value) {
