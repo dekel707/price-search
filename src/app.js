@@ -390,9 +390,12 @@ const dom = {
   aiOrderResult: document.querySelector("#aiOrderResult"),
   dashboardStats: document.querySelector("#dashboardStats"),
   dashboardInsights: document.querySelector("#dashboardInsights"),
+  dashboardQuickActions: document.querySelector("#dashboardQuickActions"),
   dashboardTrends: document.querySelector("#dashboardTrends"),
   dashboardTrendsMeta: document.querySelector("#dashboardTrendsMeta"),
   dashboardSignals: document.querySelector("#dashboardSignals"),
+  dashboardStockForecast: document.querySelector("#dashboardStockForecast"),
+  dashboardTodayChanges: document.querySelector("#dashboardTodayChanges"),
   dashboardRecentOrders: document.querySelector("#dashboardRecentOrders"),
   dashboardLowReservations: document.querySelector("#dashboardLowReservations"),
   dashboardTopProducts: document.querySelector("#dashboardTopProducts"),
@@ -1394,6 +1397,11 @@ function bindEvents() {
         dashboardVatExclusion[period] = !dashboardVatExclusion[period];
         renderDashboard();
       }
+      return;
+    }
+    const forecastButton = event.target.closest("[data-dashboard-forecast-sku]");
+    if (forecastButton) {
+      openDashboardForecastProduct(forecastButton.dataset.dashboardForecastSku);
       return;
     }
     const actionButton = event.target.closest("[data-dashboard-action]");
@@ -3065,6 +3073,39 @@ function setActiveTab(tab) {
 }
 
 function handleDashboardAction(action) {
+  if (action === "new-order") {
+    setActiveTab("search");
+    window.setTimeout(() => dom.searchInput?.focus(), 0);
+    dom.status.textContent = "נפתח חיפוש המוצרים להזמנה חדשה.";
+    return;
+  }
+
+  if (action === "new-reminder") {
+    setActiveTab("reminders");
+    window.setTimeout(() => dom.reminderTitle?.focus(), 0);
+    dom.status.textContent = "נפתחה יצירת תזכורת חדשה.";
+    return;
+  }
+
+  if (action === "update-stock") {
+    setActiveTab("stock-manager");
+    window.setTimeout(() => dom.stockManagerSearch?.focus(), 0);
+    dom.status.textContent = "נפתח ניהול הכמויות במלאי.";
+    return;
+  }
+
+  if (action === "open-collections") {
+    setActiveTab("collections");
+    dom.status.textContent = "נפתחה לשונית גיול וגבייה.";
+    return;
+  }
+
+  if (action === "future-stock") {
+    setActiveTab("future-stock-orders");
+    dom.status.textContent = "נפתחו הזמנות למלאי עתידי.";
+    return;
+  }
+
   if (action === "today-orders") {
     const todayKey = getIsraelDateKey(new Date());
     const todayOpenOrders = orders.filter(
@@ -3116,6 +3157,18 @@ function handleDashboardAction(action) {
     window.setTimeout(() => dom.categoryProductSearch.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
     dom.status.textContent = "מוצגים מוצרים עם תאריך חזרה למלאי פעיל.";
   }
+}
+
+function openDashboardForecastProduct(skuKey) {
+  const product = products.find((item) => item.skuKey === skuKey);
+  if (!product || !dom.stockManagerSearch) return;
+
+  dom.stockManagerSearch.value = product.sku || product.description || "";
+  if (dom.stockManagerAvailability) dom.stockManagerAvailability.value = "all";
+  renderStockManagerPanel();
+  setActiveTab("stock-manager");
+  window.setTimeout(() => dom.stockManagerSearch.focus(), 0);
+  dom.status.textContent = `נפתח ניהול המלאי עבור ${product.sku || product.description}.`;
 }
 
 function renderCategoryControls() {
@@ -8967,7 +9020,10 @@ function renderDashboard() {
     ${dashboardInsight("שווי יציאות משריון החודש", formatPrice(monthlyReleaseValue), "trend")}
   `;
 
+  renderDashboardQuickActions();
   renderDashboardTrends(now);
+  renderDashboardStockForecast(now);
+  renderDashboardTodayChanges(now);
   renderDashboardRecentOrders();
   renderDashboardLowReservations();
   renderDashboardTopProducts();
@@ -11310,6 +11366,233 @@ function renderDashboardOpenReminders(openReminders) {
       return row;
     }),
   );
+}
+
+function renderDashboardQuickActions() {
+  if (!dom.dashboardQuickActions) return;
+
+  const actions = [
+    { action: "new-order", label: "הזמנה חדשה", detail: "חיפוש והוספה לסל", icon: "orders" },
+    { action: "new-reminder", label: "תזכורת חדשה", detail: "תזמון ומעקב", icon: "bell" },
+    { action: "update-stock", label: "עדכון מלאי", detail: "כמויות וחוסרים", icon: "arrival" },
+    { action: "open-collections", label: "גבייה", detail: "יתרות פתוחות", icon: "wallet" },
+    { action: "future-stock", label: "מלאי עתידי", detail: "הזמנות להגעה", icon: "draft" },
+  ];
+
+  dom.dashboardQuickActions.innerHTML = actions
+    .map(
+      (item) => `
+        <button class="dashboard-quick-action" type="button" data-dashboard-action="${item.action}">
+          ${dashboardIcon(item.icon)}
+          <span><strong>${item.label}</strong><small>${item.detail}</small></span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function getDashboardStockForecast(reference = new Date()) {
+  const endKey = getIsraelDateKey(reference);
+  const startKey = shiftLocalDateKeyByDays(endKey, -29);
+  const workingDays = getDashboardWorkingDays(startKey, endKey);
+  const productsBySku = new Map(products.map((product) => [product.skuKey, product]));
+  const demandBySku = new Map();
+
+  orders
+    .filter((order) => isOrderInDashboardTrendPeriod(order, startKey, endKey))
+    .forEach((order) => {
+      (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+        const skuKey = item.skuKey || getSkuKey(item.sku);
+        const product = productsBySku.get(skuKey);
+        if (!product || !hasStockQuantity(product)) return;
+
+        const current = demandBySku.get(skuKey) || { product, units: 0, orderIds: new Set() };
+        current.units += parseQuantity(item.quantity);
+        current.orderIds.add(order.id || `${order.createdAt || ""}-${skuKey}`);
+        demandBySku.set(skuKey, current);
+      });
+    });
+
+  const items = [...demandBySku.entries()]
+    .map(([skuKey, entry]) => {
+      const stockQuantity = Math.max(0, Number(entry.product.stockQuantity));
+      const orderCount = entry.orderIds.size;
+      const dailyVelocity = entry.units / workingDays;
+      const daysCover = dailyVelocity > 0 ? stockQuantity / dailyVelocity : Number.POSITIVE_INFINITY;
+      const reliability =
+        entry.units >= 12 && orderCount >= 5 ? "high" : entry.units >= 6 && orderCount >= 3 ? "medium" : "low";
+      return { skuKey, ...entry, stockQuantity, orderCount, dailyVelocity, daysCover, reliability };
+    })
+    .filter((item) => {
+      const enoughHistory = item.units >= 3 && item.orderCount >= 2;
+      if (!enoughHistory) return false;
+      if (item.stockQuantity === 0) return true;
+      return item.reliability !== "low" && item.daysCover <= 21;
+    })
+    .sort(
+      (left, right) =>
+        Number(left.stockQuantity > 0) - Number(right.stockQuantity > 0) ||
+        left.daysCover - right.daysCover ||
+        right.dailyVelocity - left.dailyVelocity,
+    )
+    .slice(0, 6);
+
+  return { startKey, endKey, workingDays, items };
+}
+
+function getDashboardWorkingDays(startKey, endKey) {
+  let cursor = startKey;
+  let count = 0;
+  while (cursor <= endKey) {
+    const weekday = getDateFromLocalKey(cursor).getDay();
+    if (weekday >= 0 && weekday <= 4) count += 1;
+    cursor = shiftLocalDateKeyByDays(cursor, 1);
+  }
+  return Math.max(1, count);
+}
+
+function renderDashboardStockForecast(reference = new Date()) {
+  if (!dom.dashboardStockForecast) return;
+  const forecast = getDashboardStockForecast(reference);
+
+  if (!forecast.items.length) {
+    dom.dashboardStockForecast.replaceChildren(
+      dashboardEmpty("אין כרגע חוסרים צפויים עם מספיק נתוני מכר. התחזית מתבססת על לפחות 3 יח׳ בשתי הזמנות ב־30 הימים האחרונים."),
+    );
+    return;
+  }
+
+  dom.dashboardStockForecast.replaceChildren(
+    ...forecast.items.map((item) => {
+      const row = document.createElement("button");
+      const isOutOfStock = item.stockQuantity === 0;
+      const estimatedDays = Math.max(1, Math.ceil(item.daysCover));
+      const reliabilityLabel = { high: "אמינות גבוהה", medium: "אמינות בינונית", low: "אמינות ראשונית" }[item.reliability];
+      row.type = "button";
+      row.className = `dashboard-forecast-row ${isOutOfStock ? "out-of-stock" : "at-risk"}`;
+      row.dataset.dashboardForecastSku = item.skuKey;
+      row.innerHTML = `
+        <div class="dashboard-forecast-main">
+          <strong>${escapeHtml(item.product.sku || item.product.description)}</strong>
+          <span>${escapeHtml(item.product.description || "ללא תיאור")}</span>
+        </div>
+        <div class="dashboard-forecast-metrics">
+          <b>${isOutOfStock ? "אזל במלאי" : `כיסוי כ־${estimatedDays} ימי עבודה`}</b>
+          <span>${item.units.toLocaleString("he-IL")} יח׳ ב־30 יום · ${reliabilityLabel}</span>
+        </div>
+      `;
+      return row;
+    }),
+  );
+}
+
+function getDashboardTodayChanges(reference = new Date()) {
+  const todayKey = getIsraelDateKey(reference);
+  const changes = [];
+  const addChange = (value, type, title, details, timestamp) => {
+    const date = getDashboardChangeDate(timestamp);
+    if (!date || getIsraelDateKey(date) !== todayKey) return;
+    changes.push({ value, type, title, details, timestamp: date.getTime() });
+  };
+
+  orders.forEach((order) => {
+    const itemCount = (Array.isArray(order.items) ? order.items : []).reduce(
+      (sum, item) => sum + parseQuantity(item.quantity),
+      0,
+    );
+    addChange(
+      order,
+      "הזמנה",
+      getOrderCustomer(order)?.name || order.customerName || "ללא לקוח",
+      `${itemCount.toLocaleString("he-IL")} יח׳ · ${formatPrice(getOrderTotal(order.items || []))}${getOrderReportLabel(order) ? ` · ${getOrderReportLabel(order)}` : ""}`,
+      order.updatedAt || order.createdAt,
+    );
+  });
+
+  drafts.filter(isFutureStockDraft).forEach((draft) => {
+    const itemCount = (Array.isArray(draft.items) ? draft.items : []).reduce(
+      (sum, item) => sum + parseQuantity(item.quantity),
+      0,
+    );
+    addChange(
+      draft,
+      "מלאי עתידי",
+      getOrderCustomer(draft)?.name || draft.customerName || "ללא לקוח",
+      `${itemCount.toLocaleString("he-IL")} יח׳ · הגעה: ${formatReminderDate(draft.futureStockDate)}`,
+      draft.updatedAt || draft.createdAt,
+    );
+  });
+
+  reservations.forEach((reservation) => {
+    addChange(
+      reservation,
+      "שריון עודכן",
+      getReservationCustomerName(reservation) || "ללא לקוח",
+      `${reservation.sku || "ללא דגם"} · ${parseNonNegativeInteger(reservation.quantity).toLocaleString("he-IL")} יח׳`,
+      reservation.updatedAt || reservation.createdAt,
+    );
+  });
+
+  collections.forEach((collection) => {
+    addChange(
+      collection,
+      "גיול עודכן",
+      getCollectionCustomer(collection)?.name || collection.customerName || "ללא לקוח",
+      `יתרה פתוחה: ${formatPrice(getCollectionOpenAmount(collection))}`,
+      collection.updatedAt || collection.createdAt,
+    );
+  });
+
+  reminders.forEach((reminder) => {
+    addChange(
+      reminder,
+      reminder.completed ? "תזכורת נסגרה" : "תזכורת",
+      reminder.title || "ללא כותרת",
+      [reminder.dueDate ? formatReminderDate(reminder.dueDate) : "ללא תאריך", getReminderCustomer(reminder)?.name || reminder.customerName]
+        .filter(Boolean)
+        .join(" · "),
+      reminder.updatedAt || reminder.createdAt,
+    );
+  });
+
+  return changes.sort((left, right) => right.timestamp - left.timestamp).slice(0, 8);
+}
+
+function getDashboardChangeDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function renderDashboardTodayChanges(reference = new Date()) {
+  if (!dom.dashboardTodayChanges) return;
+  const changes = getDashboardTodayChanges(reference);
+  if (!changes.length) {
+    dom.dashboardTodayChanges.replaceChildren(dashboardEmpty("אין שינויים שנשמרו במערכת היום."));
+    return;
+  }
+
+  dom.dashboardTodayChanges.replaceChildren(
+    ...changes.map((change) => {
+      const row = document.createElement("div");
+      row.className = "dashboard-change-row";
+      row.innerHTML = `
+        <span class="dashboard-change-type">${escapeHtml(change.type)}</span>
+        <div><strong>${escapeHtml(change.title)}</strong><span>${escapeHtml(change.details)}</span></div>
+        <time>${escapeHtml(formatDashboardChangeTime(change.timestamp))}</time>
+      `;
+      return row;
+    }),
+  );
+}
+
+function formatDashboardChangeTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Jerusalem",
+  });
 }
 
 function dashboardEmpty(message) {

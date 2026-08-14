@@ -263,6 +263,16 @@
           </div>
           <div class="dashboard-stats" id="dashboardStats"></div>
           <div class="dashboard-insights" id="dashboardInsights"></div>
+          <section class="dashboard-quick-actions-card" aria-label="פעולות מהירות">
+            <div class="dashboard-compact-header">
+              <div>
+                <p class="eyebrow">קיצורי דרך</p>
+                <h3>פעולות מהירות</h3>
+              </div>
+              <span>בלי לשנות נתונים</span>
+            </div>
+            <div class="dashboard-quick-actions-grid" id="dashboardQuickActions"></div>
+          </section>
           <section class="dashboard-trends-section" aria-label="מגמות מכר">
             <div class="dashboard-trends-header">
               <div>
@@ -278,6 +288,16 @@
             </div>
             <div class="dashboard-smart-signals" id="dashboardSignals"></div>
           </section>
+          <div class="dashboard-operational-grid">
+            <section class="dashboard-section dashboard-stock-forecast-section" aria-label="תחזית חוסרים">
+              <div class="dashboard-section-header"><h3><span class="dashboard-section-icon products" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v12H4zM7 7V4h10v3M8 12h8M8 16h5" /></svg></span>תחזית חוסרים</h3><button type="button" data-dashboard-tab="stock-manager">ניהול מלאי</button></div>
+              <div id="dashboardStockForecast"></div>
+            </section>
+            <section class="dashboard-section dashboard-today-changes-section" aria-label="מה השתנה היום">
+              <div class="dashboard-section-header"><h3><span class="dashboard-section-icon reminders" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5l3 2M12 3a9 9 0 1 0 9 9" /></svg></span>מה השתנה היום</h3><button type="button" data-dashboard-tab="orders">הזמנות</button></div>
+              <div id="dashboardTodayChanges"></div>
+            </section>
+          </div>
           <div class="dashboard-grid">
             <section class="dashboard-section" aria-label="הזמנות אחרונות">
               <div class="dashboard-section-header"><h3><span class="dashboard-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></svg></span>הזמנות אחרונות</h3><button type="button" data-dashboard-tab="orders">הצג הכל</button></div>
