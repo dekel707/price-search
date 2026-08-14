@@ -1055,8 +1055,8 @@ h2 {
 
 .scheduled-reminder-submit {
   grid-column: 1 / -1;
-  justify-self: center;
-  width: min(180px, 100%);
+  justify-self: stretch;
+  width: 100%;
   min-height: 42px;
   padding: 9px 18px;
 }
@@ -4397,7 +4397,7 @@ h2 {
 
   .scheduled-reminder-submit {
     grid-column: auto;
-    width: min(170px, 100%);
+    width: 100%;
     min-height: 40px;
   }
 
