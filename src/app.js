@@ -37,11 +37,8 @@ const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
 const MONTHLY_SALES_GOAL_EX_VAT = 1540000;
-// Blob is an object store, not a realtime database. A 10-second poll exhausted
-// the Hobby read allowance in roughly one working day. Two minutes keeps
-// external orders reasonably fresh while staying inside the monthly budget;
-// returning to the app still triggers an immediate (throttled) refresh.
-const CLOUD_LIVE_REFRESH_INTERVAL_MS = 2 * 60_000;
+// Blob is an object store, not a realtime database. Cloud state is read on
+// entry and when the user returns to the app, never by a background interval.
 const CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS = 60_000;
 const CLOUD_RETRY_BASE_MS = 30_000;
 const CLOUD_RETRY_MAX_MS = 15 * 60_000;
@@ -570,7 +567,7 @@ let pendingCloudSave = null;
 const cloudSaveResults = new Map();
 let cloudRetryTimer = null;
 let cloudRetryAttempt = 0;
-let cloudLiveRefreshTimer = null;
+let cloudLiveRefreshStarted = false;
 let cloudLiveRefreshInFlight = false;
 let cloudLastRefreshStartedAt = 0;
 let appStarted = false;
@@ -1904,11 +1901,8 @@ async function hydrateCloudState(options = {}) {
 }
 
 function startCloudLiveRefresh() {
-  if (CLOUD_SYNC_DISABLED || cloudLiveRefreshTimer) return;
-  cloudLiveRefreshTimer = window.setInterval(
-    () => refreshCloudStateInBackground({ minimumAgeMs: CLOUD_LIVE_REFRESH_INTERVAL_MS }),
-    CLOUD_LIVE_REFRESH_INTERVAL_MS,
-  );
+  if (CLOUD_SYNC_DISABLED || cloudLiveRefreshStarted) return;
+  cloudLiveRefreshStarted = true;
   window.addEventListener("focus", () => {
     void refreshCloudStateInBackground({ minimumAgeMs: CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS });
   });

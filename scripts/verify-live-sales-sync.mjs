@@ -16,10 +16,10 @@ assert.match(monthly, /function getMonthlySalesAdjustmentBaselineGross\(/, "mont
 assert.match(monthly, /grossValue: roundMoney\(actualGross \+ adjustmentGross\)/, "new saved orders must be added on top of the monthly alignment");
 assert.match(monthly, /getPaidSalesTotal\(order\.items\)/, "only paid order value may be counted in monthly revenue");
 
-assert.match(app, /const CLOUD_LIVE_REFRESH_INTERVAL_MS = 2 \* 60_000/, "the app must refresh without exhausting Blob reads");
 assert.match(app, /CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS = 60_000/, "focus refreshes must be throttled");
 assert.match(app, /window\.addEventListener\("focus"/, "returning to the app must refresh external orders");
 assert.match(app, /document\.addEventListener\("visibilitychange"/, "visible tabs must refresh external updates");
+assert.doesNotMatch(app, /setInterval\([^)]*refreshCloudStateInBackground/, "cloud state must never be polled on a timer");
 assert.match(app, /cloudSyncState === "offline" && cloudRetryTimer/, "offline retries must not run in parallel with live polling");
 assert.match(app, /if \(pendingCloudSave \|\| readPendingCloudSave\(\)\) return false/, "cloud refresh must never overwrite a local pending save");
 assert.match(app, /remoteStateVersion === cloudStateVersion/, "unchanged cloud data must not re-render and interrupt an open form");

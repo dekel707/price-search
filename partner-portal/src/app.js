@@ -847,20 +847,16 @@ $("#cancelEditOrder").addEventListener("click", cancelEdit);
 $("#sendCartWhatsApp").addEventListener("click", sendCartToWhatsApp);
 $("#submitOrder").addEventListener("click", () => { persistCurrentCartOrder(); });
 
-let refreshTimer;
-const PORTAL_REFRESH_INTERVAL_MS = 5 * 60_000;
+let lastPortalRefreshAt = 0;
+const PORTAL_FOCUS_REFRESH_MIN_INTERVAL_MS = 60_000;
 function refreshPortalWhenVisible() {
   if (document.hidden) return;
+  if (Date.now() - lastPortalRefreshAt < PORTAL_FOCUS_REFRESH_MIN_INTERVAL_MS) return;
+  lastPortalRefreshAt = Date.now();
   void refresh().catch(() => {});
 }
-function startRefreshTimer() {
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(refreshPortalWhenVisible, PORTAL_REFRESH_INTERVAL_MS);
-}
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    refreshPortalWhenVisible();
-    startRefreshTimer();
-  }
+  if (!document.hidden) refreshPortalWhenVisible();
 });
-api("?resource=session").then(async ({ user }) => { if (!user) return; state.user = user; $("#loginView").hidden = true; $("#portalView").hidden = false; await refresh(); startRefreshTimer(); }).catch(() => {});
+window.addEventListener("focus", refreshPortalWhenVisible);
+api("?resource=session").then(async ({ user }) => { if (!user) return; state.user = user; $("#loginView").hidden = true; $("#portalView").hidden = false; lastPortalRefreshAt = Date.now(); await refresh(); }).catch(() => {});
