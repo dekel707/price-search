@@ -943,6 +943,113 @@ h2 {
   min-width: 0;
 }
 
+.scheduled-reminder-email-preview {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(49, 220, 199, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(5, 29, 35, 0.84), rgba(4, 17, 25, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(97, 245, 222, 0.05), 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.scheduled-reminder-email-preview-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.scheduled-reminder-email-preview-header h4 {
+  margin: 2px 0 0;
+  color: #e7fffa;
+  font-size: 0.92rem;
+}
+
+.scheduled-reminder-email-preview-header small {
+  max-width: 55%;
+  color: #91b8b1;
+  direction: ltr;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.scheduled-reminder-email-preview-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(132, 173, 191, 0.22);
+  border-inline-start: 4px solid #31dcc7;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(9, 29, 42, 0.94), rgba(5, 17, 27, 0.96));
+}
+
+.scheduled-reminder-email-preview-card[data-priority="urgent"] {
+  border-inline-start-color: #ef4444;
+}
+
+.scheduled-reminder-email-preview-card[data-priority="high"] {
+  border-inline-start-color: #f59e0b;
+}
+
+.scheduled-reminder-email-preview-card[data-priority="low"] {
+  border-inline-start-color: #60a5fa;
+}
+
+.scheduled-reminder-email-preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scheduled-reminder-email-preview-tags span {
+  padding: 4px 8px;
+  border: 1px solid rgba(49, 220, 199, 0.28);
+  border-radius: 999px;
+  color: #c8f6ee;
+  background: rgba(8, 87, 82, 0.24);
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.scheduled-reminder-email-preview-label {
+  color: #7ca49f;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.scheduled-reminder-email-preview-card > strong {
+  color: #f4fffd;
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.scheduled-reminder-email-preview-card > p {
+  min-height: 42px;
+  margin: 0;
+  color: #c6d9d6;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.scheduled-reminder-email-preview-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(145, 184, 177, 0.15);
+  color: #96b6b1;
+  font-size: 0.72rem;
+}
+
 .scheduled-reminder-submit {
   grid-column: span 2;
 }
@@ -4239,8 +4346,19 @@ h2 {
   .scheduled-reminder-title-field,
   .scheduled-reminder-recipient-field,
   .scheduled-reminder-message-field,
-  .scheduled-reminder-source-field {
+  .scheduled-reminder-source-field,
+  .scheduled-reminder-email-preview {
     grid-column: auto;
+  }
+
+  .scheduled-reminder-email-preview-header,
+  .scheduled-reminder-email-preview-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .scheduled-reminder-email-preview-header small {
+    max-width: 100%;
   }
 
   .scheduled-reminder-types {

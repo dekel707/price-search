@@ -898,6 +898,28 @@
                   <option value="weekly">כל שבוע</option>
                 </select>
               </label>
+              <section class="scheduled-reminder-email-preview" id="scheduledReminderEmailPreview" aria-labelledby="scheduledReminderEmailPreviewTitle" aria-live="polite">
+                <div class="scheduled-reminder-email-preview-header">
+                  <div>
+                    <p class="eyebrow">לפני התזמון</p>
+                    <h4 id="scheduledReminderEmailPreviewTitle">תצוגה מקדימה למייל</h4>
+                  </div>
+                  <small id="scheduledReminderEmailPreviewRecipient">נמען יופיע כאן</small>
+                </div>
+                <article class="scheduled-reminder-email-preview-card" id="scheduledReminderEmailPreviewCard" data-priority="normal">
+                  <div class="scheduled-reminder-email-preview-tags">
+                    <span id="scheduledReminderEmailPreviewType">משימה</span>
+                    <span id="scheduledReminderEmailPreviewPriority">עדיפות רגילה</span>
+                  </div>
+                  <span class="scheduled-reminder-email-preview-label">נושא המייל</span>
+                  <strong id="scheduledReminderEmailPreviewSubject">כותרת התזכורת תופיע כאן</strong>
+                  <p id="scheduledReminderEmailPreviewMessage">פירוט התזכורת יופיע כאן.</p>
+                  <div class="scheduled-reminder-email-preview-footer">
+                    <span id="scheduledReminderEmailPreviewDue">בחר תאריך ושעה</span>
+                    <span id="scheduledReminderEmailPreviewRecurrence">חד־פעמי</span>
+                  </div>
+                </article>
+              </section>
               <button class="file-button scheduled-reminder-submit" id="scheduledReminderSubmit" type="submit">תזמן מייל</button>
               <button class="secondary-button scheduled-reminder-edit-cancel" id="cancelScheduledReminderEdit" type="button" hidden>בטל עריכה</button>
             </form>

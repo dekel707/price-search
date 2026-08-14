@@ -363,6 +363,15 @@ const dom = {
   scheduledReminderTime: document.querySelector("#scheduledReminderTime"),
   scheduledReminderPriority: document.querySelector("#scheduledReminderPriority"),
   scheduledReminderRecurrence: document.querySelector("#scheduledReminderRecurrence"),
+  scheduledReminderEmailPreview: document.querySelector("#scheduledReminderEmailPreview"),
+  scheduledReminderEmailPreviewCard: document.querySelector("#scheduledReminderEmailPreviewCard"),
+  scheduledReminderEmailPreviewRecipient: document.querySelector("#scheduledReminderEmailPreviewRecipient"),
+  scheduledReminderEmailPreviewType: document.querySelector("#scheduledReminderEmailPreviewType"),
+  scheduledReminderEmailPreviewPriority: document.querySelector("#scheduledReminderEmailPreviewPriority"),
+  scheduledReminderEmailPreviewSubject: document.querySelector("#scheduledReminderEmailPreviewSubject"),
+  scheduledReminderEmailPreviewMessage: document.querySelector("#scheduledReminderEmailPreviewMessage"),
+  scheduledReminderEmailPreviewDue: document.querySelector("#scheduledReminderEmailPreviewDue"),
+  scheduledReminderEmailPreviewRecurrence: document.querySelector("#scheduledReminderEmailPreviewRecurrence"),
   scheduledReminderSubmit: document.querySelector("#scheduledReminderSubmit"),
   cancelScheduledReminderEdit: document.querySelector("#cancelScheduledReminderEdit"),
   scheduledReminderConfig: document.querySelector("#scheduledReminderConfig"),
@@ -1273,6 +1282,8 @@ function bindEvents() {
   });
   dom.reminderForm.addEventListener("submit", saveReminderFromForm);
   dom.scheduledReminderForm.addEventListener("submit", saveScheduledEmailReminderFromForm);
+  dom.scheduledReminderForm.addEventListener("input", renderScheduledReminderEmailPreview);
+  dom.scheduledReminderForm.addEventListener("change", renderScheduledReminderEmailPreview);
   dom.scheduledReminderTypeButtons.forEach((button) => {
     button.addEventListener("click", () => selectScheduledReminderType(button.dataset.scheduledReminderType));
   });
@@ -6549,15 +6560,39 @@ function renderScheduledReminderComposer() {
   const sources = getScheduledReminderSources(type);
   const showSource = ["future-stock", "collection"].includes(type);
   dom.scheduledReminderSourceWrap.hidden = !showSource;
-  if (!showSource) return;
+  if (showSource) {
+    const previous = dom.scheduledReminderSource.value;
+    dom.scheduledReminderSourceLabel.textContent = type === "future-stock" ? "הזמנת מלאי עתידי" : "לקוח עם חוב פתוח";
+    dom.scheduledReminderSource.replaceChildren(createOption("", type === "future-stock" ? "בחר הזמנה למילוי אוטומטי" : "בחר לקוח למילוי אוטומטי", !previous));
+    sources.forEach((source) => {
+      dom.scheduledReminderSource.append(createOption(source.id, source.label, source.id === previous));
+    });
+    dom.scheduledReminderSource.disabled = !sources.length;
+  }
+  renderScheduledReminderEmailPreview();
+}
 
-  const previous = dom.scheduledReminderSource.value;
-  dom.scheduledReminderSourceLabel.textContent = type === "future-stock" ? "הזמנת מלאי עתידי" : "לקוח עם חוב פתוח";
-  dom.scheduledReminderSource.replaceChildren(createOption("", type === "future-stock" ? "בחר הזמנה למילוי אוטומטי" : "בחר לקוח למילוי אוטומטי", !previous));
-  sources.forEach((source) => {
-    dom.scheduledReminderSource.append(createOption(source.id, source.label, source.id === previous));
-  });
-  dom.scheduledReminderSource.disabled = !sources.length;
+function renderScheduledReminderEmailPreview() {
+  if (!dom.scheduledReminderEmailPreview) return;
+  const title = cleanString(dom.scheduledReminderTitle.value) || "כותרת התזכורת תופיע כאן";
+  const message = cleanString(dom.scheduledReminderMessage.value) || "פירוט התזכורת יופיע כאן.";
+  const recipient = cleanString(scheduledEmailReminderConfig.defaultRecipient || dom.scheduledReminderRecipient.value);
+  const dueDate = normalizeDateInput(dom.scheduledReminderDate.value);
+  const dueTime = cleanString(dom.scheduledReminderTime.value);
+  const priority = normalizeScheduledReminderPriority(dom.scheduledReminderPriority.value);
+  const type = normalizeScheduledReminderType(dom.scheduledReminderType.value);
+  const recurrence = normalizeScheduledReminderRecurrence(dom.scheduledReminderRecurrence.value);
+
+  dom.scheduledReminderEmailPreviewRecipient.textContent = recipient ? `אל: ${recipient}` : "נמען יופיע כאן";
+  dom.scheduledReminderEmailPreviewType.textContent = scheduledReminderTypeLabel(type);
+  dom.scheduledReminderEmailPreviewPriority.textContent = `עדיפות ${scheduledReminderPriorityLabel(priority)}`;
+  dom.scheduledReminderEmailPreviewSubject.textContent = title;
+  dom.scheduledReminderEmailPreviewMessage.textContent = message;
+  dom.scheduledReminderEmailPreviewDue.textContent = dueDate
+    ? `מועד: ${formatReminderDate(dueDate)}${dueTime ? ` · ${dueTime}` : ""}`
+    : "בחר תאריך ושעה";
+  dom.scheduledReminderEmailPreviewRecurrence.textContent = scheduledReminderRecurrenceLabel(recurrence);
+  dom.scheduledReminderEmailPreviewCard.dataset.priority = priority;
 }
 
 function selectScheduledReminderType(nextType) {
@@ -6641,6 +6676,7 @@ function applyScheduledReminderSource() {
   dom.scheduledReminderDate.value = source.dueDate;
   dom.scheduledReminderTime.value = source.dueTime;
   dom.scheduledReminderPriority.value = source.priority;
+  renderScheduledReminderEmailPreview();
 }
 
 function buildEveningSummaryMessage() {

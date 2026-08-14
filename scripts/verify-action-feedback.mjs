@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [app, styles] = await Promise.all([
+const [app, styles, html] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/styles.css", import.meta.url), "utf8"),
+  readFile(new URL("../index.html", import.meta.url), "utf8"),
 ]);
 
 assert.match(app, /function runUiAction\(/, "חסר מנגנון חסימת לחיצה כפולה");
@@ -22,6 +23,10 @@ assert.match(app, /import\("read-excel-file\/browser"\)/, "טעינת Excel אי
 assert.match(app, /import\("pdfjs-dist\/legacy\/build\/pdf\.mjs"\)/, "טעינת PDF אינה מפוצלת לפי צורך");
 assert.match(app, /import\("tesseract\.js"\)/, "טעינת OCR אינה מפוצלת לפי צורך");
 assert.match(app, /scheduleAdvancedSearchMetadataWarmup\(\)/, "נתוני חיפוש מתקדם לא נטענים ברקע לאחר המסך הראשי");
+assert.match(html, /id="scheduledReminderEmailPreview"/, "חסרה תצוגה מקדימה למייל בתזכורות");
+assert.match(app, /function renderScheduledReminderEmailPreview\(\)/, "התצוגה המקדימה של התזכורת אינה מתעדכנת");
+assert.match(app, /scheduledReminderForm\.addEventListener\("input", renderScheduledReminderEmailPreview\)/, "הקלדה בתזכורת אינה מעדכנת את התצוגה המקדימה");
+assert.match(styles, /\.scheduled-reminder-email-preview-card/, "חסר עיצוב לתצוגה המקדימה של המייל");
 assert.match(styles, /\.action-toast\[data-kind="progress"\]/, "חסר עיצוב לחיווי פעולה בתהליך");
 assert.match(styles, /\.action-toast\[data-kind="error"\]/, "חסר עיצוב לחיווי שגיאה");
 assert.match(styles, /\.is-pending/, "לחצן בפעולה אינו מסומן באופן חזותי");
