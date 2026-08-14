@@ -8634,6 +8634,34 @@ body {
   }
 }
 
+/* Mobile containment guard: iOS can give native controls an intrinsic width
+   wider than their grid cell. Keep every form field inside its own card while
+   preserving the dedicated reminder date/time layout above. */
+@media (max-width: 560px) {
+  .tab-panel :is(form, .field-wrap),
+  .customer-dialog :is(form, .field-wrap) {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .tab-panel :is(input, select, textarea),
+  .customer-dialog :is(input, select, textarea) {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .tab-panel input:is([type="date"], [type="time"], [type="datetime-local"]),
+  .customer-dialog input:is([type="date"], [type="time"], [type="datetime-local"]) {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    inline-size: 100% !important;
+    min-inline-size: 0 !important;
+  }
+}
+
 /* Customer year-over-year is intentionally a read-only reporting workspace.
    Its isolated presentation makes it clear that the imported historic values
    do not alter the existing sales, inventory, reservation or order panels. */

@@ -31,6 +31,7 @@ assert.match(app, /scheduledReminderDate\.addEventListener\("input", commitSched
 assert.match(app, /document\.activeElement === dom\.scheduledReminderDate/, "בורר התאריך אינו נסגר לאחר בחירה תקינה");
 assert.match(styles, /\.scheduled-reminder-email-preview-card/, "חסר עיצוב לתצוגה המקדימה של המייל");
 assert.match(styles, /\.scheduled-reminder-native-control \{[\s\S]*?overflow: hidden;/, "המסגרת של התאריך והשעה אינה חוסמת גלישה ב-Safari");
+assert.match(styles, /Mobile containment guard:[\s\S]*?input:is\(\[type="date"\], \[type="time"\], \[type="datetime-local"\]\)/, "שדות תאריך ושעה נוספים אינם מוגנים מגלישה במובייל");
 assert.match(styles, /\.action-toast\[data-kind="progress"\]/, "חסר עיצוב לחיווי פעולה בתהליך");
 assert.match(styles, /\.action-toast\[data-kind="error"\]/, "חסר עיצוב לחיווי שגיאה");
 assert.match(styles, /\.is-pending/, "לחצן בפעולה אינו מסומן באופן חזותי");
