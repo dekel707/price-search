@@ -53,6 +53,46 @@ export function findUnexpectedOrderRemovals(currentState, attemptedState, action
   });
 }
 
+// A confirmed deletion is safe to recover even when another device saved in
+// the short gap between the confirmation and the network request. Apply only
+// that explicit tombstoned deletion to the newest live state; never replace
+// unrelated customers, stock, orders or reports from the older browser copy.
+export function recoverExplicitOrderDeletions(currentState, attemptedState, action, now = new Date()) {
+  if (String(action || "") !== "order-delete") {
+    return { recovered: false, state: currentState, removedOrders: [], reservationAdjustments: [] };
+  }
+
+  const liveOrders = Array.isArray(currentState?.orders) ? currentState.orders : [];
+  const attemptedIds = new Set(
+    (Array.isArray(attemptedState?.orders) ? attemptedState.orders : [])
+      .map((order) => String(order?.id || "").trim())
+      .filter(Boolean),
+  );
+  const attemptedTombstones = getActiveTombstones(attemptedState?.orderTombstones, now);
+  const tombstonedIds = new Set(attemptedTombstones.map((entry) => entry.id));
+  const removedOrders = liveOrders.filter((order) => {
+    const id = String(order?.id || "").trim();
+    return Boolean(id && !attemptedIds.has(id) && tombstonedIds.has(id));
+  });
+
+  if (!removedOrders.length) {
+    return { recovered: false, state: currentState, removedOrders: [], reservationAdjustments: [] };
+  }
+
+  const removedIds = new Set(removedOrders.map((order) => String(order.id)));
+  const state = structuredClone(currentState);
+  state.orders = liveOrders.filter((order) => !removedIds.has(String(order?.id || "")));
+  state.orderTombstones = getActiveTombstones(
+    [...attemptedTombstones, ...getActiveTombstones(currentState?.orderTombstones, now)],
+    now,
+  );
+  const reservationAdjustments = reverseRemovedOrderReservationEffects(state, removedOrders, now);
+  state.lastPrices = rebuildLastPrices(state.orders);
+  state.updatedAt = now.toISOString();
+
+  return { recovered: true, state, removedOrders, reservationAdjustments };
+}
+
 function mergeReferencedCustomers(state, attemptedState, addedOrders) {
   const liveCustomers = Array.isArray(state.customers) ? state.customers : [];
   const attemptedCustomers = Array.isArray(attemptedState?.customers) ? attemptedState.customers : [];
@@ -133,6 +173,72 @@ function applyOrderReservationEffects(state, orders) {
 
   state.reservations = reservations;
   return adjustments;
+}
+
+function reverseRemovedOrderReservationEffects(state, orders, now) {
+  const reservations = Array.isArray(state.reservations) ? state.reservations : [];
+  const customers = Array.isArray(state.customers) ? state.customers : [];
+  const adjustments = [];
+  const updatedAt = now.toISOString();
+
+  for (const order of orders) {
+    const reservationPurchase = String(order?.orderType || "") === "reservation";
+    const customer = customers.find((entry) => entry?.id === order?.customerId)
+      || customers.find((entry) => cleanName(entry?.name) === cleanName(order?.customerName));
+    if (!customer) continue;
+
+    for (const item of Array.isArray(order?.items) ? order.items : []) {
+      const quantity = Math.max(0, Math.floor(Number(item?.quantity) || 0));
+      const fromReservation = Boolean(item?.fromReservation || item?.priceSource === "reservation");
+      const delta = reservationPurchase ? -quantity : (fromReservation ? quantity : 0);
+      if (!delta) continue;
+
+      const skuKey = String(item?.skuKey || item?.sku || "").trim();
+      if (!skuKey) continue;
+      let reservation = reservations.find(
+        (entry) => entry?.customerId === customer.id && String(entry?.skuKey || entry?.sku || "") === skuKey,
+      );
+      if (!reservation && delta > 0) {
+        reservation = {
+          id: `reservation-${customer.id}-${skuKey}`,
+          customerId: customer.id,
+          customerName: customer.name || order.customerName || "",
+          skuKey,
+          sku: item?.sku || skuKey,
+          description: item?.description || "",
+          quantity: 0,
+          updatedAt,
+        };
+        reservations.push(reservation);
+      }
+      if (!reservation) continue;
+
+      const before = Math.max(0, Math.floor(Number(reservation.quantity) || 0));
+      const after = Math.max(0, before + delta);
+      reservation.quantity = after;
+      reservation.updatedAt = updatedAt;
+      adjustments.push({ orderId: String(order.id || ""), reservationId: String(reservation.id || ""), delta: after - before });
+    }
+  }
+
+  state.reservations = reservations;
+  return adjustments;
+}
+
+function rebuildLastPrices(orders) {
+  return [...orders]
+    .sort((left, right) => new Date(left?.createdAt || 0).getTime() - new Date(right?.createdAt || 0).getTime())
+    .reduce((prices, order) => {
+      for (const item of Array.isArray(order?.items) ? order.items : []) {
+        const fromReservation = Boolean(item?.fromReservation || item?.priceSource === "reservation");
+        if (fromReservation || item?.priceSource === "bonus") continue;
+        const skuKey = String(item?.skuKey || item?.sku || "").trim();
+        const price = Number(item?.unitPrice);
+        if (!skuKey || !Number.isFinite(price)) continue;
+        prices[skuKey] = { price, savedAt: order?.createdAt || "" };
+      }
+      return prices;
+    }, {});
 }
 
 function mergeLastPrices(currentLastPrices, attemptedLastPrices, addedOrders) {

@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { findUnexpectedOrderRemovals, mergeRecentMissingOrders } from "../api/_order-conflict-recovery.js";
+import {
+  findUnexpectedOrderRemovals,
+  mergeRecentMissingOrders,
+  recoverExplicitOrderDeletions,
+} from "../api/_order-conflict-recovery.js";
 
 const now = new Date("2026-07-15T15:00:00.000Z");
 const recentOrder = {
@@ -68,6 +72,64 @@ assert.deepEqual(
   ),
   [],
   "a deliberate deletion with a tombstone must remain possible",
+);
+
+const concurrentOrder = {
+  ...recentOrder,
+  id: "order-concurrent",
+  customerId: "customer-concurrent",
+  customerName: "לקוח ממסך אחר",
+  orderType: "delivery",
+};
+const recoveredDeletion = recoverExplicitOrderDeletions(
+  {
+    orders: [recentOrder, concurrentOrder],
+    customers: [
+      { id: "customer-new", name: "לקוח חדש" },
+      { id: "customer-concurrent", name: "לקוח ממסך אחר" },
+    ],
+    reservations: [{ id: "reservation-test", customerId: "customer-new", skuKey: "SKU-1", quantity: 2 }],
+    lastPrices: {},
+    orderTombstones: [],
+  },
+  {
+    orders: [],
+    orderTombstones: [{ id: "order-new", deletedAt: "2026-07-15T14:59:00.000Z" }],
+  },
+  "order-delete",
+  now,
+);
+assert.equal(recoveredDeletion.recovered, true, "a confirmed deletion must survive a concurrent state version change");
+assert.deepEqual(recoveredDeletion.state.orders.map((order) => order.id), ["order-concurrent"], "a concurrent unrelated order must remain untouched");
+assert.equal(recoveredDeletion.state.reservations[0].quantity, 0, "deleting a reservation purchase must reverse its balance");
+assert.equal(recoveredDeletion.state.orderTombstones[0].id, "order-new", "the recovered deletion must retain its tombstone");
+
+const reservedDelivery = {
+  ...recentOrder,
+  id: "order-reserved-delivery",
+  orderType: "delivery",
+  items: [{ ...recentOrder.items[0], fromReservation: true, priceSource: "reservation" }],
+};
+const recoveredReservedDelivery = recoverExplicitOrderDeletions(
+  {
+    orders: [reservedDelivery],
+    customers: [{ id: "customer-new", name: "לקוח חדש" }],
+    reservations: [{ id: "reservation-test", customerId: "customer-new", skuKey: "SKU-1", quantity: 0 }],
+    lastPrices: {},
+    orderTombstones: [],
+  },
+  {
+    orders: [],
+    orderTombstones: [{ id: "order-reserved-delivery", deletedAt: "2026-07-15T14:59:00.000Z" }],
+  },
+  "order-delete",
+  now,
+);
+assert.equal(recoveredReservedDelivery.state.reservations[0].quantity, 2, "deleting a reservation release must restore its balance");
+assert.equal(
+  recoverExplicitOrderDeletions(currentState, deletedState, "state-change", now).recovered,
+  false,
+  "an ordinary stale save must never gain deletion authority",
 );
 
 console.log("Order safety checks passed.");

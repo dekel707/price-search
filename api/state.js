@@ -1,6 +1,10 @@
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import { findUnexpectedOrderRemovals, mergeRecentMissingOrders } from "./_order-conflict-recovery.js";
+import {
+  findUnexpectedOrderRemovals,
+  mergeRecentMissingOrders,
+  recoverExplicitOrderDeletions,
+} from "./_order-conflict-recovery.js";
 import handleScheduledReminders from "./_scheduled-reminders.js";
 import {
   hasDatabaseStorageCredentials,
@@ -248,6 +252,52 @@ export default async function handler(request, response) {
           reason: `conflict-${action}`,
           blobAuthOptions,
         });
+        const deletionRecovery = recoverExplicitOrderDeletions(currentPayload, payload, action);
+        if (deletionRecovery.recovered) {
+          const previousBackup = await createStateBackup(currentPayload, {
+            reason: `before-recovered-${action}`,
+            blobAuthOptions,
+          });
+          const recoveryBackup = await createStateBackup(deletionRecovery.state, {
+            reason: `recovered-${action}`,
+            blobAuthOptions,
+          });
+          try {
+            const saved = await put(STATE_PATH, JSON.stringify(deletionRecovery.state), {
+              access: "private",
+              allowOverwrite: true,
+              contentType: "application/json; charset=utf-8",
+              cacheControlMaxAge: 60,
+              ...(currentStateMatchVersion ? { ifMatch: currentStateMatchVersion } : {}),
+              ...blobAuthOptions,
+            });
+            response.setHeader("X-State-Version", saved.etag || "");
+            sendJson(response, 200, {
+              ok: true,
+              updatedAt: deletionRecovery.state.updatedAt,
+              stateVersion: saved.etag || "",
+              backup: recoveryBackup,
+              previousBackup,
+              conflictBackup: backup,
+              recoveredDeletion: summarizeRecoveredDeletion(
+                deletionRecovery.removedOrders,
+                deletionRecovery.reservationAdjustments,
+              ),
+            });
+            return;
+          } catch (error) {
+            if (error instanceof BlobPreconditionFailedError) {
+              response.setHeader("X-State-Version", "");
+              sendJson(response, 409, {
+                error: "state_conflict",
+                message: "The live data changed while the confirmed deletion was being recovered. The attempted deletion was saved as a recovery backup.",
+                backup,
+              });
+              return;
+            }
+            throw error;
+          }
+        }
         const recovery = mergeRecentMissingOrders(currentPayload, payload);
         if (recovery.recovered) {
           const previousBackup = await createStateBackup(currentPayload, {
@@ -400,6 +450,14 @@ function summarizeRecoveredConflict(orders, reservationAdjustments, customers = 
     orderIds: Array.isArray(orders) ? orders.map((order) => String(order?.id || "")).filter(Boolean) : [],
     reservationAdjustmentCount: Array.isArray(reservationAdjustments) ? reservationAdjustments.length : 0,
     customerCount: Array.isArray(customers) ? customers.length : 0,
+  };
+}
+
+function summarizeRecoveredDeletion(orders, reservationAdjustments) {
+  return {
+    orderCount: Array.isArray(orders) ? orders.length : 0,
+    orderIds: Array.isArray(orders) ? orders.map((order) => String(order?.id || "")).filter(Boolean) : [],
+    reservationAdjustmentCount: Array.isArray(reservationAdjustments) ? reservationAdjustments.length : 0,
   };
 }
 

@@ -15839,6 +15839,10 @@ async function saveSharedStateNow() {
       await hydrateCloudState();
       return;
     }
+    if (savedState?.recoveredDeletion?.orderCount) {
+      dom.status.textContent = "ההזמנה נמחקה בענן למרות ששמירה אחרת התבצעה במקביל.";
+      showActionToast("המחיקה נקלטה בענן בפעם הראשונה.");
+    }
     // A later action may have been queued while this ordinary request was in
     // flight. Its snapshot already includes this completed local change, so
     // only its optimistic version needs rebasing before the next save is sent.
