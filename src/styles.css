@@ -4409,7 +4409,7 @@ h2 {
   }
 
   .scheduled-reminder-form {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -4428,15 +4428,22 @@ h2 {
 
   .scheduled-reminder-date-field,
   .scheduled-reminder-time-field {
-    grid-column: 1 / -1;
+    grid-column: span 1;
     min-width: 0;
+    text-align: right;
   }
 
   .scheduled-reminder-date-field input,
   .scheduled-reminder-time-field input {
     min-height: 44px;
-    padding-inline: 12px;
-    font-size: 1rem;
+    padding-inline: 10px;
+    font-size: 0.9rem;
+    text-align: right;
+  }
+
+  .scheduled-reminder-date-field input::-webkit-date-and-time-value,
+  .scheduled-reminder-time-field input::-webkit-date-and-time-value {
+    text-align: right;
   }
 
   .scheduled-reminder-native-control {
@@ -4446,9 +4453,7 @@ h2 {
   }
 
   .scheduled-reminder-time-help {
-    margin-top: 5px;
-    font-size: 0.72rem;
-    line-height: 1.35;
+    display: none;
   }
 
   .scheduled-reminder-email-preview-header,
