@@ -530,7 +530,7 @@ let calendarSelectedDateKey = "";
 let remindersDateFilter = "";
 let zmanimState = { status: "loading", shabbat: null, holidays: [], source: "", updatedAt: "" };
 let aiOrderProposal = null;
-let activeTab = "search";
+let activeTab = "dashboard";
 let orderType = "delivery";
 let activeCustomerId = "";
 let openCustomerCardId = "";
@@ -612,10 +612,9 @@ async function startApp() {
     settings.customerId = findCustomerByName(settings.customerName)?.id || "";
   }
   lastPrices = readJson(LAST_PRICES_KEY) || {};
-  // Every fresh visit starts from the order search. A tab remains active only
-  // while this page is open, so a reload never drops the user into an old
-  // dashboard, order or management screen.
-  activeTab = "search";
+  // Every fresh visit starts from the dashboard. A tab remains active only
+  // while this page is open, so a reload always returns to the daily overview.
+  activeTab = "dashboard";
   localStorage.removeItem(ACTIVE_TAB_KEY);
   dom.customerName.value = settings.customerName || "";
   dom.whatsappNumber.value = settings.whatsappNumber || "";
