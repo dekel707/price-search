@@ -1082,14 +1082,53 @@ h2 {
    all labels and explanatory copy remain Hebrew. */
 .scheduled-reminder-form input[type="date"],
 .scheduled-reminder-form input[type="time"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  inline-size: 100% !important;
+  min-inline-size: 0 !important;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
+
+.scheduled-reminder-native-control {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-inline-size: 0;
-  direction: ltr;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--workspace-tone) 25%, transparent);
+  border-radius: 8px;
+  background: rgba(4, 8, 14, 0.52);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.scheduled-reminder-native-control:focus-within {
+  border-color: color-mix(in srgb, var(--workspace-tone) 70%, #eaf2f8);
+  background: var(--ps-control-hover);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--workspace-tone) 10%, transparent);
+}
+
+.scheduled-reminder-native-control input[type="date"],
+.scheduled-reminder-native-control input[type="time"] {
+  border: 0 !important;
+  border-radius: 0;
+  outline: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.scheduled-reminder-native-control input::-webkit-date-and-time-value {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
   text-align: left;
-  unicode-bidi: plaintext;
 }
 
 .scheduled-reminder-time-help {
@@ -4398,6 +4437,12 @@ h2 {
     min-height: 44px;
     padding-inline: 12px;
     font-size: 1rem;
+  }
+
+  .scheduled-reminder-native-control {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .scheduled-reminder-time-help {

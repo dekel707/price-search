@@ -1286,7 +1286,7 @@ function bindEvents() {
   dom.scheduledReminderForm.addEventListener("change", renderScheduledReminderEmailPreview);
   dom.scheduledReminderDate.addEventListener("input", commitScheduledReminderDateSelection);
   dom.scheduledReminderDate.addEventListener("change", commitScheduledReminderDateSelection);
-  dom.scheduledReminderDate.parentElement.addEventListener("click", (event) => {
+  dom.scheduledReminderDate.closest(".scheduled-reminder-date-field").addEventListener("click", (event) => {
     if (event.target === dom.scheduledReminderDate) return;
     try {
       if (typeof dom.scheduledReminderDate.showPicker === "function") dom.scheduledReminderDate.showPicker();

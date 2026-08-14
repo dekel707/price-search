@@ -869,11 +869,15 @@
               </label>
               <label class="field-wrap scheduled-reminder-date-field">
                 <span>תאריך</span>
-                <input id="scheduledReminderDate" type="date" dir="ltr" required />
+                <div class="scheduled-reminder-native-control">
+                  <input id="scheduledReminderDate" type="date" dir="ltr" required />
+                </div>
               </label>
               <label class="field-wrap scheduled-reminder-time-field">
                 <span>שעה בישראל (24 שעות)</span>
-                <input id="scheduledReminderTime" type="time" dir="ltr" inputmode="numeric" step="60" required aria-describedby="scheduledReminderTimeHelp" />
+                <div class="scheduled-reminder-native-control">
+                  <input id="scheduledReminderTime" type="time" dir="ltr" inputmode="numeric" step="60" required aria-describedby="scheduledReminderTimeHelp" />
+                </div>
                 <small class="scheduled-reminder-time-help" id="scheduledReminderTimeHelp">לדוגמה: 09:00. התזכורת תישלח לפי שעון ישראל.</small>
               </label>
               <label class="field-wrap scheduled-reminder-priority-field">

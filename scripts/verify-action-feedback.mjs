@@ -24,11 +24,13 @@ assert.match(app, /import\("pdfjs-dist\/legacy\/build\/pdf\.mjs"\)/, "טעינת
 assert.match(app, /import\("tesseract\.js"\)/, "טעינת OCR אינה מפוצלת לפי צורך");
 assert.match(app, /scheduleAdvancedSearchMetadataWarmup\(\)/, "נתוני חיפוש מתקדם לא נטענים ברקע לאחר המסך הראשי");
 assert.match(html, /id="scheduledReminderEmailPreview"/, "חסרה תצוגה מקדימה למייל בתזכורות");
+assert.match(html, /class="scheduled-reminder-native-control"/, "שדות התאריך והשעה אינם מוגנים מגלישה ב-Safari");
 assert.match(app, /function renderScheduledReminderEmailPreview\(\)/, "התצוגה המקדימה של התזכורת אינה מתעדכנת");
 assert.match(app, /scheduledReminderForm\.addEventListener\("input", renderScheduledReminderEmailPreview\)/, "הקלדה בתזכורת אינה מעדכנת את התצוגה המקדימה");
 assert.match(app, /scheduledReminderDate\.addEventListener\("input", commitScheduledReminderDateSelection\)/, "בחירת תאריך במובייל אינה נקלטת מיד");
 assert.match(app, /document\.activeElement === dom\.scheduledReminderDate/, "בורר התאריך אינו נסגר לאחר בחירה תקינה");
 assert.match(styles, /\.scheduled-reminder-email-preview-card/, "חסר עיצוב לתצוגה המקדימה של המייל");
+assert.match(styles, /\.scheduled-reminder-native-control \{[\s\S]*?overflow: hidden;/, "המסגרת של התאריך והשעה אינה חוסמת גלישה ב-Safari");
 assert.match(styles, /\.action-toast\[data-kind="progress"\]/, "חסר עיצוב לחיווי פעולה בתהליך");
 assert.match(styles, /\.action-toast\[data-kind="error"\]/, "חסר עיצוב לחיווי שגיאה");
 assert.match(styles, /\.is-pending/, "לחצן בפעולה אינו מסומן באופן חזותי");
