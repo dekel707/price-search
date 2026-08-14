@@ -848,5 +848,19 @@ $("#sendCartWhatsApp").addEventListener("click", sendCartToWhatsApp);
 $("#submitOrder").addEventListener("click", () => { persistCurrentCartOrder(); });
 
 let refreshTimer;
-function startRefreshTimer() { clearInterval(refreshTimer); refreshTimer = setInterval(() => refresh().catch(() => {}), 30_000); }
+const PORTAL_REFRESH_INTERVAL_MS = 5 * 60_000;
+function refreshPortalWhenVisible() {
+  if (document.hidden) return;
+  void refresh().catch(() => {});
+}
+function startRefreshTimer() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshPortalWhenVisible, PORTAL_REFRESH_INTERVAL_MS);
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    refreshPortalWhenVisible();
+    startRefreshTimer();
+  }
+});
 api("?resource=session").then(async ({ user }) => { if (!user) return; state.user = user; $("#loginView").hidden = true; $("#portalView").hidden = false; await refresh(); startRefreshTimer(); }).catch(() => {});

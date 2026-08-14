@@ -3,6 +3,8 @@ import { list, put } from "@vercel/blob";
 export const STATE_PATH = "price-search/state.json";
 export const BACKUPS_PREFIX = "price-search/backups/";
 export const DAILY_BACKUPS_PREFIX = "price-search/daily-backups/";
+export const ROLLING_BACKUPS_PREFIX = "price-search/rolling-backups/";
+export const ROLLING_BACKUP_SLOT_COUNT = 24;
 
 export function getBlobAuthOptions() {
   const token = getEnvValue("BLOB_READ_WRITE_TOKEN");
@@ -47,6 +49,50 @@ export async function createStateBackup(state, { reason = "state-save", blobAuth
     pathname: blob.pathname,
     capturedAt,
     size: blob.size,
+  };
+}
+
+// Normal business saves use a fixed-size recovery ring. The live state is the
+// post-action copy, and this slot preserves the immediately preceding state.
+// Reusing 24 deterministic paths prevents storage from growing by two complete
+// state files on every click while still retaining the last 24 save points.
+export async function createRollingStateBackup(
+  state,
+  { reason = "state-save", sequence = 0, blobAuthOptions = {} } = {},
+) {
+  const capturedAt = new Date().toISOString();
+  const numericSequence = Math.max(0, Math.floor(Number(sequence) || 0));
+  const slot = numericSequence % ROLLING_BACKUP_SLOT_COUNT;
+  const safeReason = String(reason)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "state-save";
+  const pathname = `${ROLLING_BACKUPS_PREFIX}slot-${String(slot).padStart(2, "0")}.json`;
+  const blob = await put(
+    pathname,
+    JSON.stringify({
+      backupVersion: 2,
+      capturedAt,
+      reason: safeReason,
+      sequence: numericSequence,
+      state,
+    }),
+    {
+      access: "private",
+      allowOverwrite: true,
+      contentType: "application/json; charset=utf-8",
+      cacheControlMaxAge: 60,
+      ...blobAuthOptions,
+    },
+  );
+
+  return {
+    pathname: blob.pathname,
+    capturedAt,
+    size: blob.size,
+    sequence: numericSequence,
+    slot,
+    storage: "blob",
   };
 }
 

@@ -2,8 +2,7 @@ import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { hasDatabaseStorageCredentials, readDatabaseState, saveDatabaseState } from "./_database.js";
 import {
   STATE_PATH,
-  createStateBackup,
-  ensureDailyStateBackup,
+  createRollingStateBackup,
   getBlobAuthOptions,
   hasBlobStorageCredentials,
   streamToText,
@@ -37,11 +36,15 @@ export async function savePartnerMainState(current, nextState, { action }) {
 
   const blobAuthOptions = getBlobAuthOptions();
   const match = strongEtag(current.version);
-  const dailyBackup = await ensureDailyStateBackup(current.state, { blobAuthOptions });
-  const previousBackup = await createStateBackup(current.state, { reason: `before-${action}`, blobAuthOptions });
-  const backup = await createStateBackup(nextState, { reason: `after-${action}`, blobAuthOptions });
+  const nextBackupSequence = Math.max(0, Math.floor(Number(current.state?.backupSequence) || 0)) + 1;
+  const previousBackup = await createRollingStateBackup(current.state, {
+    reason: `before-${action}`,
+    sequence: nextBackupSequence,
+    blobAuthOptions,
+  });
+  const payload = { ...nextState, backupSequence: nextBackupSequence };
   try {
-    const saved = await put(STATE_PATH, JSON.stringify(nextState), {
+    const saved = await put(STATE_PATH, JSON.stringify(payload), {
       access: "private",
       allowOverwrite: true,
       contentType: "application/json; charset=utf-8",
@@ -49,7 +52,7 @@ export async function savePartnerMainState(current, nextState, { action }) {
       ...(match ? { ifMatch: match } : {}),
       ...blobAuthOptions,
     });
-    return { ok: true, storage: "blob", stateVersion: saved.etag || "", backup, previousBackup, dailyBackup };
+    return { ok: true, storage: "blob", stateVersion: saved.etag || "", backup: previousBackup, previousBackup, dailyBackup: null };
   } catch (error) {
     if (error instanceof BlobPreconditionFailedError) throw stateError("main_state_changed_retry_approval", 409);
     throw error;

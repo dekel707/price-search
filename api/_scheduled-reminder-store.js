@@ -21,7 +21,7 @@ export function hasScheduledReminderStorage() {
 }
 
 export async function listScheduledEmailReminders(limit = 120) {
-  if (!hasBlobStorageCredentials()) return listDatabaseReminders(limit);
+  if (hasDatabaseStorageCredentials()) return listDatabaseReminders(limit);
   const safeLimit = Math.max(1, Math.min(300, Number.parseInt(limit, 10) || 120));
   const listing = await list({ prefix: REMINDER_PREFIX, limit: safeLimit, ...getBlobAuthOptions() });
   const records = await Promise.all((listing.blobs || []).map(async (blob) => {
@@ -39,12 +39,12 @@ export async function listScheduledEmailReminders(limit = 120) {
 }
 
 export async function getScheduledEmailReminder(id) {
-  if (!hasBlobStorageCredentials()) return getDatabaseReminder(id);
+  if (hasDatabaseStorageCredentials()) return getDatabaseReminder(id);
   return (await readBlobReminder(reminderPath(id)))?.reminder || null;
 }
 
 export async function createScheduledEmailReminder(reminder) {
-  if (!hasBlobStorageCredentials()) return createDatabaseReminder(reminder);
+  if (hasDatabaseStorageCredentials()) return createDatabaseReminder(reminder);
   const pathname = reminderPath(reminder.id);
   const current = await readBlobReminder(pathname);
   if (current?.reminder) return { reminder: current.reminder, alreadyExists: true };
@@ -69,7 +69,7 @@ export async function createScheduledEmailReminder(reminder) {
 }
 
 export async function updateScheduledEmailReminderDelivery(id, update) {
-  if (!hasBlobStorageCredentials()) return updateDatabaseReminder(id, update);
+  if (hasDatabaseStorageCredentials()) return updateDatabaseReminder(id, update);
   return updateBlobReminder(id, (current, now) => ({
     ...current,
     status: String(update.status || "scheduled"),
@@ -86,7 +86,7 @@ export async function updateScheduledEmailReminderDelivery(id, update) {
 }
 
 export async function cancelScheduledEmailReminder(id) {
-  if (!hasBlobStorageCredentials()) return cancelDatabaseReminder(id);
+  if (hasDatabaseStorageCredentials()) return cancelDatabaseReminder(id);
   const existing = await getScheduledEmailReminder(id);
   if (!existing) return { missing: true, reminder: null };
   if (existing.status === "cancelled") return { missing: false, alreadyCancelled: true, reminder: existing };
@@ -102,7 +102,7 @@ export async function cancelScheduledEmailReminder(id) {
 }
 
 export async function deleteScheduledEmailReminder(id) {
-  if (!hasBlobStorageCredentials()) return deleteDatabaseReminder(id);
+  if (hasDatabaseStorageCredentials()) return deleteDatabaseReminder(id);
   const existing = await getScheduledEmailReminder(id);
   if (!existing) return { missing: true, alreadyDeleted: false, reminder: null };
   if (existing.status === "deleted") return { missing: false, alreadyDeleted: true, reminder: existing };

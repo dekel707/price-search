@@ -17,7 +17,7 @@ const energyRatings = fallback.products
   .filter(Boolean);
 
 assert(!app.includes('activeTab = readJson(ACTIVE_TAB_KEY)'), "רענון האתר אינו יכול לשחזר לשונית ישנה");
-assert(app.includes('activeTab = "search";'), "מסך החיפוש חייב להיות ברירת המחדל בכל כניסה");
+assert(app.includes('activeTab = "dashboard";'), "הדאשבורד חייב להיות ברירת המחדל בכל כניסה");
 assert(app.includes("localStorage.removeItem(ACTIVE_TAB_KEY)"), "בחירת לשונית ישנה חייבת להימחק ברענון");
 assert(app.includes("advancedCleanEnergyRating"), "דירוג אנרגטי חייב לעבור אימות לפני הצגה");
 
@@ -38,11 +38,12 @@ assert(energyRatings.length >= 80, "דירוגים אנרגטיים תקינים
 energyRatings.forEach((rating) => assert(/^[A-G](?:\+{0,3})$/.test(rating), `דירוג אנרגטי לא תקין: ${rating}`));
 
 assert(app.includes("persistPendingCloudSave(envelope)"), "כל שמירה חייבת להשאיר עותק התאוששות מקומי לפני העלאה");
-assert(stateApi.includes("createStateBackup(currentPayload"), "שמירת Blob חייבת לגבות את המצב הקודם");
-assert(stateApi.includes("createStateBackup(payload"), "שמירת Blob חייבת לגבות את המצב החדש");
-assert(stateApi.includes("ensureDailyStateBackup"), "נדרש גיבוי יומי בענן");
+assert(stateApi.includes("createRollingStateBackup(currentPayload"), "שמירת Blob חייבת לגבות את המצב הקודם בטבעת מתגלגלת");
+assert(!stateApi.includes("ensureDailyStateBackup(currentPayload"), "שמירה עסקית לא יכולה לבצע list של גיבוי יומי בכל פעולה");
+assert(backups.includes("ROLLING_BACKUP_SLOT_COUNT = 24"), "חייבים להישמר 24 מצבי התאוששות מתגלגלים");
+assert(backups.includes("allowOverwrite: true"), "גיבוי מתגלגל חייב לעשות שימוש חוזר במסלולים קבועים");
 assert(database.includes("const previousBackup = await insertBackup(transaction, current.state"), "מסד הנתונים חייב לגבות את המצב הקודם בכל פעולה");
 assert(database.includes("const backup = await insertBackup(transaction, payload"), "מסד הנתונים חייב לגבות את המצב החדש בכל פעולה");
 assert(backups.includes("createDailyStateBackup"), "חסר ארכיון גיבוי יומי נפרד");
 
-console.log(`תקין: ${fallback.products.length} דגמים, ${facts.length} פרטי מפרט נקיים, ${energyRatings.length} דירוגים אנרגטיים, וגיבוי לפני ואחרי כל שמירה.`);
+console.log(`תקין: ${fallback.products.length} דגמים, ${facts.length} פרטי מפרט נקיים, ${energyRatings.length} דירוגים אנרגטיים, עותק מקומי, 24 נקודות התאוששות וגיבוי יומי.`);

@@ -9,6 +9,7 @@ import {
 import {
   BACKUPS_PREFIX,
   DAILY_BACKUPS_PREFIX,
+  ROLLING_BACKUPS_PREFIX,
   STATE_PATH,
   createStateBackup,
   getBlobAuthOptions,
@@ -44,9 +45,10 @@ export default async function handler(request, response) {
     const blobAuthOptions = getBlobAuthOptions();
 
     if (request.method === "GET") {
-      const [databaseBackups, blobSnapshots, dailySnapshots] = await Promise.all([
+      const [databaseBackups, blobSnapshots, rollingSnapshots, dailySnapshots] = await Promise.all([
         databaseConfigured ? listDatabaseBackups(30) : [],
         blobConfigured ? list({ prefix: BACKUPS_PREFIX, limit: 30, ...blobAuthOptions }) : { blobs: [], hasMore: false },
+        blobConfigured ? list({ prefix: ROLLING_BACKUPS_PREFIX, limit: 24, ...blobAuthOptions }) : { blobs: [], hasMore: false },
         blobConfigured ? list({ prefix: DAILY_BACKUPS_PREFIX, limit: 30, ...blobAuthOptions }) : { blobs: [], hasMore: false },
       ]);
       const blobBackups = (blobSnapshots.blobs || []).map(({ pathname, uploadedAt, size }) => ({
@@ -62,13 +64,20 @@ export default async function handler(request, response) {
         storage: "blob",
         reason: "daily-scheduled",
       }));
-      const backups = [...databaseBackups, ...blobBackups, ...dailyBackups]
+      const rollingBackups = (rollingSnapshots.blobs || []).map(({ pathname, uploadedAt, size }) => ({
+        pathname,
+        uploadedAt,
+        size,
+        storage: "blob",
+        reason: "rolling-recovery",
+      }));
+      const backups = [...databaseBackups, ...rollingBackups, ...blobBackups, ...dailyBackups]
         .sort((left, right) => new Date(right.capturedAt || right.uploadedAt) - new Date(left.capturedAt || left.uploadedAt))
         .slice(0, 60);
 
       sendJson(response, 200, {
         backups,
-        hasMore: Boolean(blobSnapshots.hasMore || dailySnapshots.hasMore),
+        hasMore: Boolean(blobSnapshots.hasMore || rollingSnapshots.hasMore || dailySnapshots.hasMore),
         databaseEnabled: databaseConfigured,
       });
       return;

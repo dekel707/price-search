@@ -3,5 +3,11 @@
     "api/import-collections.js": {
       "includeFiles": "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron-daily-backup",
+      "schedule": "30 22 * * *"
+    }
+  ]
 }

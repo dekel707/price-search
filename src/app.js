@@ -37,7 +37,14 @@ const INITIAL_RESULTS = 24;
 const DISPLAY_DISCOUNT_RATE = 0.15;
 const VAT_RATE = 0.18;
 const MONTHLY_SALES_GOAL_EX_VAT = 1540000;
-const CLOUD_LIVE_REFRESH_INTERVAL_MS = 10_000;
+// Blob is an object store, not a realtime database. A 10-second poll exhausted
+// the Hobby read allowance in roughly one working day. Two minutes keeps
+// external orders reasonably fresh while staying inside the monthly budget;
+// returning to the app still triggers an immediate (throttled) refresh.
+const CLOUD_LIVE_REFRESH_INTERVAL_MS = 2 * 60_000;
+const CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS = 60_000;
+const CLOUD_RETRY_BASE_MS = 30_000;
+const CLOUD_RETRY_MAX_MS = 15 * 60_000;
 const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_ORDER_IMPORT_OCR_PAGES = 8;
 const MAX_ORDER_IMPORT_OCR_PIXELS = 8 * 1024 * 1024;
@@ -565,6 +572,7 @@ let cloudRetryTimer = null;
 let cloudRetryAttempt = 0;
 let cloudLiveRefreshTimer = null;
 let cloudLiveRefreshInFlight = false;
+let cloudLastRefreshStartedAt = 0;
 let appStarted = false;
 let israelClockTimer = null;
 let actionToastTimer = null;
@@ -1897,23 +1905,35 @@ async function hydrateCloudState(options = {}) {
 
 function startCloudLiveRefresh() {
   if (CLOUD_SYNC_DISABLED || cloudLiveRefreshTimer) return;
-  cloudLiveRefreshTimer = window.setInterval(refreshCloudStateInBackground, CLOUD_LIVE_REFRESH_INTERVAL_MS);
-  window.addEventListener("focus", refreshCloudStateInBackground);
+  cloudLiveRefreshTimer = window.setInterval(
+    () => refreshCloudStateInBackground({ minimumAgeMs: CLOUD_LIVE_REFRESH_INTERVAL_MS }),
+    CLOUD_LIVE_REFRESH_INTERVAL_MS,
+  );
+  window.addEventListener("focus", () => {
+    void refreshCloudStateInBackground({ minimumAgeMs: CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS });
+  });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) refreshCloudStateInBackground();
+    if (!document.hidden) {
+      void refreshCloudStateInBackground({ minimumAgeMs: CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS });
+    }
   });
 }
 
-function isSafeToRefreshCloudState() {
+function isSafeToRefreshCloudState(minimumAgeMs = 0) {
   if (CLOUD_SYNC_DISABLED || document.hidden || cloudLiveRefreshInFlight || cloudSaveInFlight) return false;
+  // While offline, the exponential retry owns recovery. The normal interval
+  // must not create a second retry stream against a suspended store.
+  if (cloudSyncState === "offline" && cloudRetryTimer) return false;
   if (pendingCloudSave || readPendingCloudSave()) return false;
+  if (Date.now() - cloudLastRefreshStartedAt < Math.max(0, Number(minimumAgeMs) || 0)) return false;
   const activeElement = document.activeElement;
   return !["INPUT", "TEXTAREA", "SELECT"].includes(activeElement?.tagName);
 }
 
-async function refreshCloudStateInBackground() {
-  if (!isSafeToRefreshCloudState()) return;
+async function refreshCloudStateInBackground({ minimumAgeMs = 0 } = {}) {
+  if (!isSafeToRefreshCloudState(minimumAgeMs)) return;
   cloudLiveRefreshInFlight = true;
+  cloudLastRefreshStartedAt = Date.now();
   try {
     await hydrateCloudState({ onlyIfChanged: true });
   } finally {
@@ -1931,7 +1951,7 @@ function markCloudSyncRecovered() {
 
 function scheduleCloudRetry() {
   if (CLOUD_SYNC_DISABLED || cloudSyncState === "conflict" || cloudRetryTimer) return;
-  const delay = Math.min(30_000, 1_000 * 2 ** Math.min(cloudRetryAttempt, 5));
+  const delay = Math.min(CLOUD_RETRY_MAX_MS, CLOUD_RETRY_BASE_MS * 2 ** Math.min(cloudRetryAttempt, 5));
   cloudRetryAttempt += 1;
   cloudRetryTimer = window.setTimeout(async () => {
     cloudRetryTimer = null;

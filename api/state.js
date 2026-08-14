@@ -10,8 +10,8 @@ import {
 } from "./_database.js";
 import {
   STATE_PATH,
+  createRollingStateBackup,
   createStateBackup,
-  ensureDailyStateBackup,
   getBlobAuthOptions,
   hasBlobStorageCredentials,
   streamToText,
@@ -19,6 +19,7 @@ import {
 
 const EMPTY_STATE = {
   version: 6,
+  backupSequence: 0,
   products: [],
   meta: null,
   categories: [],
@@ -121,18 +122,10 @@ export default async function handler(request, response) {
         if (!includesCustomerYearOverYear) {
           payload.customerYearOverYear = normalizeState(currentDatabaseState.state).customerYearOverYear;
         }
-        let dailyBackup = null;
-        if (hasBlobStorageCredentials()) {
-          try {
-            dailyBackup = await ensureDailyStateBackup(currentDatabaseState.state, {
-              blobAuthOptions: getBlobAuthOptions(),
-            });
-          } catch (error) {
-            // A database save remains safe even when the secondary archive is
-            // temporarily unavailable; database history still records both versions.
-            console.error("daily_blob_backup_failed", error);
-          }
-        }
+        // Database saves already keep transactional before/after history.
+        // The daily Blob archive is produced once by the cron endpoint rather
+        // than listing the Blob folder on every business action.
+        const dailyBackup = null;
         const saved = await saveDatabaseState(payload, expectedVersion, { action });
         if (saved.missing) {
           throw new Error("database_state_initialization_failed");
@@ -307,24 +300,20 @@ export default async function handler(request, response) {
         return;
       }
 
-      // Preserve both sides of every change. The current live version is saved
-      // first, then the incoming version is saved before it replaces live data.
-      // A malformed or incomplete payload can therefore never erase the last
-      // known-good data without leaving a complete recovery point.
+      // Preserve the current state before replacing it, but reuse a fixed ring
+      // of recovery slots. The new payload itself becomes the post-action live
+      // copy, so creating a second immutable full snapshot here only duplicates
+      // the same data and rapidly exhausts Blob storage.
       let previousBackup = null;
-      let dailyBackup = null;
       if (currentState) {
-        dailyBackup = await ensureDailyStateBackup(currentPayload, { blobAuthOptions });
-        previousBackup = await createStateBackup(currentPayload, {
+        const nextBackupSequence = Math.max(0, Math.floor(Number(currentPayload.backupSequence) || 0)) + 1;
+        previousBackup = await createRollingStateBackup(currentPayload, {
           reason: `before-${action}`,
+          sequence: nextBackupSequence,
           blobAuthOptions,
         });
+        payload.backupSequence = nextBackupSequence;
       }
-
-      const backup = await createStateBackup(payload, {
-        reason: `after-${action}`,
-        blobAuthOptions,
-      });
 
       let saved;
       try {
@@ -341,8 +330,8 @@ export default async function handler(request, response) {
           response.setHeader("X-State-Version", "");
           sendJson(response, 409, {
             error: "state_conflict",
-            message: "The live data changed while this save was running. Your attempted changes were saved as a recovery backup.",
-            backup,
+            message: "The live data changed while this save was running. The previous live state remains in the rolling recovery ring.",
+            backup: previousBackup,
           });
           return;
         }
@@ -354,9 +343,9 @@ export default async function handler(request, response) {
         ok: true,
         updatedAt: payload.updatedAt,
         stateVersion: saved.etag || "",
-        backup,
+        backup: previousBackup,
         previousBackup,
-        dailyBackup,
+        dailyBackup: null,
       });
       return;
     }
@@ -440,6 +429,7 @@ function normalizeState(value) {
     ...EMPTY_STATE,
     ...state,
     version: 6,
+    backupSequence: Math.max(0, Math.floor(Number(state.backupSequence) || 0)),
     products: Array.isArray(state.products) ? state.products : [],
     meta: state.meta && typeof state.meta === "object" ? state.meta : null,
     categories: Array.isArray(state.categories) ? state.categories : [],
