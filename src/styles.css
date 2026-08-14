@@ -884,9 +884,9 @@ h2 {
 
 .scheduled-reminder-form {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(145px, 0.65fr) minmax(115px, 0.5fr) minmax(0, 1fr);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 10px;
-  align-items: end;
+  align-items: start;
 }
 
 .scheduled-reminder-types {
@@ -931,23 +931,26 @@ h2 {
 
 .scheduled-reminder-title-field,
 .scheduled-reminder-recipient-field {
-  grid-column: span 2;
+  grid-column: span 6;
 }
 
 .scheduled-reminder-message-field {
   grid-column: 1 / -1;
 }
 
+.scheduled-reminder-date-field,
+.scheduled-reminder-time-field,
 .scheduled-reminder-priority-field,
 .scheduled-reminder-repeat-field {
+  grid-column: span 3;
   min-width: 0;
 }
 
 .scheduled-reminder-email-preview {
   grid-column: 1 / -1;
   display: grid;
-  gap: 9px;
-  padding: 12px;
+  gap: 7px;
+  padding: 10px;
   border: 1px solid rgba(49, 220, 199, 0.3);
   border-radius: 14px;
   background: linear-gradient(145deg, rgba(5, 29, 35, 0.84), rgba(4, 17, 25, 0.92));
@@ -979,9 +982,9 @@ h2 {
 .scheduled-reminder-email-preview-card {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  padding: 14px;
+  padding: 11px 12px;
   overflow: hidden;
   border: 1px solid rgba(132, 173, 191, 0.22);
   border-inline-start: 4px solid #31dcc7;
@@ -1031,7 +1034,7 @@ h2 {
 }
 
 .scheduled-reminder-email-preview-card > p {
-  min-height: 42px;
+  min-height: 0;
   margin: 0;
   color: #c6d9d6;
   font-size: 0.82rem;
@@ -1044,19 +1047,25 @@ h2 {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid rgba(145, 184, 177, 0.15);
   color: #96b6b1;
   font-size: 0.72rem;
 }
 
 .scheduled-reminder-submit {
-  grid-column: span 2;
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(180px, 100%);
+  min-height: 42px;
+  padding: 9px 18px;
 }
 
 .scheduled-reminder-edit-cancel {
-  grid-column: span 2;
-  min-height: 46px;
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(180px, 100%);
+  min-height: 40px;
 }
 
 .scheduled-reminder-edit-cancel[hidden] {
@@ -1064,7 +1073,7 @@ h2 {
 }
 
 .scheduled-reminder-message-field textarea {
-  min-height: 70px;
+  min-height: 64px;
   resize: vertical;
 }
 
@@ -1087,7 +1096,7 @@ h2 {
 }
 
 .scheduled-reminder-form > .scheduled-reminder-submit {
-  min-height: 70px;
+  min-height: 42px;
 }
 
 .scheduled-reminder-list {
@@ -4345,6 +4354,10 @@ h2 {
 
   .scheduled-reminder-title-field,
   .scheduled-reminder-recipient-field,
+  .scheduled-reminder-date-field,
+  .scheduled-reminder-time-field,
+  .scheduled-reminder-priority-field,
+  .scheduled-reminder-repeat-field,
   .scheduled-reminder-message-field,
   .scheduled-reminder-source-field,
   .scheduled-reminder-email-preview {
@@ -4353,12 +4366,24 @@ h2 {
 
   .scheduled-reminder-email-preview-header,
   .scheduled-reminder-email-preview-footer {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
   }
 
   .scheduled-reminder-email-preview-header small {
     max-width: 100%;
+  }
+
+  .scheduled-reminder-email-preview {
+    padding: 9px;
+  }
+
+  .scheduled-reminder-email-preview-card {
+    padding: 10px;
+  }
+
+  .scheduled-reminder-email-preview-card > p {
+    font-size: 0.78rem;
   }
 
   .scheduled-reminder-types {
@@ -4372,23 +4397,31 @@ h2 {
 
   .scheduled-reminder-submit {
     grid-column: auto;
-    min-height: 46px;
+    width: min(170px, 100%);
+    min-height: 40px;
   }
 
   .scheduled-reminder-edit-cancel {
     grid-column: auto;
+    width: min(170px, 100%);
   }
 
   .scheduled-reminder-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .scheduled-reminder-actions {
     grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .scheduled-reminder-actions .danger-button {
-    width: 100%;
+    width: auto;
+  }
+
+  .scheduled-reminder-actions .scheduled-reminder-delete {
+    grid-column: 1 / -1;
   }
 
   .reminder-row {

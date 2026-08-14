@@ -863,22 +863,18 @@
                 <span>כותרת</span>
                 <input id="scheduledReminderTitle" type="text" autocomplete="off" required maxlength="160" placeholder="למשל: לדבר עם איתן על מלאי" />
               </label>
-              <label class="field-wrap">
-                <span>תאריך</span>
-                <input id="scheduledReminderDate" type="date" dir="ltr" required />
-              </label>
-              <label class="field-wrap">
-                <span>שעה בישראל (24 שעות)</span>
-                <input id="scheduledReminderTime" type="time" dir="ltr" inputmode="numeric" step="60" required aria-describedby="scheduledReminderTimeHelp" />
-                <small class="scheduled-reminder-time-help" id="scheduledReminderTimeHelp">לדוגמה: 09:00. התזכורת תישלח לפי שעון ישראל.</small>
-              </label>
               <label class="field-wrap scheduled-reminder-recipient-field">
                 <span>מייל יעד</span>
                 <input id="scheduledReminderRecipient" type="email" autocomplete="email" required placeholder="name@example.com" />
               </label>
-              <label class="field-wrap scheduled-reminder-message-field">
-                <span>פירוט להודעה (אופציונלי)</span>
-                <textarea id="scheduledReminderMessage" rows="2" maxlength="3000" placeholder="מה חשוב לזכור או לבצע?"></textarea>
+              <label class="field-wrap scheduled-reminder-date-field">
+                <span>תאריך</span>
+                <input id="scheduledReminderDate" type="date" dir="ltr" required />
+              </label>
+              <label class="field-wrap scheduled-reminder-time-field">
+                <span>שעה בישראל (24 שעות)</span>
+                <input id="scheduledReminderTime" type="time" dir="ltr" inputmode="numeric" step="60" required aria-describedby="scheduledReminderTimeHelp" />
+                <small class="scheduled-reminder-time-help" id="scheduledReminderTimeHelp">לדוגמה: 09:00. התזכורת תישלח לפי שעון ישראל.</small>
               </label>
               <label class="field-wrap scheduled-reminder-priority-field">
                 <span>עדיפות</span>
@@ -897,6 +893,10 @@
                   <option value="workdays">ימי עבודה</option>
                   <option value="weekly">כל שבוע</option>
                 </select>
+              </label>
+              <label class="field-wrap scheduled-reminder-message-field">
+                <span>פירוט להודעה (אופציונלי)</span>
+                <textarea id="scheduledReminderMessage" rows="2" maxlength="3000" placeholder="מה חשוב לזכור או לבצע?"></textarea>
               </label>
               <section class="scheduled-reminder-email-preview" id="scheduledReminderEmailPreview" aria-labelledby="scheduledReminderEmailPreviewTitle" aria-live="polite">
                 <div class="scheduled-reminder-email-preview-header">
