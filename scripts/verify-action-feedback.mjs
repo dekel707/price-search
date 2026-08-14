@@ -26,6 +26,8 @@ assert.match(app, /scheduleAdvancedSearchMetadataWarmup\(\)/, "נתוני חיפ
 assert.match(html, /id="scheduledReminderEmailPreview"/, "חסרה תצוגה מקדימה למייל בתזכורות");
 assert.match(app, /function renderScheduledReminderEmailPreview\(\)/, "התצוגה המקדימה של התזכורת אינה מתעדכנת");
 assert.match(app, /scheduledReminderForm\.addEventListener\("input", renderScheduledReminderEmailPreview\)/, "הקלדה בתזכורת אינה מעדכנת את התצוגה המקדימה");
+assert.match(app, /scheduledReminderDate\.addEventListener\("input", commitScheduledReminderDateSelection\)/, "בחירת תאריך במובייל אינה נקלטת מיד");
+assert.match(app, /document\.activeElement === dom\.scheduledReminderDate/, "בורר התאריך אינו נסגר לאחר בחירה תקינה");
 assert.match(styles, /\.scheduled-reminder-email-preview-card/, "חסר עיצוב לתצוגה המקדימה של המייל");
 assert.match(styles, /\.action-toast\[data-kind="progress"\]/, "חסר עיצוב לחיווי פעולה בתהליך");
 assert.match(styles, /\.action-toast\[data-kind="error"\]/, "חסר עיצוב לחיווי שגיאה");

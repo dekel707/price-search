@@ -1284,6 +1284,17 @@ function bindEvents() {
   dom.scheduledReminderForm.addEventListener("submit", saveScheduledEmailReminderFromForm);
   dom.scheduledReminderForm.addEventListener("input", renderScheduledReminderEmailPreview);
   dom.scheduledReminderForm.addEventListener("change", renderScheduledReminderEmailPreview);
+  dom.scheduledReminderDate.addEventListener("input", commitScheduledReminderDateSelection);
+  dom.scheduledReminderDate.addEventListener("change", commitScheduledReminderDateSelection);
+  dom.scheduledReminderDate.parentElement.addEventListener("click", (event) => {
+    if (event.target === dom.scheduledReminderDate) return;
+    try {
+      if (typeof dom.scheduledReminderDate.showPicker === "function") dom.scheduledReminderDate.showPicker();
+      else dom.scheduledReminderDate.focus();
+    } catch {
+      dom.scheduledReminderDate.focus();
+    }
+  });
   dom.scheduledReminderTypeButtons.forEach((button) => {
     button.addEventListener("click", () => selectScheduledReminderType(button.dataset.scheduledReminderType));
   });
@@ -6593,6 +6604,17 @@ function renderScheduledReminderEmailPreview() {
     : "בחר תאריך ושעה";
   dom.scheduledReminderEmailPreviewRecurrence.textContent = scheduledReminderRecurrenceLabel(recurrence);
   dom.scheduledReminderEmailPreviewCard.dataset.priority = priority;
+}
+
+function commitScheduledReminderDateSelection() {
+  if (!normalizeDateInput(dom.scheduledReminderDate.value)) return;
+  renderScheduledReminderEmailPreview();
+  // Mobile date pickers can leave the field active after choosing a day.
+  // Releasing focus after a valid selection commits that day immediately and
+  // returns the user to the reminder form without another in-app tap.
+  window.requestAnimationFrame(() => {
+    if (document.activeElement === dom.scheduledReminderDate) dom.scheduledReminderDate.blur();
+  });
 }
 
 function selectScheduledReminderType(nextType) {
