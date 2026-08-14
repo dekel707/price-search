@@ -63,10 +63,12 @@ assert(!app.includes("sharedStateResult.seededReservations"), "Loading cloud sta
 assert(app.includes("clearPendingCloudSave(envelope.id);"));
 assert(app.includes("await hydrateCloudState();"));
 
-// Each successful API state change stores a before and after restore point in
-// the configured cloud storage. The database path does the same atomically.
+// Each successful Blob state change stores the previous state in the bounded
+// rolling recovery ring. The optional database path keeps atomic before/after
+// restore points when that storage backend is enabled.
 assert(stateApi.includes("reason: `before-${action}`"));
-assert(stateApi.includes("reason: `after-${action}`"));
+assert(stateApi.includes("createRollingStateBackup(currentPayload"));
+assert(!stateApi.includes("reason: `after-${action}`"));
 assert(database.includes("`before-${action}`"));
 assert(database.includes("`after-${action}`"));
 

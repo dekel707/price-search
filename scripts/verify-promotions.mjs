@@ -18,7 +18,7 @@ assert.match(html, /id="promotionWhatsAppPreview"/, "the sharing dialog must sho
 assert.match(app, /const PROMOTIONS_KEY = "price-search-promotions-v1"/, "promotions need their own local key");
 assert.match(app, /function normalizePromotions\(value\)/, "cloud promotion data must be normalized");
 assert.match(app, /function savePromotions\(/, "promotion edits must be saved through cloud sync");
-assert.match(app, /promotions,\n\s+settings:/, "promotions must be included in the shared cloud state");
+assert.match(app, /promotions,\n\s+customerYearOverYear:[\s\S]*?\n\s+settings:/, "promotions must be included in the shared cloud state");
 assert.match(app, /promotions = normalizePromotions\(state\.promotions\)/, "promotions must be restored from cloud state");
 assert.match(stateApi, /promotions: \[\]/, "the state API must preserve promotions for every save");
 assert.match(stateApi, /promotions: Array\.isArray\(state\.promotions\)/, "the state API must accept the promotion collection");
