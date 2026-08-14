@@ -4,6 +4,7 @@ import { DEFAULT_RESERVATION_GROUPS, RESERVATION_SEED_VERSION } from "./reservat
 import {
   getAutomaticOrderReportDateKey as calculateAutomaticOrderReportDateKey,
   getIsraelDateKey,
+  getEditedOrderSchedule,
   getNextSundayIsraelDateKey,
   getOrderReportDateForDraft as calculateOrderReportDateForDraft,
   getUpcomingSundayIsraelDateKey,
@@ -12710,12 +12711,15 @@ function saveOrder(options = {}) {
     return null;
   }
   const createdAt = originalOrder?.createdAt || now.toISOString();
+  const editedSchedule = originalOrder
+    ? getEditedOrderSchedule(originalOrder, now, orderReportTomorrow, orderReportToday)
+    : null;
   const order = {
     id: originalOrder?.id || `order-${now.getTime()}`,
     createdAt,
     updatedAt: originalOrder ? now.toISOString() : "",
-    completedAt: cleanString(originalOrder?.completedAt),
-    reportDate: getOrderReportDateForDraft(createdAt, orderReportTomorrow, orderReportToday),
+    completedAt: editedSchedule?.completedAt || "",
+    reportDate: editedSchedule?.reportDate || getOrderReportDateForDraft(createdAt, orderReportTomorrow, orderReportToday),
     customerId: customer?.id || "",
     customerName,
     customerCode: customer?.code || "",
@@ -15471,8 +15475,9 @@ function startEditingOrder(orderId) {
   editingOrderId = order.id;
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
-  orderReportTomorrow = isOrderReportedTomorrow(order);
-  orderReportToday = isOrderReportedToday(order);
+  const rescheduleCompletedOrder = isOrderCompleted(order);
+  orderReportTomorrow = rescheduleCompletedOrder ? false : isOrderReportedTomorrow(order);
+  orderReportToday = rescheduleCompletedOrder ? false : isOrderReportedToday(order);
   cart = mergeCartLines(order.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || order.customerId || "";
   settings.customerName = customer?.name || order.customerName || "";

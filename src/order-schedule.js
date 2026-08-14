@@ -84,6 +84,32 @@ export function getOrderReportDateForDraft(createdAt, reportTomorrow = false, re
   return [getNextIsraelDateKey(createdAt), automaticDateKey].sort().at(-1);
 }
 
+export function getEditedOrderSchedule(
+  order,
+  savedAt = new Date(),
+  reportTomorrow = false,
+  reportToday = false,
+) {
+  const existingReportDate = /^\d{4}-\d{2}-\d{2}$/.test(String(order?.reportDate || ""))
+    ? String(order.reportDate)
+    : "";
+  // A completed order that is edited becomes an active order again. Its new
+  // reporting date must be based on the save time, even if a previous edit
+  // already changed reportDate while leaving the old completedAt marker.
+  const shouldReschedule = Boolean(order?.completedAt);
+  const scheduleBasis = shouldReschedule ? savedAt : (order?.createdAt || savedAt);
+  const calculatedReportDate = getOrderReportDateForDraft(scheduleBasis, reportTomorrow, reportToday);
+  const reportDate = !shouldReschedule && reportTomorrow && existingReportDate > calculatedReportDate
+    ? existingReportDate
+    : calculatedReportDate;
+
+  return {
+    reportDate,
+    completedAt: shouldReschedule ? "" : String(order?.completedAt || ""),
+    rescheduled: shouldReschedule,
+  };
+}
+
 export function isOrderReportDateCompleted(reportDateKey, reference = new Date()) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(reportDateKey)) && reportDateKey < getIsraelDateKey(reference);
 }

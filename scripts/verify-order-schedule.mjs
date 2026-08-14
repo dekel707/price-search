@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  getEditedOrderSchedule,
   getAutomaticOrderReportDateKey,
   getOrderReportDateForDraft,
   getUpcomingSundayIsraelDateKey,
@@ -45,6 +46,34 @@ assert.equal(
   isOrderReportDateCompleted("2026-07-12", "2026-07-12T21:00:00.000Z"),
   true,
   "an order moves to completed at Israel midnight after its report day",
+);
+
+assert.deepEqual(
+  getEditedOrderSchedule(
+    {
+      createdAt: "2026-08-13T11:45:41.617Z",
+      reportDate: "2026-08-14",
+      completedAt: "2026-08-13T22:01:41.701Z",
+    },
+    "2026-08-14T13:05:14.631Z",
+  ),
+  { reportDate: "2026-08-16", completedAt: "", rescheduled: true },
+  "editing a completed order on Friday reopens it for Sunday",
+);
+
+assert.deepEqual(
+  getEditedOrderSchedule(
+    {
+      createdAt: "2026-08-13T11:59:05.677Z",
+      reportDate: "2026-08-16",
+      completedAt: "",
+    },
+    "2026-08-14T13:07:35.598Z",
+    true,
+    false,
+  ),
+  { reportDate: "2026-08-16", completedAt: "", rescheduled: false },
+  "editing an already-open Sunday order preserves its Sunday report date",
 );
 
 console.log("Order scheduling checks passed.");
