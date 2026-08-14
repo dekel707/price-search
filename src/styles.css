@@ -4433,16 +4433,16 @@ h2 {
     text-align: right;
   }
 
-  .scheduled-reminder-date-field input,
-  .scheduled-reminder-time-field input {
+  .scheduled-reminder-form .scheduled-reminder-date-field input[type="date"],
+  .scheduled-reminder-form .scheduled-reminder-time-field input[type="time"] {
     min-height: 44px;
     padding-inline: 10px;
     font-size: 0.9rem;
     text-align: right;
   }
 
-  .scheduled-reminder-date-field input::-webkit-date-and-time-value,
-  .scheduled-reminder-time-field input::-webkit-date-and-time-value {
+  .scheduled-reminder-form .scheduled-reminder-date-field input::-webkit-date-and-time-value,
+  .scheduled-reminder-form .scheduled-reminder-time-field input::-webkit-date-and-time-value {
     text-align: right;
   }
 
