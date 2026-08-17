@@ -40,7 +40,10 @@ const VAT_RATE = 0.18;
 const MONTHLY_SALES_GOAL_EX_VAT = 1540000;
 // Blob is an object store, not a realtime database. Cloud state is read on
 // entry and when the user returns to the app, never by a background interval.
-const CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS = 60_000;
+// Refresh promptly when returning from WhatsApp or another app, without a
+// continuous polling loop that would waste Blob reads while the screen sits
+// open. Five seconds still coalesces duplicate focus/visibility events.
+const CLOUD_FOCUS_REFRESH_MIN_INTERVAL_MS = 5_000;
 const CLOUD_RETRY_BASE_MS = 30_000;
 const CLOUD_RETRY_MAX_MS = 15 * 60_000;
 const MAX_ORDER_IMPORT_IMAGE_BYTES = 12 * 1024 * 1024;
@@ -51,6 +54,7 @@ const ORDER_OPEN_RESTORE_MIGRATION_VERSION = 2;
 const ORDER_IMPORT_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 const GENERAL_PRODUCT = { sku: "כללי", description: "מוצר כללי", price: 0 };
 const CLOUD_STATE_ENDPOINT = "/api/state";
+const ORDER_CHECKPOINT_ENDPOINT = "/api/order-checkpoint";
 const AUTH_ENDPOINT = "/api/auth";
 const COLLECTION_IMPORT_ENDPOINT = "/api/import-collections";
 const AI_ORDER_ENDPOINT = "/api/ai-order";
@@ -13036,11 +13040,56 @@ async function sendCurrentOrderToWhatsApp(event) {
       : "ההזמנה נשמרה ונפתחה לשליחה ב‑WhatsApp.";
   dom.status.textContent = message;
   showActionToast(message);
-  // A direct URL avoids the blank intermediary screen. The app tab remains
-  // open, so the cloud save and immutable backup can run straight afterwards.
+  const cloudAction = savingDraft ? "draft-whatsapp" : "order-whatsapp";
+  // Persist the complete recovery envelope before leaving the app. New orders
+  // also get a small, idempotent server checkpoint that starts immediately
+  // and survives mobile backgrounding; the full-state save remains as a
+  // delayed fallback if that checkpoint cannot be acknowledged.
+  const recoveryEnvelopeId = queueCloudSave({ action: cloudAction, delay: savingDraft ? 0 : 15_000 });
+  if (!savingDraft && savedOrder) {
+    void checkpointOrderBeforeExternalNavigation(savedOrder, recoveryEnvelopeId);
+  } else {
+    startPendingCloudSaveNow();
+  }
+  // A direct URL avoids the blank intermediary screen. The durable save has
+  // already started, so opening WhatsApp cannot prevent it from being queued.
   window.open(url, "_blank", "noopener,noreferrer");
-  queueCloudSave({ action: savingDraft ? "draft-whatsapp" : "order-whatsapp" });
   return true;
+}
+
+async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId) {
+  const selectedCustomer = getOrderCustomer(order) || customers.find((entry) => entry.id === order.customerId) || null;
+  const customer = selectedCustomer
+    ? {
+        id: selectedCustomer.id,
+        name: selectedCustomer.name,
+        code: selectedCustomer.code || "",
+        phone: selectedCustomer.phone || "",
+      }
+    : null;
+  try {
+    const response = await fetch(ORDER_CHECKPOINT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      keepalive: true,
+      body: JSON.stringify({ order, customer }),
+    });
+    if (!response.ok) throw new Error(`Order checkpoint failed: ${response.status}`);
+    const result = await response.json().catch(() => null);
+    const nextStateVersion = response.headers.get("x-state-version") || result?.stateVersion || "";
+    if (nextStateVersion) cloudStateVersion = nextStateVersion;
+    rememberCloudSaveResult(recoveryEnvelopeId, true);
+    clearPendingCloudSave(recoveryEnvelopeId);
+    cloudSyncState = "synced";
+    markCloudSyncRecovered();
+    renderMetadata();
+    return true;
+  } catch (error) {
+    console.warn("Order checkpoint failed; full cloud save will retry", error);
+    schedulePendingCloudSave(0);
+    return false;
+  }
 }
 
 function renderCart() {
@@ -15823,6 +15872,11 @@ function clearPendingCloudSave(id) {
 function schedulePendingCloudSave(delay = 0) {
   window.clearTimeout(cloudSaveTimer);
   cloudSaveTimer = window.setTimeout(saveSharedStateNow, Math.max(0, Number(delay) || 0));
+}
+
+function startPendingCloudSaveNow() {
+  window.clearTimeout(cloudSaveTimer);
+  void saveSharedStateNow();
 }
 
 function resumePendingCloudSave() {
