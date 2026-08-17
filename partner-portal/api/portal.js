@@ -325,7 +325,7 @@ async function getLiveWorkspace(config) {
       price: asMoney(product.price),
       stockQuantity: Number.isFinite(Number(product.stockQuantity)) ? Number(product.stockQuantity) : null,
     };
-  }).filter((product) => product.model && product.name && Number.isFinite(product.stockQuantity) && product.stockQuantity > 0);
+  }).filter((product) => product.model && product.name);
   return {
     updatedAt: cleanText(main.updatedAt, 80),
     products,

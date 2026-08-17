@@ -178,7 +178,10 @@ function productSpecification(product) {
 }
 
 function stockLabel(product) {
-  return `<span class="stock-label in-stock">במלאי: ${Number(product.stockQuantity).toLocaleString("he-IL")}</span>`;
+  const quantity = Number(product.stockQuantity);
+  if (!Number.isFinite(quantity)) return `<span class="stock-label out-stock">כמות לא הוגדרה</span>`;
+  const tone = quantity > 0 ? "in-stock" : "out-stock";
+  return `<span class="stock-label ${tone}">במלאי: ${quantity.toLocaleString("he-IL")}</span>`;
 }
 
 function renderOrderSearch() {
@@ -579,10 +582,10 @@ async function refresh() {
   renderData(); renderCart();
   const updated = state.syncedAt ? new Date(state.syncedAt).toLocaleString("he-IL") : "כעת";
   $("#portalSubtitle").textContent = "איתן · מחירון, מלאי, לקוחות ושריונים מסונכרנים לקריאה בלבד";
-  $("#portalMetadata").textContent = `${live.syncMode === "cached" ? "גיבוי עדכני" : "עודכן"} ${updated} · ${state.products.length.toLocaleString("he-IL")} דגמים במלאי`;
+  $("#portalMetadata").textContent = `${live.syncMode === "cached" ? "גיבוי עדכני" : "עודכן"} ${updated} · ${state.products.length.toLocaleString("he-IL")} דגמים במחירון`;
   $("#orderSearchStatus").textContent = live.syncMode === "cached"
     ? "הגשר למערכת הראשית אינו זמין כרגע. מוצג הסנכרון האחרון שנשמר בפורטל."
-    : "מוצגים רק דגמים בעלי מלאי חיובי. מלאי, מחירון, לקוחות ושריונים מתעדכנים מהמערכת הראשית.";
+    : "מוצגים כל הדגמים והכמות העדכנית של כל מוצר. מלאי, מחירון, לקוחות ושריונים מתעדכנים מהמערכת הראשית.";
   setTab(state.activeTab);
 }
 
