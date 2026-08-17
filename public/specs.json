@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 152,
-  "productCount": 128,
-  "matchedProducts": 114,
+  "totalPdfFiles": 155,
+  "productCount": 131,
+  "matchedProducts": 117,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -277,6 +277,48 @@
         {
           "url": "/img/FJ-BOMW245BL.pdf",
           "fileName": "FJ-BOMW245BL.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-CH65MT": {
+      "url": "/img/FJ-CH65MT.pdf",
+      "fileName": "FJ-CH65MT.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-CH65MT.pdf",
+          "fileName": "FJ-CH65MT.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-CH68TT": {
+      "url": "/img/FJ-CH68TT.pdf",
+      "fileName": "FJ-CH68TT.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-CH68TT.pdf",
+          "fileName": "FJ-CH68TT.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-CHBI52": {
+      "url": "/img/FJ-CHBI52.pdf",
+      "fileName": "FJ-CHBI52.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-CHBI52.pdf",
+          "fileName": "FJ-CHBI52.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -1991,6 +2033,48 @@
         {
           "url": "/img/FJ-C9080CK.pdf",
           "fileName": "FJ-C9080CK.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJCH65MT": {
+      "url": "/img/FJ-CH65MT.pdf",
+      "fileName": "FJ-CH65MT.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-CH65MT.pdf",
+          "fileName": "FJ-CH65MT.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJCH68TT": {
+      "url": "/img/FJ-CH68TT.pdf",
+      "fileName": "FJ-CH68TT.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-CH68TT.pdf",
+          "fileName": "FJ-CH68TT.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJCHBI52": {
+      "url": "/img/FJ-CHBI52.pdf",
+      "fileName": "FJ-CHBI52.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-CHBI52.pdf",
+          "fileName": "FJ-CHBI52.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -4019,6 +4103,30 @@
       "url": "/img/FJ-C9080CK.pdf",
       "modelKeys": [
         "FJC9080CK"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-CH65MT.pdf",
+      "url": "/img/FJ-CH65MT.pdf",
+      "modelKeys": [
+        "FJCH65MT"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-CH68TT.pdf",
+      "url": "/img/FJ-CH68TT.pdf",
+      "modelKeys": [
+        "FJCH68TT"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-CHBI52.pdf",
+      "url": "/img/FJ-CHBI52.pdf",
+      "modelKeys": [
+        "FJCHBI52"
       ],
       "installation": false
     },
