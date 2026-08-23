@@ -13012,6 +13012,9 @@ async function sendCurrentOrderToWhatsApp(event) {
   event.preventDefault();
   const savingDraft = Boolean(editingDraftId || dom.saveAsDraft.checked);
   const savingReservationOrder = orderType === "reservation";
+  const previousOrder = !savingDraft && editingOrderId
+    ? structuredClone(orders.find((order) => order.id === editingOrderId) || null)
+    : null;
   let savedOrder = null;
   if (savingDraft) {
     const draft = saveDraftOrder({
@@ -13047,7 +13050,7 @@ async function sendCurrentOrderToWhatsApp(event) {
   // delayed fallback if that checkpoint cannot be acknowledged.
   const recoveryEnvelopeId = queueCloudSave({ action: cloudAction, delay: savingDraft ? 0 : 15_000 });
   if (!savingDraft && savedOrder) {
-    void checkpointOrderBeforeExternalNavigation(savedOrder, recoveryEnvelopeId);
+    void checkpointOrderBeforeExternalNavigation(savedOrder, recoveryEnvelopeId, previousOrder);
   } else {
     startPendingCloudSaveNow();
   }
@@ -13057,7 +13060,7 @@ async function sendCurrentOrderToWhatsApp(event) {
   return true;
 }
 
-async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId) {
+async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId, previousOrder = null) {
   const selectedCustomer = getOrderCustomer(order) || customers.find((entry) => entry.id === order.customerId) || null;
   const customer = selectedCustomer
     ? {
@@ -13073,7 +13076,7 @@ async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       keepalive: true,
-      body: JSON.stringify({ order, customer }),
+      body: JSON.stringify({ order, customer, previousOrder }),
     });
     if (!response.ok) throw new Error(`Order checkpoint failed: ${response.status}`);
     const result = await response.json().catch(() => null);

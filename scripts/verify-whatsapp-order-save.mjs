@@ -13,7 +13,7 @@ const sender = app.slice(senderStart, senderEnd);
 assert.match(sender, /deferCloudSave: true/, "the order must be stored locally before WhatsApp without a blocking cloud wait");
 assert.match(sender, /window\.open\(url, "_blank", "noopener,noreferrer"\)/, "WhatsApp must open directly without a blank intermediary window");
 assert.match(sender, /queueCloudSave\(\{ action: cloudAction, delay: savingDraft \? 0 : 15_000 \}\)/, "a recovery envelope must be persisted before WhatsApp opens");
-assert.match(sender, /checkpointOrderBeforeExternalNavigation\(savedOrder, recoveryEnvelopeId\)/, "new orders must start a small durable checkpoint before WhatsApp opens");
+assert.match(sender, /checkpointOrderBeforeExternalNavigation\(savedOrder, recoveryEnvelopeId, previousOrder\)/, "new orders and edits must start a small durable checkpoint before WhatsApp opens");
 assert.ok(
   sender.indexOf("queueCloudSave({ action: cloudAction") < sender.indexOf('window.open(url, "_blank", "noopener,noreferrer")'),
   "the durable save must be queued before opening WhatsApp",

@@ -93,6 +93,40 @@ export function recoverExplicitOrderDeletions(currentState, attemptedState, acti
   return { recovered: true, state, removedOrders, reservationAdjustments };
 }
 
+// An order edit is not append-only: it must replace exactly the version the
+// browser started editing. This keeps concurrent devices safe while allowing
+// the small mobile checkpoint to persist an edit before WhatsApp backgrounds
+// the page.
+export function replaceExistingOrderFromCheckpoint(currentState, previousOrder, nextOrder, now = new Date()) {
+  const orderId = String(nextOrder?.id || "").trim();
+  const previousId = String(previousOrder?.id || "").trim();
+  const liveOrders = Array.isArray(currentState?.orders) ? currentState.orders : [];
+  const liveOrder = liveOrders.find((order) => String(order?.id || "").trim() === orderId);
+  if (!orderId || previousId !== orderId || !liveOrder) {
+    return { updated: false, conflict: true, state: currentState, reservationAdjustments: [] };
+  }
+  if (!sameOrderSnapshot(liveOrder, previousOrder)) {
+    return { updated: false, conflict: true, state: currentState, reservationAdjustments: [] };
+  }
+
+  const state = structuredClone(currentState);
+  const reversed = reverseRemovedOrderReservationEffects(state, [liveOrder], now);
+  state.orders = liveOrders.map((order) => String(order?.id || "").trim() === orderId ? structuredClone(nextOrder) : order);
+  const applied = applyOrderReservationEffects(state, [nextOrder]);
+  state.lastPrices = rebuildLastPrices(state.orders);
+  state.updatedAt = now.toISOString();
+  return {
+    updated: true,
+    conflict: false,
+    state,
+    reservationAdjustments: [...reversed, ...applied],
+  };
+}
+
+function sameOrderSnapshot(left, right) {
+  return JSON.stringify(left || null) === JSON.stringify(right || null);
+}
+
 function mergeReferencedCustomers(state, attemptedState, addedOrders) {
   const liveCustomers = Array.isArray(state.customers) ? state.customers : [];
   const attemptedCustomers = Array.isArray(attemptedState?.customers) ? attemptedState.customers : [];
