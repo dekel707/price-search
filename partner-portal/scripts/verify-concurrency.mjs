@@ -21,11 +21,14 @@ assert.match(api, /syncPartnerOrderToMain/);
 assert.match(api, /action === "sync-order"/);
 assert.match(api, /price-search-eitan-main-sync/);
 const createHandler = api.slice(api.indexOf('action === "create-order"'), api.indexOf('action === "update-order"'));
-assert.match(createHandler, /queuedForMainSync: true/);
-assert.doesNotMatch(createHandler, /await sendOrderToMain/, "the durable create response must not wait for the cross-project import");
+assert.match(createHandler, /syncSavedOrderOnce/, "a durable create must be synchronized by the server, not by mobile JavaScript");
+assert.doesNotMatch(createHandler, /await sendOrderToMain/, "the handler must use the bounded synchronization guard");
 const deleteHandler = api.slice(api.indexOf('action === "delete-order"'), api.indexOf('action === "save-entity"'));
-assert.match(deleteHandler, /queuedForMainSync: true/, "a durable delete must queue the main-system bridge");
-assert.doesNotMatch(deleteHandler, /sendOrderToMain/, "a delete response must not wait for the cross-project import");
+assert.match(deleteHandler, /syncSavedOrderOnce/, "a durable delete must be synchronized by the server");
+assert.doesNotMatch(deleteHandler, /sendOrderToMain/, "a delete must use the bounded synchronization guard");
+assert.match(api, /ORDER_SYNC_MAX_ATTEMPTS = 3/);
+assert.match(api, /ORDER_SYNC_RETRY_BATCH_SIZE = 2/);
+assert.match(api, /next_sync_at <= now\(\)/);
 
 class ReservationLockModel {
   constructor(quantity) { this.remaining = quantity; this.tail = Promise.resolve(); }

@@ -8,6 +8,9 @@ const DEFAULT_MAIN_SYNC_URL = "https://price-search-teal.vercel.app/api/eitan-li
 const DEFAULT_MAIN_ORDER_URL = "https://price-search-teal.vercel.app/api/eitan-portal-orders";
 const ORDER_DUPLICATE_WINDOW_SECONDS = 90;
 const ORDER_LIVE_CACHE_MAX_AGE_MS = 90 * 1000;
+const ORDER_SYNC_MAX_ATTEMPTS = 3;
+const ORDER_SYNC_RETRY_BATCH_SIZE = 2;
+const ORDER_SYNC_RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000];
 let sqlClient;
 let schemaReady;
 
@@ -87,6 +90,9 @@ async function ensureSchema(sql) {
         status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('pending_owner_approval', 'processing', 'approved', 'cancelled', 'sent_to_main', 'sync_failed')),
         sync_action TEXT NOT NULL DEFAULT 'create' CHECK (sync_action IN ('create', 'update', 'delete')),
         dedupe_key TEXT NOT NULL DEFAULT '',
+        sync_attempts INTEGER NOT NULL DEFAULT 0,
+        next_sync_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_sync_error TEXT NOT NULL DEFAULT '',
         note TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -154,7 +160,11 @@ async function ensureSchema(sql) {
         await migration`ALTER TABLE partner_orders DROP CONSTRAINT IF EXISTS partner_orders_sync_action_check`;
         await migration`ALTER TABLE partner_orders ADD CONSTRAINT partner_orders_sync_action_check CHECK (sync_action IN ('create', 'update', 'delete'))`;
         await migration`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS dedupe_key TEXT NOT NULL DEFAULT ''`;
+        await migration`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS sync_attempts INTEGER NOT NULL DEFAULT 0`;
+        await migration`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS next_sync_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
+        await migration`ALTER TABLE partner_orders ADD COLUMN IF NOT EXISTS last_sync_error TEXT NOT NULL DEFAULT ''`;
         await migration`CREATE INDEX IF NOT EXISTS partner_orders_dedupe_lookup ON partner_orders(created_by, customer_id, dedupe_key, created_at DESC)`;
+        await migration`CREATE INDEX IF NOT EXISTS partner_orders_sync_retry_lookup ON partner_orders(created_by, status, next_sync_at, created_at)`;
         await migration`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_updated_at TEXT NOT NULL DEFAULT ''`;
         await migration`ALTER TABLE partner_live_cache ADD COLUMN IF NOT EXISTS source_version TEXT NOT NULL DEFAULT ''`;
       });
@@ -567,7 +577,7 @@ async function updateOrder(sql, session, body, config) {
     if (!current.length) throw new Error("order_not_editable");
     const mirrorCustomer = await ensureMirrorCustomer(tx, customer);
     const beforeBackup = await createBackup(tx, "before-order-update");
-    await tx`UPDATE partner_orders SET customer_id = ${mirrorCustomer.id}, status = 'processing', sync_action = 'update', updated_at = now() WHERE id = ${orderId}`;
+    await tx`UPDATE partner_orders SET customer_id = ${mirrorCustomer.id}, status = 'processing', sync_action = 'update', sync_attempts = 0, next_sync_at = now(), last_sync_error = '', updated_at = now() WHERE id = ${orderId}`;
     await tx`DELETE FROM partner_order_items WHERE order_id = ${orderId}`;
     for (const item of safeItems) {
       await tx`INSERT INTO partner_order_items (id, order_id, product_model, product_name, sku_key, quantity, reservation_quantity, unit_price, list_price, from_reservation)
@@ -587,7 +597,7 @@ async function prepareDeleteOrder(sql, session, body) {
     const current = await tx`SELECT id FROM partner_orders WHERE id = ${orderId} AND created_by = 'eitan' AND status IN ('pending_owner_approval', 'approved', 'sent_to_main', 'sync_failed', 'processing') FOR UPDATE`;
     if (!current.length) throw new Error("order_not_editable");
     const beforeBackup = await createBackup(tx, "before-order-delete");
-    await tx`UPDATE partner_orders SET status = 'processing', sync_action = 'delete', updated_at = now() WHERE id = ${orderId}`;
+    await tx`UPDATE partner_orders SET status = 'processing', sync_action = 'delete', sync_attempts = 0, next_sync_at = now(), last_sync_error = '', updated_at = now() WHERE id = ${orderId}`;
     await recordAudit(tx, session.role, "order_delete_requested_for_main_import", { orderId });
     const order = await getOwnerQueueOrder(tx, orderId);
     const afterBackup = await createBackup(tx, "after-order-delete");
@@ -630,7 +640,11 @@ async function sendOrderToMain(config, order, action = "create") {
   }
 }
 
-async function syncPartnerOrderToMain(sql, config, orderId, { retried = false } = {}) {
+function getOrderSyncRetryDelayMs(attemptNumber) {
+  return ORDER_SYNC_RETRY_DELAYS_MS[Math.min(Math.max(attemptNumber - 1, 0), ORDER_SYNC_RETRY_DELAYS_MS.length - 1)];
+}
+
+async function syncPartnerOrderToMain(sql, config, orderId, { retried = false, ignoreRetrySchedule = false } = {}) {
   const safeOrderId = cleanText(orderId, 100);
   if (!safeOrderId) throw new Error("invalid_order_id");
   let syncFailure;
@@ -639,27 +653,37 @@ async function syncPartnerOrderToMain(sql, config, orderId, { retried = false } 
     // order. Serialize that one order so the main application receives one
     // import at a time; its source ID remains a second idempotency safeguard.
     await tx`SELECT pg_advisory_xact_lock(hashtext(${`price-search-eitan-main-sync:${safeOrderId}`}))`;
-    const current = await tx`SELECT id, status, sync_action FROM partner_orders WHERE id = ${safeOrderId} AND created_by = 'eitan' FOR UPDATE`;
+    const current = await tx`SELECT id, status, sync_action, sync_attempts, next_sync_at FROM partner_orders WHERE id = ${safeOrderId} AND created_by = 'eitan' FOR UPDATE`;
     if (!current.length) throw new Error("order_not_found");
     const action = ["create", "update", "delete"].includes(current[0].sync_action) ? current[0].sync_action : "create";
     const terminalStatus = action === "delete" ? "cancelled" : "sent_to_main";
     if (current[0].status === terminalStatus) {
       return { order: await getOwnerQueueOrder(tx, safeOrderId), status: terminalStatus, alreadySynced: true };
     }
+    const attempts = Math.max(0, Number(current[0].sync_attempts || 0));
+    if (attempts >= ORDER_SYNC_MAX_ATTEMPTS) {
+      return { order: await getOwnerQueueOrder(tx, safeOrderId), status: current[0].status, retryLimitReached: true, attempts };
+    }
+    const nextSyncAt = new Date(current[0].next_sync_at || 0).getTime();
+    if (!ignoreRetrySchedule && Number.isFinite(nextSyncAt) && nextSyncAt > Date.now()) {
+      return { order: await getOwnerQueueOrder(tx, safeOrderId), status: current[0].status, retryScheduled: true, attempts, nextSyncAt: current[0].next_sync_at };
+    }
     const order = await getOwnerQueueOrder(tx, safeOrderId);
     if (!order) throw new Error("order_not_found");
     try {
       const imported = await sendOrderToMain(config, order, action);
       const beforeBackup = await createBackup(tx, `before-main-sync-${terminalStatus}`);
-      await tx`UPDATE partner_orders SET status = ${terminalStatus}, updated_at = now() WHERE id = ${safeOrderId} AND created_by = 'eitan'`;
-      await recordAudit(tx, "eitan", action === "delete" ? "main_order_delete_completed" : "main_order_import_completed", { orderId: safeOrderId, mainOrderId: imported.orderId, retried, action });
+      await tx`UPDATE partner_orders SET status = ${terminalStatus}, sync_attempts = ${attempts + 1}, next_sync_at = now(), last_sync_error = '', updated_at = now() WHERE id = ${safeOrderId} AND created_by = 'eitan'`;
+      await recordAudit(tx, "eitan", action === "delete" ? "main_order_delete_completed" : "main_order_import_completed", { orderId: safeOrderId, mainOrderId: imported.orderId, retried, action, attempt: attempts + 1 });
       const afterBackup = await createBackup(tx, `after-main-sync-${terminalStatus}`);
       return { order, status: terminalStatus, imported, beforeBackup, afterBackup };
     } catch (error) {
       const errorMessage = cleanText(error?.message, 100) || "main_order_import_failed";
+      const attempt = attempts + 1;
+      const nextSyncAt = new Date(Date.now() + getOrderSyncRetryDelayMs(attempt));
       const beforeBackup = await createBackup(tx, "before-main-sync-failed");
-      await tx`UPDATE partner_orders SET status = 'sync_failed', updated_at = now() WHERE id = ${safeOrderId} AND created_by = 'eitan'`;
-      await recordAudit(tx, "eitan", "main_order_import_failed", { orderId: safeOrderId, error: errorMessage, retried, action });
+      await tx`UPDATE partner_orders SET status = 'sync_failed', sync_attempts = ${attempt}, next_sync_at = ${nextSyncAt}, last_sync_error = ${errorMessage}, updated_at = now() WHERE id = ${safeOrderId} AND created_by = 'eitan'`;
+      await recordAudit(tx, "eitan", "main_order_import_failed", { orderId: safeOrderId, error: errorMessage, retried, action, attempt, retryLimitReached: attempt >= ORDER_SYNC_MAX_ATTEMPTS });
       const afterBackup = await createBackup(tx, "after-main-sync-failed");
       syncFailure = new Error(errorMessage);
       return { order, status: "sync_failed", beforeBackup, afterBackup };
@@ -670,13 +694,29 @@ async function syncPartnerOrderToMain(sql, config, orderId, { retried = false } 
 }
 
 async function retryPendingMainOrders(sql, config) {
-  const pending = await sql`SELECT id FROM partner_orders WHERE created_by = 'eitan' AND status IN ('processing', 'sync_failed') ORDER BY created_at ASC LIMIT 8`;
+  const pending = await sql`SELECT id FROM partner_orders
+    WHERE created_by = 'eitan'
+      AND status IN ('processing', 'sync_failed')
+      AND sync_attempts < ${ORDER_SYNC_MAX_ATTEMPTS}
+      AND next_sync_at <= now()
+    ORDER BY created_at ASC
+    LIMIT ${ORDER_SYNC_RETRY_BATCH_SIZE}`;
   for (const entry of pending) {
     try {
       await syncPartnerOrderToMain(sql, config, entry.id, { retried: true });
     } catch (error) {
       console.warn("partner_main_order_retry_failed", entry.id, error?.message || error);
     }
+  }
+}
+
+async function syncSavedOrderOnce(sql, config, saved) {
+  try {
+    const synced = await syncPartnerOrderToMain(sql, config, saved.orderId, { ignoreRetrySchedule: true });
+    return { ...saved, queuedForMainSync: synced.status !== "sent_to_main" && synced.status !== "cancelled", sync: synced };
+  } catch (error) {
+    console.warn("partner_main_order_initial_sync_failed", saved.orderId, error?.message || error);
+    return { ...saved, queuedForMainSync: true, syncError: cleanText(error?.message, 100) || "main_order_import_failed" };
   }
 }
 
@@ -841,6 +881,7 @@ export default async function handler(request, response) {
     // authenticated server route. The browser never receives the bridge secret.
     if (request.method === "GET" && resource === "owner-queue") {
       if (!isBridgeAuthorized(request, config)) return sendJson(response, 401, { error: "unauthorized_bridge" });
+      await retryPendingMainOrders(sql, config);
       return sendJson(response, 200, { items: await listOwnerQueue(sql) });
     }
     if (request.method === "POST" && action === "owner-queue-approve") {
@@ -895,15 +936,14 @@ export default async function handler(request, response) {
     if (request.method === "GET" && resource === "dashboard") return sendJson(response, 200, await dashboard(sql, session));
     if (request.method === "POST" && action === "create-order") {
       const created = await createOrder(sql, session, await readJsonBody(request), config);
-      // The durable order and its before/after backup are complete now. The
-      // signed main-system import is triggered immediately by the browser in
-      // the background, so the send button is never held by a cross-project
-      // network round trip.
-      return sendJson(response, 201, { ok: true, ...created, queuedForMainSync: true });
+      // The partner order is durable before this bounded server-side sync.
+      // Mobile browsers may suspend JavaScript when WhatsApp opens, so the
+      // browser is not responsible for delivering the order to the main app.
+      return sendJson(response, 201, { ok: true, ...(await syncSavedOrderOnce(sql, config, created)) });
     }
     if (request.method === "POST" && action === "update-order") {
       const updated = await updateOrder(sql, session, await readJsonBody(request), config);
-      return sendJson(response, 200, { ok: true, ...updated, queuedForMainSync: true });
+      return sendJson(response, 200, { ok: true, ...(await syncSavedOrderOnce(sql, config, updated)) });
     }
     if (request.method === "POST" && action === "sync-order") {
       const body = await readJsonBody(request);
@@ -912,10 +952,7 @@ export default async function handler(request, response) {
     }
     if (request.method === "POST" && action === "delete-order") {
       const pendingDelete = await prepareDeleteOrder(sql, session, await readJsonBody(request));
-      // The deletion and its before/after backup are durable now. Just like
-      // create/update, the cross-project import runs after the UI responds.
-      // This prevents a slow main deploy from appearing as a failed delete.
-      return sendJson(response, 200, { ok: true, ...pendingDelete, queuedForMainSync: true });
+      return sendJson(response, 200, { ok: true, ...(await syncSavedOrderOnce(sql, config, pendingDelete)) });
     }
     if (request.method === "POST" && action === "save-entity") return sendJson(response, 201, { ok: true, ...(await saveEntity(sql, session, await readJsonBody(request))) });
     if (request.method === "POST" && action === "approve-order") return sendJson(response, 200, { ok: true, ...(await approveOrder(sql, session, await readJsonBody(request))) });
