@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-17",
+  "generatedAt": "2026-08-26",
   "source": {
     "document": "FUJICOMCatalog_2026.pdf",
     "productPages": [
@@ -10,12 +10,13 @@
     "additionalDocuments": [
       "FJ-CH65MT.pdf",
       "FJ-CH68TT.pdf",
-      "FJ-CHBI52.pdf"
+      "FJ-CHBI52.pdf",
+      "IT-60L.pdf"
     ]
   },
   "coverage": {
-    "products": 131,
-    "exactCatalogModels": 115,
+    "products": 132,
+    "exactCatalogModels": 116,
     "variantCatalogModels": 3,
     "descriptionOnlyModels": 13
   },
@@ -11620,6 +11621,59 @@
       ],
       "searchSummary": "IT-170L מקרר מקפיא תחתון 170 ליטר DE-FROST לבן",
       "searchText": "IT-170L מקרר מקפיא תחתון 170 ליטר DE-FROST לבן"
+    },
+    "IT60L": {
+      "schemaVersion": 1,
+      "source": {
+        "document": "IT-60L.pdf",
+        "match": "exact_model",
+        "pages": [
+          1
+        ]
+      },
+      "identity": {
+        "model": "IT-60L"
+      },
+      "classification": {
+        "category": "תנור"
+      },
+      "barcodes": [
+        "7290114725842"
+      ],
+      "dimensionsCm": {
+        "widthCm": 59.5,
+        "heightCm": 59.5,
+        "depthCm": 49.4
+      },
+      "capacities": {
+        "ovenLiters": 60
+      },
+      "performance": {
+        "powerW": 3000,
+        "programCount": 3,
+        "energyRating": "A"
+      },
+      "colors": [
+        "שחור"
+      ],
+      "features": [
+        "3 תוכניות: חימום תחתון, חימום עליון, חימום עליון ותחתון",
+        "תפעול מכני עם 3 כפתורים",
+        "תאורה פנימית",
+        "זכוכית דלת פנימית מתפרקת לניקוי קל ויסודי",
+        "כולל תבנית אחת ורשת",
+        "גימור זכוכית שחורה"
+      ],
+      "sourceFacts": [
+        "נפח תא אפייה 60 ליטר",
+        "3 תוכניות",
+        "הספק מקסימלי 3000W",
+        "דירוג אנרגטי A",
+        "מידות: גובה 59.5 ס\"מ, רוחב 59.5 ס\"מ, עומק 49.4 ס\"מ",
+        "תפעול מכני ותאורה פנימית"
+      ],
+      "searchSummary": "IT-60L | תנור בנוי מכני 60 ליטר שחור ITECH | תנור | widthCm:59.5 ס\"מ heightCm:59.5 ס\"מ depthCm:49.4 ס\"מ | ovenLiters:60 | שחור",
+      "searchText": "IT-60L תנור בנוי מכני 60 ליטר שחור ITECH תנור widthCm:59.5 ס\"מ heightCm:59.5 ס\"מ depthCm:49.4 ס\"מ ovenLiters:60 שחור ברקוד 7290114725842 3 תוכניות חימום תחתון חימום עליון חימום עליון ותחתון הספק מקסימלי 3000W דירוג אנרגטי A תפעול מכני 3 כפתורים תאורה פנימית זכוכית דלת פנימית מתפרקת לניקוי קל ויסודי כולל תבנית אחת ורשת גימור זכוכית שחורה"
     },
     "ITCF244": {
       "schemaVersion": 1,

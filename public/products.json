@@ -1,6 +1,6 @@
 {
   "source": "מחירון יוני +אחוזים.xlsx",
-  "count": 128,
+  "count": 132,
   "products": [
     {
       "sku": "FJ-32UIL900",
@@ -651,6 +651,11 @@
       "sku": "IT-170L",
       "description": "מקרר מקפיא תחתון  170 ליטר  DE-FROST  לבן",
       "price": 550.0
+    },
+    {
+      "sku": "IT-60L",
+      "description": "תנור בנוי 60 ליטר שחור ITECH",
+      "price": 0.0
     },
     {
       "sku": "IT-CF244",

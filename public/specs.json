@@ -2,8 +2,8 @@
   "version": 1,
   "source": "/img",
   "totalPdfFiles": 155,
-  "productCount": 131,
-  "matchedProducts": 117,
+  "productCount": 132,
+  "matchedProducts": 118,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -50,8 +50,7 @@
     "FJ-NF683X.pdf",
     "FJ-WM1214S.pdf",
     "FJ-WM6060PD.pdf",
-    "IT-46L.pdf",
-    "IT-60L.pdf"
+    "IT-46L.pdf"
   ],
   "items": {
     "FJ-32UIL900": {
@@ -1733,6 +1732,20 @@
         {
           "url": "/img/IT-170L%20%C2%A0.pdf",
           "fileName": "IT-170L .pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "IT-60L": {
+      "url": "/img/IT-60L.pdf",
+      "fileName": "IT-60L.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/IT-60L.pdf",
+          "fileName": "IT-60L.pdf",
           "label": "מפרט PDF",
           "installation": false
         }

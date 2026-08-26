@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 115, `ציפינו ל-115 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 116, `ציפינו ל-116 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -57,5 +57,9 @@ assert(dishwasher.capacities?.placeSettings === 14 && dishwasher.performance?.no
 const gasHob = catalog.items.FJGOG575BL;
 assert(gasHob.dimensionsCm?.widthCm === 75 && gasHob.dimensionsCm?.depthCm === 51, "מידות FJ-GOG575BL אינן תקינות");
 assert(gasHob.barcodes?.includes("7290114724715"), "ברקוד FJ-GOG575BL אינו תקין");
+const itechOven = catalog.items.IT60L;
+assert(itechOven.dimensionsCm?.widthCm === 59.5 && itechOven.dimensionsCm?.heightCm === 59.5 && itechOven.dimensionsCm?.depthCm === 49.4, "מידות IT-60L אינן תקינות");
+assert(itechOven.capacities?.ovenLiters === 60 && itechOven.performance?.programCount === 3 && itechOven.performance?.powerW === 3000, "מפרט IT-60L אינו תקין");
+assert(itechOven.barcodes?.includes("7290114725842"), "ברקוד IT-60L אינו תקין");
 
 console.log(`תקין: ${products.length} מפרטים | ישיר: ${byMatch.exact_model} | וריאנט: ${byMatch.catalog_variant} | מחירון בלבד: ${byMatch.description_only}`);

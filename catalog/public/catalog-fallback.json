@@ -6284,6 +6284,51 @@
       ]
     },
     {
+      "model": "IT-60L",
+      "name": "תנור בנוי 60 ליטר שחור ITECH",
+      "category": "תנור",
+      "colors": [
+        "שחור"
+      ],
+      "technical": {
+        "category": "תנור",
+        "colors": [
+          "שחור"
+        ],
+        "dimensionsCm": {
+          "widthCm": 59.5,
+          "heightCm": 59.5,
+          "depthCm": 49.4
+        },
+        "capacities": {
+          "ovenLiters": 60
+        },
+        "performance": {
+          "powerW": 3000,
+          "programCount": 3,
+          "energyRating": "A"
+        },
+        "barcodes": [
+          "7290114725842"
+        ],
+        "facts": [
+          "3 תוכניות: חימום תחתון, חימום עליון, חימום עליון ותחתון",
+          "תפעול מכני עם 3 כפתורים",
+          "תאורה פנימית",
+          "זכוכית דלת פנימית מתפרקת לניקוי קל ויסודי",
+          "כולל תבנית אחת ורשת",
+          "גימור זכוכית שחורה"
+        ]
+      },
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/IT-60L.pdf"
+        }
+      ]
+    },
+    {
       "model": "IT-170L",
       "name": "מקרר מקפיא תחתון 170 ליטר DE-FROST לבן",
       "category": "מקרר",
