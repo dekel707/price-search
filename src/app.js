@@ -5955,9 +5955,16 @@ async function saveImportedReservationReport(report) {
     details.push(`${result.isolatedRows.toLocaleString("he-IL")} שורות חריגות בודדו ולא עצרו את יתר הדוח`);
   }
   if (result.protectedCustomers) {
-    details.push(`הנתונים הקיימים של ${result.protectedCustomers.toLocaleString("he-IL")} לקוחות מוגנים לא שונו`);
+    details.push(`לקוחות מוגנים שלא שונו: ${result.protectedCustomers.toLocaleString("he-IL")}`);
   }
-  if (!result.changed) details.push("לא נמצא שינוי לעומת השריונים הקיימים ולכן לא בוצעה שמירת ענן מיותרת");
+  const issueDetails = (report.issues || [])
+    .slice(0, 6)
+    .map((issue) => `${issue.rowNumber ? `שורה ${issue.rowNumber}: ` : ""}${issue.message}`);
+  if (issueDetails.length) {
+    details.push(`לבדיקה: ${issueDetails.join("; ")}${report.issues.length > issueDetails.length ? "; ועוד" : ""}`);
+  }
+  if (CLOUD_SYNC_DISABLED) details.push("בדיקה מקומית בלבד — לא נשלחו נתונים לענן");
+  else if (!result.changed) details.push("לא נמצא שינוי לעומת השריונים הקיימים ולכן לא בוצעה שמירת ענן מיותרת");
   else if (cloudSaved) details.push("נשמר בענן בעסקה אחת עם גיבוי שחזור");
   else if (cloudRejected) details.push("השמירה בענן לא אושרה והנתונים העדכניים נטענו מחדש; יש להעלות שוב את הדוח");
   else details.push("נשמר מקומית ונמצא בתור השמירה הבטוח לענן");
