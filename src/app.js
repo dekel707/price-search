@@ -2927,6 +2927,21 @@ function normalizeProducts(items) {
     .filter(Boolean);
 }
 
+function alignProductsWithDefaultDisplayOrder(items) {
+  if (!Array.isArray(items) || items.length < 2 || !defaultProducts.length) return items;
+  const defaultOrder = new Map(defaultProducts.map((product, index) => [product.skuKey, index]));
+  return items
+    .map((product, index) => ({ product, index, defaultIndex: defaultOrder.get(product.skuKey) }))
+    .sort((left, right) => {
+      const leftKnown = Number.isInteger(left.defaultIndex);
+      const rightKnown = Number.isInteger(right.defaultIndex);
+      if (leftKnown && rightKnown) return left.defaultIndex - right.defaultIndex;
+      if (leftKnown !== rightKnown) return leftKnown ? -1 : 1;
+      return left.index - right.index;
+    })
+    .map(({ product }) => product);
+}
+
 function getProductCatalogAttributes(item, sku) {
   const current = item?.catalogAttributes;
   // Catalog data is keyed by a punctuation-free model key (FJMW25LB), while
@@ -4593,7 +4608,7 @@ function buildStatus(query, activeCategory, count) {
 }
 
 function addCategoryFromInput() {
-  const category = cleanString(dom.categoryInput.value);
+  const category = canonicalizeCategoryName(dom.categoryInput.value);
   if (!category) return;
 
   const exists = categories.some((existing) => normalizeSearch(existing) === normalizeSearch(category));
@@ -4608,7 +4623,7 @@ function addCategoryFromInput() {
 
 function editCategory(category) {
   if (!categories.includes(category)) return;
-  const nextName = cleanString(window.prompt("שם הקטגוריה", category));
+  const nextName = canonicalizeCategoryName(window.prompt("שם הקטגוריה", category));
   if (!nextName || nextName === category) return;
   if (categories.some((item) => item !== category && normalizeSearch(item) === normalizeSearch(nextName))) {
     dom.status.textContent = "כבר קיימת קטגוריה בשם הזה.";
@@ -4650,7 +4665,7 @@ function updateAnnotation(productKey, patch, options = {}) {
   if (!productKey) return;
   const current = annotations[productKey] || { category: "", note: "", arrivalDate: "" };
   const next = {
-    category: cleanString(patch.category ?? current.category),
+    category: canonicalizeCategoryName(patch.category ?? current.category),
     note: cleanString(patch.note ?? current.note),
     arrivalDate: normalizeDateInput(patch.arrivalDate ?? current.arrivalDate),
   };
@@ -16045,7 +16060,7 @@ function buildSharedState() {
 function applySharedState(state) {
   const cloudProducts = normalizeProducts(state.products || []);
   if (cloudProducts.length) {
-    products = ensureGeneralProduct(cloudProducts);
+    products = ensureGeneralProduct(alignProductsWithDefaultDisplayOrder(cloudProducts));
     activeMeta = state.meta || {
       sourceName: "מחירון מהענן",
       importedAt: null,
@@ -16303,7 +16318,7 @@ function normalizeCategories(value) {
 
   const seen = new Set();
   return value
-    .map(cleanString)
+    .map(canonicalizeCategoryName)
     .filter(Boolean)
     .filter((category) => {
       const key = normalizeSearch(category);
@@ -16314,6 +16329,13 @@ function normalizeCategories(value) {
     .sort((a, b) => a.localeCompare(b, "he"));
 }
 
+function canonicalizeCategoryName(value) {
+  const category = cleanString(value);
+  const key = normalizeSearch(category);
+  if (["קולט", "קולטים", "קולט אדים", "קולטי אדים"].includes(key)) return "קולטים";
+  return category;
+}
+
 function normalizeAnnotations(value) {
   if (!value || typeof value !== "object") return {};
 
@@ -16321,7 +16343,7 @@ function normalizeAnnotations(value) {
     const key = getSkuKey(skuKey);
     if (!key || !annotation || typeof annotation !== "object") return next;
 
-    const category = cleanString(annotation.category);
+    const category = canonicalizeCategoryName(annotation.category);
     const note = cleanString(annotation.note);
     const arrivalDate = normalizeDateInput(annotation.arrivalDate);
     if (category || note || arrivalDate) next[key] = { category, note, arrivalDate };
