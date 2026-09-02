@@ -18,7 +18,7 @@
     "test:data-integrity": "node scripts/verify-data-integrity.mjs",
     "test:dealer-catalog": "node scripts/verify-dealer-catalog-api.mjs",
     "test:catalog-attributes": "node scripts/verify-catalog-attributes.mjs",
-    "test:report-import-safety": "node scripts/verify-report-import-safety.mjs",
+    "test:report-import-safety": "node scripts/verify-report-import-safety.mjs && node scripts/verify-reservation-import-core.mjs",
     "predev": "npm run generate:specs",
     "dev": "vite --host 0.0.0.0",
     "prebuild": "npm run generate:specs",

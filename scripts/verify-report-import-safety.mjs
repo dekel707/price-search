@@ -2,15 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const reservationCore = await readFile(new URL("../src/reservation-report-core.js", import.meta.url), "utf8");
 const collectionImport = await readFile(new URL("../api/import-collections.js", import.meta.url), "utf8");
 
 // Reservation reports are parsed from the uploaded file three separate times.
 assert.match(app, /for \(let pass = 0; pass < 3; pass \+= 1\)/, "Excel reports must have three independent read passes");
 assert.match(app, /Array\.from\(\{ length: 3 \}, \(\) => parseReservationSpreadsheetRows/, "pasted reports must have three parse passes");
 assert.match(app, /function verifyReservationReportPasses\(reports\)/, "reservation import must centralize verification");
-assert.match(app, /בדיקת הדוח המשולשת לא התאימה/, "mismatched passes must block reservation updates");
-assert.match(app, /first\.invalidRows\.length/, "partial or invalid report rows must block reservation updates");
-assert.match(app, /first\.skippedCustomerNames\.length/, "unknown customers must block reservation updates");
+assert.match(reservationCore, /בדיקת הדוח המשולשת לא התאימה/, "mismatched passes must block reservation updates");
+assert.match(reservationCore, /protectedCustomerIds\.add/, "invalid rows must protect existing customer reservations");
+assert.match(reservationCore, /safeEntries/, "valid rows must be planned separately from isolated rows");
+assert.match(reservationCore, /declared-total-mismatch/, "declared report totals must be verified");
+assert.match(app, /reservation-import/, "the completed import must use a single explicit cloud-save action");
+assert.match(app, /לא בוצעה שמירת ענן מיותרת/, "an unchanged re-import must not waste a Vercel write");
 assert.match(app, /הדוח נבדק 3 פעמים/, "the operator must be shown that the report passed three checks");
 
 // Aging PDFs are extracted three times on the server before the browser can save them.

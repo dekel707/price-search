@@ -10,6 +10,11 @@ import {
   getUpcomingSundayIsraelDateKey,
   isOrderReportDateCompleted,
 } from "./order-schedule.js";
+import {
+  createReservationImportPlan,
+  parseReservationReportRows as parseReservationReportRowsCore,
+  verifyReservationReportPasses as verifyReservationReportPassesCore,
+} from "./reservation-report-core.js";
 
 const STORAGE_KEY = "price-search-products-v1";
 const META_KEY = "price-search-meta-v1";
@@ -5879,8 +5884,9 @@ async function handleReservationReportUpload(event) {
   dom.status.textContent = "בודק ומעדכן שריונים מדוח Excel...";
 
   try {
+    await prepareCloudForReservationImport();
     const report = await parseReservationSpreadsheet(file, dom.reservationCustomerFilter.value);
-    const message = saveImportedReservationReport(report);
+    const message = await saveImportedReservationReport(report);
     dom.reservationImportStatus.textContent = message;
     dom.status.textContent = message;
   } catch (error) {
@@ -5893,7 +5899,7 @@ async function handleReservationReportUpload(event) {
   }
 }
 
-function handlePastedReservationReport() {
+async function handlePastedReservationReport() {
   const text = dom.reservationPasteInput.value.trim();
   if (!text) {
     dom.reservationImportStatus.textContent = "הדבק את עמודות הדוח מאקסל לפני הסנכרון.";
@@ -5904,9 +5910,10 @@ function handlePastedReservationReport() {
   dom.reservationImportStatus.textContent = "בודק את הנתונים המודבקים שלוש פעמים...";
   dom.status.textContent = "בודק ומעדכן שריונים מהדוח המודבק...";
   try {
+    await prepareCloudForReservationImport();
     const rows = parsePastedReservationRows(text);
     const report = parseVerifiedReservationRows(rows, dom.reservationCustomerFilter.value);
-    const message = saveImportedReservationReport(report);
+    const message = await saveImportedReservationReport(report);
     dom.reservationPasteInput.value = "";
     dom.reservationImportStatus.textContent = message;
     dom.status.textContent = message;
@@ -5918,24 +5925,57 @@ function handlePastedReservationReport() {
   }
 }
 
-function saveImportedReservationReport(report) {
+async function saveImportedReservationReport(report) {
   const result = applyReservationReportImport(report);
-  saveReservations();
+  saveReservations({ sync: false });
   render();
+
+  let cloudSaved = false;
+  let cloudRejected = false;
+  if (result.changed) {
+    const saveId = queueCloudSave({ action: "reservation-import" });
+    if (saveId && cloudHydrated && !cloudSaveInFlight) {
+      window.clearTimeout(cloudSaveTimer);
+      await saveSharedStateNow();
+      cloudSaved = cloudSaveResults.get(saveId) === true;
+      cloudRejected = cloudSaveResults.has(saveId) && !cloudSaved;
+    }
+  }
 
   const syncMode = report.isFullReport ? "דוח מלא סונכרן" : "שורות הדוח עודכנו";
   const details = [
     "הדוח נבדק 3 פעמים",
-    `${report.entries.length.toLocaleString("he-IL")} יתרות ייחודיות`,
-    `${report.totalQuantity.toLocaleString("he-IL")} יח׳ בדוח`,
+    `${result.imported.toLocaleString("he-IL")} יתרות ייחודיות נקלטו`,
+    `${result.importedQuantity.toLocaleString("he-IL")} יח׳ נקלטו`,
     `${syncMode}: ${result.updated.toLocaleString("he-IL")} עודכנו`,
     `${result.added.toLocaleString("he-IL")} נוספו`,
   ];
   if (result.removed) details.push(`${result.removed.toLocaleString("he-IL")} הוסרו כי אינם מופיעים בדוח המלא`);
-  if (report.skippedCustomerNames.length) {
-    details.push(`${report.skippedCustomerNames.length.toLocaleString("he-IL")} לקוחות לא נמצאו במערכת`);
+  if (result.isolatedRows) {
+    details.push(`${result.isolatedRows.toLocaleString("he-IL")} שורות חריגות בודדו ולא עצרו את יתר הדוח`);
   }
+  if (result.protectedCustomers) {
+    details.push(`הנתונים הקיימים של ${result.protectedCustomers.toLocaleString("he-IL")} לקוחות מוגנים לא שונו`);
+  }
+  if (!result.changed) details.push("לא נמצא שינוי לעומת השריונים הקיימים ולכן לא בוצעה שמירת ענן מיותרת");
+  else if (cloudSaved) details.push("נשמר בענן בעסקה אחת עם גיבוי שחזור");
+  else if (cloudRejected) details.push("השמירה בענן לא אושרה והנתונים העדכניים נטענו מחדש; יש להעלות שוב את הדוח");
+  else details.push("נשמר מקומית ונמצא בתור השמירה הבטוח לענן");
   return `${details.join(" · ")}.`;
+}
+
+async function prepareCloudForReservationImport() {
+  if (CLOUD_SYNC_DISABLED) return;
+  if (!requireCloudReadyForMutation("לייבא דוח שריונים")) {
+    throw new Error("אין כרגע חיבור מאומת לענן. לא בוצע שינוי בשריונים.");
+  }
+  if (cloudSaveInFlight || pendingCloudSave || readPendingCloudSave()) {
+    throw new Error("שמירה קודמת עדיין מתבצעת. המתן כמה שניות והעלה שוב את הדוח; לא בוצע שינוי בשריונים.");
+  }
+  await hydrateCloudState({ onlyIfChanged: true });
+  if (cloudSyncState !== "synced") {
+    throw new Error("לא ניתן לאמת מול הענן את הגרסה העדכנית. לא בוצע שינוי בשריונים.");
+  }
 }
 
 async function parseReservationSpreadsheet(file, selectedCustomerId = "") {
@@ -5953,17 +5993,7 @@ function parseVerifiedReservationRows(rows, selectedCustomerId = "") {
 }
 
 function verifyReservationReportPasses(reports) {
-  const [first, ...remaining] = reports;
-  if (!first || remaining.some((report) => getReservationReportSignature(report) !== getReservationReportSignature(first))) {
-    throw new Error("בדיקת הדוח המשולשת לא התאימה. לא בוצע שינוי בשריונים.");
-  }
-  if (first.invalidRows.length) {
-    throw new Error(`נמצאו ${first.invalidRows.length.toLocaleString("he-IL")} שורות חלקיות או לא תקינות בדוח. לא בוצע שינוי בשריונים.`);
-  }
-  if (first.skippedCustomerNames.length) {
-    throw new Error(`נמצאו ${first.skippedCustomerNames.length.toLocaleString("he-IL")} לקוחות שלא זוהו במערכת. לא בוצע שינוי בשריונים.`);
-  }
-  return first;
+  return verifyReservationReportPassesCore(reports);
 }
 
 function parsePastedReservationRows(text) {
@@ -5974,190 +6004,41 @@ function parsePastedReservationRows(text) {
 }
 
 function parseReservationSpreadsheetRows(rows, selectedCustomerId = "") {
-  if (!rows.length) throw new Error("לא נמצאו שורות בדוח השריונים.");
-
-  const { columns, headerRowIndex } = detectReservationColumns(rows);
-  const reportCustomerName = getReservationReportCustomerName(rows, headerRowIndex);
-  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null;
-  const reportCustomer = findCustomerByLooseName(reportCustomerName);
-  const fallbackCustomer = reportCustomer || selectedCustomer;
-
-  if (columns.customer === undefined && !fallbackCustomer) {
-    throw new Error("לא נמצא לקוח בדוח. בחר לקוח במסנן לפני העלאת קובץ ללא עמודת לקוח.");
-  }
-
-  const entries = new Map();
-  const skippedCustomerNames = new Set();
-  const invalidRows = [];
-  let sourceRowCount = 0;
-  let totalQuantity = 0;
-  rows.slice(headerRowIndex + 1).forEach((row, offset) => {
-    const sku = cleanString(row[columns.sku]);
-    const skuKey = getSkuKey(sku);
-    const quantity = parseStockQuantity(row[columns.quantity]);
-    const customerName = columns.customer === undefined ? fallbackCustomer?.name || "" : cleanString(row[columns.customer]);
-    const hasValues = row.some((cell) => cleanString(cell));
-    if (!hasValues) return;
-    if (!skuKey || quantity === null || (columns.customer !== undefined && !customerName)) {
-      invalidRows.push(headerRowIndex + offset + 2);
-      return;
-    }
-    sourceRowCount += 1;
-
-    const customer = columns.customer === undefined ? fallbackCustomer : findCustomerByLooseName(customerName);
-    if (!customer) {
-      if (customerName) skippedCustomerNames.add(customerName);
-      return;
-    }
-
-    const key = `${customer.id}|${skuKey}`;
-    const current = entries.get(key) || {
-      customer,
-      sku,
-      skuKey,
-      description: columns.description === undefined ? "" : cleanString(row[columns.description]),
-      quantity: 0,
-    };
-    current.quantity += quantity;
-    totalQuantity += quantity;
-    if (!current.description && columns.description !== undefined) {
-      current.description = cleanString(row[columns.description]);
-    }
-    entries.set(key, current);
-  });
-
-  if (!entries.size) {
-    throw new Error("לא נמצאו בדוח שורות תקינות עם דגם וכמות עבור לקוחות קיימים.");
-  }
-
-  const metadata = rows
-    .slice(0, headerRowIndex)
-    .flat()
-    .map(cleanString)
-    .filter(Boolean)
-    .join(" ");
-  const headerLabels = (rows[headerRowIndex] || []).map(normalizeHeader).filter(Boolean);
-  const isOutstandingDeliveryReport =
-    columns.customer !== undefined &&
-    headerLabels.some((label) => hasAny(label, ["יתרה לאספקה", "outstanding delivery", "delivery balance"]));
-  const isFullReport =
-    normalizeSearch(metadata).includes(normalizeSearch("דוח מלאי משוריין")) || isOutstandingDeliveryReport;
-
-  return {
-    entries: [...entries.values()],
-    skippedCustomerNames: [...skippedCustomerNames],
-    invalidRows,
-    sourceRowCount,
-    totalQuantity,
-    isFullReport,
-  };
-}
-
-function getReservationReportSignature(report) {
-  const entries = report.entries
-    .map((entry) => [entry.customer.id, entry.skuKey, entry.description, entry.quantity].join("|"))
-    .sort()
-    .join("\n");
-  return `${report.isFullReport}|${report.sourceRowCount}|${report.totalQuantity}|${report.invalidRows.join(",")}|${report.skippedCustomerNames.slice().sort().join("|")}|${entries}`;
-}
-
-function detectReservationColumns(rows) {
-  let best = { score: -1, columns: {}, headerRowIndex: -1 };
-
-  rows.slice(0, 30).forEach((row, rowIndex) => {
-    const columns = {};
-    row.forEach((cell, columnIndex) => {
-      const label = normalizeHeader(cell);
-      if (!label) return;
-
-      if (columns.customer === undefined && hasAny(label, ["לקוח", "customer", "client"])) {
-        columns.customer = columnIndex;
-      }
-      if (columns.sku === undefined && hasAny(label, ["מקט", "sku", "item", "part", "מספר פריט", "דגם", "model"])) {
-        columns.sku = columnIndex;
-      }
-      if (
-        columns.description === undefined &&
-        hasAny(label, ["תאור", "תיאור", "מוצר", "description", "desc", "name"])
-      ) {
-        columns.description = columnIndex;
-      }
-      if (
-        columns.quantity === undefined &&
-        hasAny(label, ["כמות", "יתרה", "reserved", "reservation", "remaining", "balance", "quantity", "qty"])
-      ) {
-        columns.quantity = columnIndex;
-      }
-    });
-
-    const score =
-      Number(columns.sku !== undefined) * 2 +
-      Number(columns.quantity !== undefined) * 2 +
-      Number(columns.customer !== undefined) +
-      Number(columns.description !== undefined) * 0.25;
-    if (score > best.score) {
-      best = {
-        score,
-        columns,
-        headerRowIndex: columns.sku !== undefined && columns.quantity !== undefined ? rowIndex : -1,
-      };
-    }
-  });
-
-  if (best.headerRowIndex < 0) {
-    throw new Error("לא מצאתי בדוח עמודת דגם/מק״ט ועמודת כמות או יתרה.");
-  }
-
-  return best;
-}
-
-function getReservationReportCustomerName(rows, headerRowIndex) {
-  for (const row of rows.slice(0, headerRowIndex)) {
-    const labelIndex = row.findIndex((cell) => hasAny(normalizeHeader(cell), ["לקוח", "customer", "client"]));
-    if (labelIndex < 0) continue;
-    const customerName = cleanString(row[labelIndex + 1]);
-    if (customerName) return customerName;
-  }
-  return "";
+  return parseReservationReportRowsCore(rows, { customers, selectedCustomerId });
 }
 
 function applyReservationReportImport(report) {
   const now = new Date().toISOString();
+  const plan = createReservationImportPlan(reservations, report);
   const existingByKey = new Map(reservations.map((reservation) => [`${reservation.customerId}|${reservation.skuKey}`, reservation]));
-  const replacementCustomerIds = report.isFullReport
-    ? new Set(report.entries.map((entry) => entry.customer.id))
-    : new Set();
-  const replacedReservations = reservations.filter((reservation) => replacementCustomerIds.has(reservation.customerId));
-  let updated = 0;
-  let added = 0;
-
-  const importedReservations = report.entries.map((entry) => {
+  let changedEntries = 0;
+  const importedReservations = plan.safeEntries.map((entry) => {
     const key = `${entry.customer.id}|${entry.skuKey}`;
     const previous = existingByKey.get(key);
-    if (previous) updated += 1;
-    else added += 1;
-    return createReservationFromImport(entry, previous, now);
+    const next = createReservationFromImport(entry, previous, now);
+    if (
+      previous &&
+      previous.customerName === next.customerName &&
+      previous.sku === next.sku &&
+      previous.description === next.description &&
+      previous.quantity === next.quantity
+    ) {
+      return previous;
+    }
+    changedEntries += 1;
+    return next;
   });
-
-  if (report.isFullReport) {
-    reservations = normalizeReservations([
-      ...reservations.filter((reservation) => !replacementCustomerIds.has(reservation.customerId)),
-      ...importedReservations,
-    ]);
-  } else {
-    const importedByKey = new Map(
-      importedReservations.map((reservation) => [`${reservation.customerId}|${reservation.skuKey}`, reservation]),
-    );
-    reservations = normalizeReservations([
-      ...reservations.filter((reservation) => !importedByKey.has(`${reservation.customerId}|${reservation.skuKey}`)),
-      ...importedReservations,
-    ]);
-  }
+  reservations = normalizeReservations([...plan.keptReservations, ...importedReservations]);
 
   return {
-    updated,
-    added,
-    removed: report.isFullReport ? Math.max(0, replacedReservations.length - updated) : 0,
+    updated: plan.updated,
+    added: plan.added,
+    removed: plan.removed,
+    isolatedRows: plan.isolatedRows,
+    protectedCustomers: plan.protectedCustomerIds.length,
+    imported: plan.safeEntries.length,
+    importedQuantity: plan.safeEntries.reduce((sum, entry) => sum + entry.quantity, 0),
+    changed: Boolean(changedEntries || plan.removed),
   };
 }
 

@@ -764,7 +764,7 @@
           <section class="reservation-import" aria-label="עדכון שריונים מאקסל">
             <div>
               <strong>עדכון שריונים מאקסל</strong>
-              <span>מזהה דוח לפי לקוח, דגם וכמות ובודק אותו פעמיים. דוח יתרה לאספקה לפי לקוחות מסנכרן במלואו את השריונים של הלקוחות שמופיעים בו.</span>
+              <span>מזהה לקוח, דגם ויתרה בשלוש בדיקות. שורה חריגה מבודדת אוטומטית, והשריון הקיים של הלקוח המושפע נשמר בלי לעצור את יתר הדוח.</span>
             </div>
             <label class="file-button" for="reservationReportInput">העלה דוח Excel</label>
             <input id="reservationReportInput" class="native-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
@@ -773,7 +773,7 @@
 
           <details class="reservation-paste-import">
             <summary>הדבק דוח מאקסל</summary>
-            <p>אפשר להעתיק את ארבע העמודות מהדוח ולהדביק כאן. הנתונים יעברו אותה בדיקה כפולה וסנכרון מלא.</p>
+            <p>אפשר להעתיק את ארבע העמודות מהדוח ולהדביק כאן. הנתונים יעברו אותה בדיקה משולשת והגנת שורות חריגות.</p>
             <textarea id="reservationPasteInput" rows="6" placeholder="שם לקוח | מספר פריט | תיאור פריט | יתרה לאספקה"></textarea>
             <button class="secondary-button" id="importPastedReservations" type="button">בדוק וסנכרן שריונים</button>
           </details>
