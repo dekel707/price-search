@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 155,
-  "productCount": 132,
-  "matchedProducts": 118,
+  "totalPdfFiles": 156,
+  "productCount": 133,
+  "matchedProducts": 119,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -118,6 +118,20 @@
         {
           "url": "/img/FJ-65Q10X.pdf",
           "fileName": "FJ-65Q10X.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-65UILQ950": {
+      "url": "/img/FJ-65UILQ950.pdf",
+      "fileName": "FJ-65UILQ950.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-65UILQ950.pdf",
+          "fileName": "FJ-65UILQ950.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -1832,6 +1846,20 @@
         {
           "url": "/img/FJ-65Q10X.pdf",
           "fileName": "FJ-65Q10X.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ65UILQ950": {
+      "url": "/img/FJ-65UILQ950.pdf",
+      "fileName": "FJ-65UILQ950.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-65UILQ950.pdf",
+          "fileName": "FJ-65UILQ950.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3980,6 +4008,14 @@
       "url": "/img/FJ-65Q10X.pdf",
       "modelKeys": [
         "FJ65Q10X"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-65UILQ950.pdf",
+      "url": "/img/FJ-65UILQ950.pdf",
+      "modelKeys": [
+        "FJ65UILQ950"
       ],
       "installation": false
     },

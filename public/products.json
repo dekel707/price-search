@@ -1,6 +1,6 @@
 {
   "source": "מחירון יוני +אחוזים.xlsx",
-  "count": 132,
+  "count": 133,
   "products": [
     {
       "sku": "FJ-32UIL900",
@@ -21,6 +21,11 @@
       "sku": "FJ-55UILQ950",
       "description": "55\" QLED FUJICOM   SMART  TV FJ-55UILQ950",
       "price": 1125.0
+    },
+    {
+      "sku": "FJ-65UILQ950",
+      "description": "FUJICOM 65\" QLED FJ-65UILQ950 SMART WEBOS TV",
+      "price": 1650.0
     },
     {
       "sku": "FJ-65Q10X",

@@ -223,6 +223,65 @@
       ]
     },
     {
+      "model": "FJ-65UILQ950",
+      "name": "FUJICOM 65\" QLED FJ-65UILQ950 SMART WEBOS TV",
+      "category": "טלוויזיה",
+      "colors": [],
+      "technical": {
+        "category": "טלוויזיה",
+        "colors": [],
+        "dimensionsCm": {},
+        "performance": {
+          "screenSizeInches": 65,
+          "resolutionPixels": {
+            "width": 3840,
+            "height": 2160
+          }
+        },
+        "displayDimensionsMm": {
+          "withoutStand": {
+            "widthMm": 1446,
+            "heightMm": 836.3,
+            "depthMm": 74
+          },
+          "withStand": {
+            "widthMm": 1446,
+            "heightMm": 891.3,
+            "depthMm": 339.5
+          }
+        },
+        "barcodes": [
+          "7290114725989"
+        ],
+        "facts": [
+          "מסך QLED 4K UHD בגודל 65 אינץ׳ בעיצוב Frameless",
+          "טלוויזיה חכמה עם מערכת הפעלה WebOS TV",
+          "טכנולוגיית HDR לבהירות ולחדות תמונה גבוהות",
+          "קישוריות Bluetooth",
+          "קליטת שידורי עידן פלוס DVB-T2",
+          "רמקולים עם תיבת תהודה ופרוטוקול Dolby",
+          "חיבור מובנה לרשת קווית ולרשת אלחוטית Wi-Fi",
+          "Netflix, Prime Video, Disney+, YouTube, Apple AirPlay ו-Apple Home",
+          "שלט Magic עם מיקרופון, עכבר אוויר וחיפוש קולי",
+          "ניגון סרטים, תמונות ומוזיקה באמצעות USB 2.0",
+          "3 כניסות HDMI, שתי כניסות USB 2.0, יציאת אוזניות, RJ-45, Optical, RF ו-AV Composite",
+          "דגם FJ-65UILQ950",
+          "גודל מסך 65 אינץ׳",
+          "יחס תצוגה 16:9",
+          "רזולוציה 3840x2160 UHD",
+          "מידות ללא מעמד: רוחב 1446 מ״מ, גובה 836.3 מ״מ, עומק 74 מ״מ",
+          "מידות כולל מעמד: רוחב 1446 מ״מ, גובה 891.3 מ״מ, עומק 339.5 מ״מ"
+        ]
+      },
+      "documents": [
+        {
+          "label": "מפרט PDF",
+          "type": "specification",
+          "url": "https://price-search-teal.vercel.app/img/FJ-65UILQ950.pdf"
+        }
+      ]
+    },
+    {
       "model": "FJ-65Q10X",
       "name": "FUJICOM FRAMELESS 65\" QLED FJ-65Q10X SMART WEBOS TV",
       "category": "טלוויזיה",

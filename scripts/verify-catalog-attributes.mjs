@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 116, `ציפינו ל-116 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 117, `ציפינו ל-117 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -52,6 +52,10 @@ const microwave = catalog.items.FJMW25LB;
 assert(microwave.performance?.powerW === 900 && microwave.capacities?.totalLiters === 25, "מפרט FJ-MW25LB אינו תקין");
 const tv = catalog.items.FJ50UILQ950;
 assert(tv.performance?.screenSizeInches === 50 && tv.displayDimensionsMm?.withoutStand?.widthMm === 1112, "מפרט FJ-50UILQ950 אינו תקין");
+const newTv = catalog.items.FJ65UILQ950;
+assert(newTv.performance?.screenSizeInches === 65 && newTv.performance?.resolutionPixels?.width === 3840, "מפרט FJ-65UILQ950 אינו תקין");
+assert(newTv.displayDimensionsMm?.withoutStand?.widthMm === 1446 && newTv.displayDimensionsMm?.withStand?.heightMm === 891.3, "מידות FJ-65UILQ950 אינן תקינות");
+assert(newTv.barcodes?.includes("7290114725989"), "ברקוד FJ-65UILQ950 אינו תקין");
 const dishwasher = catalog.items.FJDWB8817;
 assert(dishwasher.capacities?.placeSettings === 14 && dishwasher.performance?.noiseDb === 44, "מפרט FJ-DWB8817 אינו תקין");
 const gasHob = catalog.items.FJGOG575BL;

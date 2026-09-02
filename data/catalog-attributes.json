@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-26",
+  "generatedAt": "2026-09-02",
   "source": {
     "document": "FUJICOMCatalog_2026.pdf",
     "productPages": [
@@ -11,12 +11,13 @@
       "FJ-CH65MT.pdf",
       "FJ-CH68TT.pdf",
       "FJ-CHBI52.pdf",
+      "FJ-65UILQ950.pdf",
       "IT-60L.pdf"
     ]
   },
   "coverage": {
-    "products": 132,
-    "exactCatalogModels": 116,
+    "products": 133,
+    "exactCatalogModels": 117,
     "variantCatalogModels": 3,
     "descriptionOnlyModels": 13
   },
@@ -440,6 +441,70 @@
       ],
       "searchSummary": "FJ-55UILQ950 | 55\" QLED FUJICOM SMART TV FJ-55UILQ950 | טלוויזיה",
       "searchText": "FJ-55UILQ950 55\" QLED FUJICOM SMART TV FJ-55UILQ950 טלוויזיה FJ-55UILQ950 FRAMELESS 4K SMART FRAMELESS ברקוד 7290114723374 גודל מסך 55\" יחס תצוגה 16:9 רזולוציה 4K HD Ultra 3840X2160 מולטימדיה תמונות ומוסיקה 2.0 USB - תמיכה בסרטים, תמונות כניסות 2.0 USB | 3XHDMI | RJ-45 | Earphone | 2 X 2.0 USB | | Optical Composite AV | RF | WIFI | Optical תכונות הפעלה TV WebOS • טלוויזיה חכמה עם מערכת הפעלה ולחדות תמונה גבוהים במיוחד • טכנולוגיית HDR לבהירות ולחדות תמונה לנוחיות המשתמש • קישורית Bluetooth לנוחיות המשתמש שידורי עידן פלוס • תומך ב- DVBT-2 לקליטת שידורי עידן ופרוטוקול DOLBY • רמקולים עם תיבת תהודה ופרוטוקול לסאונד איכותי האלחוטית Wi-Fi • חיבור מובנה לרשת ולרשת האלחוטית Amazon • אפליקציות ,Netflix Prime Amazon בשלט מובנות עם כפתור ייעודי בשלט מיקרופון לפקודות קוליות, • שלט MAGIC הכולל מיקרופון לפקודות קוליות, עכבר אוויר וחיפוש קולי מידות מ\"מ ללא מעמד: 1228x70x714 מ\"מ מ\"מ כולל מעמד: 1228x255x765 מ\"מ"
+    },
+    "FJ65UILQ950": {
+      "schemaVersion": 1,
+      "source": {
+        "document": "FJ-65UILQ950.pdf",
+        "match": "exact_model",
+        "pages": [
+          1
+        ]
+      },
+      "identity": {
+        "model": "FJ-65UILQ950"
+      },
+      "classification": {
+        "category": "טלוויזיה"
+      },
+      "barcodes": [
+        "7290114725989"
+      ],
+      "performance": {
+        "screenSizeInches": 65,
+        "resolutionPixels": {
+          "width": 3840,
+          "height": 2160
+        }
+      },
+      "displayDimensionsMm": {
+        "withoutStand": {
+          "sourceOrder": "width×height×depth",
+          "widthMm": 1446,
+          "heightMm": 836.3,
+          "depthMm": 74
+        },
+        "withStand": {
+          "sourceOrder": "width×height×depth",
+          "widthMm": 1446,
+          "heightMm": 891.3,
+          "depthMm": 339.5
+        }
+      },
+      "features": [
+        "מסך QLED 4K UHD בגודל 65 אינץ׳ בעיצוב Frameless",
+        "טלוויזיה חכמה עם מערכת הפעלה WebOS TV",
+        "טכנולוגיית HDR לבהירות ולחדות תמונה גבוהות",
+        "קישוריות Bluetooth",
+        "קליטת שידורי עידן פלוס DVB-T2",
+        "רמקולים עם תיבת תהודה ופרוטוקול Dolby",
+        "חיבור מובנה לרשת קווית ולרשת אלחוטית Wi-Fi",
+        "Netflix, Prime Video, Disney+, YouTube, Apple AirPlay ו-Apple Home",
+        "שלט Magic עם מיקרופון, עכבר אוויר וחיפוש קולי",
+        "ניגון סרטים, תמונות ומוזיקה באמצעות USB 2.0",
+        "3 כניסות HDMI, שתי כניסות USB 2.0, יציאת אוזניות, RJ-45, Optical, RF ו-AV Composite"
+      ],
+      "sourceFacts": [
+        "דגם FJ-65UILQ950",
+        "ברקוד 7290114725989",
+        "גודל מסך 65 אינץ׳",
+        "יחס תצוגה 16:9",
+        "רזולוציה 3840x2160 UHD",
+        "מידות ללא מעמד: רוחב 1446 מ״מ, גובה 836.3 מ״מ, עומק 74 מ״מ",
+        "מידות כולל מעמד: רוחב 1446 מ״מ, גובה 891.3 מ״מ, עומק 339.5 מ״מ"
+      ],
+      "searchSummary": "FJ-65UILQ950 | FUJICOM 65\" QLED FJ-65UILQ950 SMART WEBOS TV | טלוויזיה",
+      "searchText": "FJ-65UILQ950 FUJICOM 65\" QLED SMART WEBOS TV טלוויזיה מסך 65 אינץ׳ 4K UHD 3840x2160 HDR Frameless WebOS Bluetooth DVB-T2 עידן פלוס Dolby Wi-Fi Magic Remote Netflix Prime Video Disney+ YouTube Apple AirPlay Apple Home HDMI USB ברקוד 7290114725989 רוחב 1446 מ״מ גובה 836.3 מ״מ עומק 74 מ״מ"
     },
     "FJ65Q10X": {
       "schemaVersion": 1,
