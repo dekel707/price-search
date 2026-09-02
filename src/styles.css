@@ -9505,6 +9505,15 @@ body {
 [data-tab-panel="completed-orders"] > .orders-panel { --workspace-tone: #6ed49e; }
 [data-tab-panel="tomorrow-orders"] > .orders-panel { --workspace-tone: #e79a4b; }
 
+/* Order workspaces can become much taller than the viewport. Let the page own
+   the vertical scroll instead of clipping a very tall panel on mobile Safari. */
+[data-tab-panel="future-stock-orders"] > .orders-panel,
+[data-tab-panel="orders"] > .orders-panel,
+[data-tab-panel="completed-orders"] > .orders-panel,
+[data-tab-panel="tomorrow-orders"] > .orders-panel {
+  overflow: visible;
+}
+
 .tab-panel > :is(
   .search-panel,
   .stock-manager-panel,

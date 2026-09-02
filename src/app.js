@@ -14097,7 +14097,9 @@ function renderOrders() {
   }
 
   dom.ordersList.replaceChildren(
-    ...visibleOrders.slice(0, query ? 60 : 80).map((order) => renderOrderCard(order, { tone: "orders-history-card" })),
+    // Open orders are operational data, so silently trimming the array can
+    // hide older cards at the bottom of the tab. Render every matching order.
+    ...visibleOrders.map((order) => renderOrderCard(order, { tone: "orders-history-card" })),
   );
 }
 
@@ -14294,7 +14296,9 @@ function renderTomorrowOrders() {
   }
 
   dom.tomorrowOrdersList.replaceChildren(
-    ...visibleOrders.slice(0, query ? 60 : 80).map((order) => renderOrderCard(order, { tone: "tomorrow-order-card" })),
+    // Keep the full delivery queue visible. Search still filters the complete
+    // collection, but no result is dropped merely because the list is long.
+    ...visibleOrders.map((order) => renderOrderCard(order, { tone: "tomorrow-order-card" })),
   );
 }
 
@@ -14375,7 +14379,9 @@ function renderFutureStockOrders() {
     return;
   }
 
-  dom.futureStockOrdersList.replaceChildren(...futureStockOrders.slice(0, query ? 80 : 40).map(renderFutureStockOrderCard));
+  // Future-stock orders must remain reachable even when the queue grows past
+  // the old display cap.
+  dom.futureStockOrdersList.replaceChildren(...futureStockOrders.map(renderFutureStockOrderCard));
 }
 
 function renderFutureStockOrderCard(draft) {
