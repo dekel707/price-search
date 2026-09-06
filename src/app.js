@@ -5976,13 +5976,33 @@ async function prepareCloudForReservationImport() {
   if (!requireCloudReadyForMutation("לייבא דוח שריונים")) {
     throw new Error("אין כרגע חיבור מאומת לענן. לא בוצע שינוי בשריונים.");
   }
-  if (cloudSaveInFlight || pendingCloudSave || readPendingCloudSave()) {
-    throw new Error("שמירה קודמת עדיין מתבצעת. המתן כמה שניות והעלה שוב את הדוח; לא בוצע שינוי בשריונים.");
+
+  // A user can choose the Excel file immediately after another edit. Wait for
+  // that existing request locally instead of rejecting the report. If a saved
+  // envelope is still pending afterwards, flush it exactly once; this is not a
+  // network polling loop and cannot multiply Vercel requests.
+  if (!(await waitForCloudSaveToBecomeIdle())) {
+    throw new Error("שמירה קודמת נמשכת זמן רב מהרגיל. לא בוצע שינוי בשריונים; נסה שוב בעוד כמה שניות.");
+  }
+  if (pendingCloudSave || readPendingCloudSave()) {
+    window.clearTimeout(cloudSaveTimer);
+    await saveSharedStateNow();
+    if (!(await waitForCloudSaveToBecomeIdle()) || pendingCloudSave || readPendingCloudSave()) {
+      throw new Error("השמירה הקודמת עדיין ממתינה לענן. לא בוצע שינוי בשריונים; נסה שוב לאחר שהחיבור מתייצב.");
+    }
   }
   await hydrateCloudState({ onlyIfChanged: true });
   if (cloudSyncState !== "synced") {
     throw new Error("לא ניתן לאמת מול הענן את הגרסה העדכנית. לא בוצע שינוי בשריונים.");
   }
+}
+
+async function waitForCloudSaveToBecomeIdle(timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (cloudSaveInFlight && Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+  }
+  return !cloudSaveInFlight;
 }
 
 async function parseReservationSpreadsheet(file, selectedCustomerId = "") {

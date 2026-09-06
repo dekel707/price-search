@@ -15,6 +15,8 @@ assert.match(reservationCore, /safeEntries/, "valid rows must be planned separat
 assert.match(reservationCore, /declared-total-mismatch/, "declared report totals must be verified");
 assert.match(app, /reservation-import/, "the completed import must use a single explicit cloud-save action");
 assert.match(app, /לא בוצעה שמירת ענן מיותרת/, "an unchanged re-import must not waste a Vercel write");
+assert.match(app, /waitForCloudSaveToBecomeIdle/, "reservation import must wait for an existing save instead of failing immediately");
+assert.match(app, /flush it exactly once/, "a pending save must be flushed without a Vercel polling loop");
 assert.match(app, /הדוח נבדק 3 פעמים/, "the operator must be shown that the report passed three checks");
 
 // Aging PDFs are extracted three times on the server before the browser can save them.
