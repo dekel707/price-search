@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const orderCheckpoint = await readFile(new URL("../api/order-checkpoint.js", import.meta.url), "utf8");
 
 assert.match(app, /function rememberCloudSaveResult\(id, saved\)/, "cloud acknowledgements must be tracked per save");
 assert.match(app, /rememberCloudSaveResult\(envelope\.id, false\);\n\s*clearPendingCloudSave\(envelope\.id\);/, "a rejected cloud save must not be treated as successful");
@@ -13,7 +14,9 @@ const sender = app.slice(senderStart, senderEnd);
 assert.match(sender, /deferCloudSave: true/, "the order must be stored locally before WhatsApp without a blocking cloud wait");
 assert.match(sender, /window\.open\(url, "_blank", "noopener,noreferrer"\)/, "WhatsApp must open directly without a blank intermediary window");
 assert.match(sender, /queueCloudSave\(\{ action: cloudAction, delay: savingDraft \? 0 : 15_000 \}\)/, "a recovery envelope must be persisted before WhatsApp opens");
-assert.match(sender, /checkpointOrderBeforeExternalNavigation\(savedOrder, recoveryEnvelopeId, previousOrder\)/, "new orders and edits must start a small durable checkpoint before WhatsApp opens");
+assert.match(sender, /checkpointOrderBeforeExternalNavigation\(savedOrder, recoveryEnvelopeId, previousOrder, sourceDraftId\)/, "new orders, edits and draft conversions must start a small durable checkpoint before WhatsApp opens");
+assert.match(sender, /const sourceDraftId = !shouldSaveCartAsDraft\(\) \? editingDraftId : "";/, "loading a draft into the cart must retain its id until the order is durably saved");
+assert.match(orderCheckpoint, /sourceDraftId \? removeSourceDraft\(recovery\.state, sourceDraftId\) : recovery\.state/, "the checkpoint must atomically remove the source draft after preserving the order");
 assert.ok(
   sender.indexOf("queueCloudSave({ action: cloudAction") < sender.indexOf('window.open(url, "_blank", "noopener,noreferrer")'),
   "the durable save must be queued before opening WhatsApp",

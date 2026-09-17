@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  getDraftCommitReportDateKey,
   getEditedOrderSchedule,
   getAutomaticOrderReportDateKey,
   getOrderReportDateForDraft,
@@ -21,6 +22,17 @@ automatic("2026-07-16T12:00:00.000Z", "2026-07-19", "Thursday from 15:00 moves t
 automatic("2026-07-17T08:00:00.000Z", "2026-07-19", "Friday moves to Sunday");
 automatic("2026-07-18T20:59:59.000Z", "2026-07-19", "Saturday remains Sunday until Sunday begins");
 automatic("2026-07-19T00:01:00.000Z", "2026-07-19", "Sunday returns to same-day policy before 15:00");
+
+assert.equal(
+  getDraftCommitReportDateKey("2026-09-17T06:47:00.000Z"),
+  "2026-09-17",
+  "a legacy draft committed before 15:00 is reported today, regardless of the day it was drafted",
+);
+assert.equal(
+  getDraftCommitReportDateKey("2026-09-17T06:47:00.000Z", "tomorrow"),
+  "2026-09-18",
+  "an explicit tomorrow preference on a draft is preserved at commit time",
+);
 
 assert.equal(
   getOrderReportDateForDraft("2026-07-12T12:10:00.000Z", false, true),

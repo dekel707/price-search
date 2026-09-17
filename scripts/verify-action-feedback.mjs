@@ -18,7 +18,11 @@ assert.match(app, /if \(action === "advanced-search"\)/, "קיצור החיפו�
 assert.match(app, /key: isCartAction \? "ai-proposal-cart" : "ai-proposal-commit"/, "פעולות העוזר לא מוגנות מלחיצה כפולה");
 assert.match(app, /button\.setAttribute\("aria-busy", "true"\)/, "אין חיווי נגיש לפעולה שמתבצעת");
 assert.match(app, /showActionToast\(pendingMessage, "progress"\)/, "אין חיווי מיידי בזמן ביצוע פעולה");
-assert.match(app, /return true;\n}\n\nfunction renderCart\(\)/, "שליחת WhatsApp צריכה להחזיר סטטוס הצלחה למנגנון הפעולות");
+const whatsappSender = app.slice(
+  app.indexOf("async function sendCurrentOrderToWhatsApp"),
+  app.indexOf("async function checkpointOrderBeforeExternalNavigation"),
+);
+assert.match(whatsappSender, /return true;\n}/, "שליחת WhatsApp צריכה להחזיר סטטוס הצלחה למנגנון הפעולות");
 assert.match(app, /import\("read-excel-file\/browser"\)/, "טעינת Excel אינה מפוצלת לפי צורך");
 assert.match(app, /import\("pdfjs-dist\/legacy\/build\/pdf\.mjs"\)/, "טעינת PDF אינה מפוצלת לפי צורך");
 assert.match(app, /import\("tesseract\.js"\)/, "טעינת OCR אינה מפוצלת לפי צורך");

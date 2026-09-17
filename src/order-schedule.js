@@ -84,6 +84,21 @@ export function getOrderReportDateForDraft(createdAt, reportTomorrow = false, re
   return [getNextIsraelDateKey(createdAt), automaticDateKey].sort().at(-1);
 }
 
+// A draft is only a saved cart. Its final reporting date must be calculated
+// when it becomes an order, not from the day on which the draft was created.
+// Older drafts do not have a stored preference, so they intentionally fall
+// back to the automatic business-hours policy at commit time.
+export function getDraftCommitReportDateKey(committedAt = new Date(), preference = "auto") {
+  const normalizedPreference = ["today", "tomorrow"].includes(String(preference))
+    ? String(preference)
+    : "auto";
+  return getOrderReportDateForDraft(
+    committedAt,
+    normalizedPreference === "tomorrow",
+    normalizedPreference === "today",
+  );
+}
+
 export function getEditedOrderSchedule(
   order,
   savedAt = new Date(),

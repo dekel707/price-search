@@ -3,6 +3,7 @@ import { strToU8, zipSync } from "fflate";
 import { DEFAULT_RESERVATION_GROUPS, RESERVATION_SEED_VERSION } from "./reservations-data.js";
 import {
   getAutomaticOrderReportDateKey as calculateAutomaticOrderReportDateKey,
+  getDraftCommitReportDateKey,
   getIsraelDateKey,
   getEditedOrderSchedule,
   getNextSundayIsraelDateKey,
@@ -1736,7 +1737,7 @@ function bindEvents() {
       pendingMessage: "שומר את ההזמנה…",
       successMessage: () => dom.status.textContent,
       failureMessage: "ההזמנה לא נשמרה. בדוק את הפרטים ונסה שוב.",
-    }, () => (editingDraftId || dom.saveAsDraft.checked ? saveDraftOrder() : saveOrder()));
+    }, () => (shouldSaveCartAsDraft() ? saveDraftOrder() : saveOrder()));
   });
   dom.sendWhatsApp.addEventListener("click", (event) => {
     runUiAction({
@@ -11746,6 +11747,25 @@ function getOrderReportDateForDraft(createdAt, reportTomorrow, reportToday = fal
   return calculateOrderReportDateForDraft(createdAt, reportTomorrow, reportToday);
 }
 
+function getDraftSchedulePreference(draft) {
+  const preference = cleanString(draft?.reportSchedulePreference).toLowerCase();
+  return preference === "today" || preference === "tomorrow" ? preference : "auto";
+}
+
+function getCurrentReportSchedulePreference() {
+  if (orderReportToday) return "today";
+  if (orderReportTomorrow) return "tomorrow";
+  return "auto";
+}
+
+function getEditingDraftRecord() {
+  return editingDraftId ? drafts.find((draft) => draft.id === editingDraftId) || null : null;
+}
+
+function shouldSaveCartAsDraft() {
+  return Boolean(dom.saveAsDraft.checked || isFutureStockDraft(getEditingDraftRecord()));
+}
+
 function getAutomaticOrderReportDateKey(createdAt) {
   return calculateAutomaticOrderReportDateKey(createdAt);
 }
@@ -12626,6 +12646,7 @@ function saveDraftOrder(options = {}) {
     createdAt,
     updatedAt: originalDraft ? now.toISOString() : "",
     reportDate: futureStockOrder ? getLocalDateKey(getSafeDate(createdAt)) : getOrderReportDateForDraft(createdAt, orderReportTomorrow, orderReportToday),
+    reportSchedulePreference: futureStockOrder ? "auto" : getCurrentReportSchedulePreference(),
     customerId: customer?.id || "",
     customerName,
     customerCode: customer?.code || "",
@@ -12682,6 +12703,9 @@ function saveOrder(options = {}) {
 
   const now = new Date();
   const originalOrder = editingOrderId ? orders.find((order) => order.id === editingOrderId) : null;
+  const sourceDraft = !originalOrder && editingDraftId
+    ? drafts.find((draft) => draft.id === editingDraftId) || null
+    : null;
   if (editingOrderId && !originalOrder) editingOrderId = "";
   const customer = getSelectedCustomer();
   const customerName = customer?.name || cleanString(dom.customerName.value);
@@ -12736,6 +12760,11 @@ function saveOrder(options = {}) {
   orders = originalOrder
     ? orders.map((existingOrder) => (existingOrder.id === originalOrder.id ? order : existingOrder))
     : [order, ...orders];
+  if (sourceDraft) {
+    drafts = drafts.filter((draft) => draft.id !== sourceDraft.id);
+    removeDraftAutoReminder(sourceDraft.id);
+    removeFutureStockReminder(sourceDraft.id);
+  }
   lastPrices = rebuildLastPricesFromOrders(orders);
   cart = [];
   editingOrderId = "";
@@ -12747,6 +12776,7 @@ function saveOrder(options = {}) {
   clearDraftCustomer();
   setOrderType("delivery", { render: false });
   saveOrders();
+  if (sourceDraft) saveDrafts({ sync: false });
   saveReservations({ sync: false });
   saveLastPrices();
   saveCart();
@@ -12754,13 +12784,15 @@ function saveOrder(options = {}) {
   saveOrderReportTomorrow();
   render();
   if (!options.deferCloudSave) {
-    queueCloudSave({ action: originalOrder ? "order-edit" : "order-create" });
+    queueCloudSave({ action: originalOrder ? "order-edit" : sourceDraft ? "draft-to-order" : "order-create" });
   }
   if (options.activateTab !== false) setActiveTab("orders");
   dom.status.textContent =
     options.status ||
-    (originalOrder
-      ? "השינויים בהזמנה נשמרו והמלאי המשוריין עודכן."
+    (sourceDraft
+      ? "הטיוטה הוכנסה להזמנות, הוסרה מרשימת הטיוטות והמלאי המשוריין עודכן."
+      : originalOrder
+        ? "השינויים בהזמנה נשמרו והמלאי המשוריין עודכן."
       : isReservationPurchaseOrder(order)
         ? "הזמנת השריון נשמרה ויתרות הלקוח עודכנו."
         : "ההזמנה נשמרה והמלאי המשוריין עודכן.");
@@ -12933,7 +12965,8 @@ async function sendCurrentOrderToWhatsApp(event) {
   }
 
   event.preventDefault();
-  const savingDraft = Boolean(editingDraftId || dom.saveAsDraft.checked);
+  const sourceDraftId = !shouldSaveCartAsDraft() ? editingDraftId : "";
+  const savingDraft = shouldSaveCartAsDraft();
   const savingReservationOrder = orderType === "reservation";
   const previousOrder = !savingDraft && editingOrderId
     ? structuredClone(orders.find((order) => order.id === editingOrderId) || null)
@@ -12973,7 +13006,7 @@ async function sendCurrentOrderToWhatsApp(event) {
   // delayed fallback if that checkpoint cannot be acknowledged.
   const recoveryEnvelopeId = queueCloudSave({ action: cloudAction, delay: savingDraft ? 0 : 15_000 });
   if (!savingDraft && savedOrder) {
-    void checkpointOrderBeforeExternalNavigation(savedOrder, recoveryEnvelopeId, previousOrder);
+    void checkpointOrderBeforeExternalNavigation(savedOrder, recoveryEnvelopeId, previousOrder, sourceDraftId);
   } else {
     startPendingCloudSaveNow();
   }
@@ -12983,7 +13016,7 @@ async function sendCurrentOrderToWhatsApp(event) {
   return true;
 }
 
-async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId, previousOrder = null) {
+async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId, previousOrder = null, sourceDraftId = "") {
   const selectedCustomer = getOrderCustomer(order) || customers.find((entry) => entry.id === order.customerId) || null;
   const customer = selectedCustomer
     ? {
@@ -12999,7 +13032,7 @@ async function checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       keepalive: true,
-      body: JSON.stringify({ order, customer, previousOrder }),
+      body: JSON.stringify({ order, customer, previousOrder, sourceDraftId }),
     });
     if (!response.ok) throw new Error(`Order checkpoint failed: ${response.status}`);
     const result = await response.json().catch(() => null);
@@ -13024,12 +13057,16 @@ function renderCart() {
   const isEditingDraft = Boolean(editingDraftId);
   const editingDraft = isEditingDraft ? drafts.find((draft) => draft.id === editingDraftId) : null;
   const editingFutureStockOrder = isFutureStockDraft(editingDraft);
+  const saveAsDraft = dom.saveAsDraft.checked;
+  const convertingDraftToOrder = isEditingDraft && !editingFutureStockOrder && !saveAsDraft;
   dom.cartPanel.classList.toggle("reservation-purchase-cart", isReservationPurchase);
   dom.cartPanel.classList.toggle("editing-order-cart", isEditingOrder);
   dom.cartPanel.classList.toggle("editing-draft-cart", isEditingDraft);
   dom.cartPanel.classList.toggle("future-stock-cart", editingFutureStockOrder);
   dom.cartTitle.textContent = editingFutureStockOrder
     ? "עריכת הזמנת מלאי עתידי"
+    : convertingDraftToOrder
+      ? "הכנסת טיוטה להזמנות"
     : isEditingDraft
       ? "עריכת טיוטה"
     : isEditingOrder
@@ -13037,9 +13074,10 @@ function renderCart() {
       : isReservationPurchase
         ? "הזמנה חדשה לשריון"
         : "הזמנה נוכחית";
-  const saveAsDraft = dom.saveAsDraft.checked;
   dom.saveOrder.textContent = editingFutureStockOrder
     ? "שמור הזמנת מלאי עתידי"
+    : convertingDraftToOrder
+      ? "הכנס להזמנות"
     : isEditingDraft || saveAsDraft
       ? "שמור טיוטה"
       : isEditingOrder
@@ -13049,6 +13087,8 @@ function renderCart() {
           : "שמור הזמנה";
   dom.clearCart.textContent = editingFutureStockOrder
     ? "בטל עריכת מלאי עתידי"
+    : convertingDraftToOrder
+      ? "בטל המרת טיוטה"
     : isEditingDraft
       ? "בטל עריכת טיוטה"
       : isEditingOrder
@@ -15157,13 +15197,27 @@ function handleDraftFieldChange(event) {
 function handleDraftActionClick(event) {
   const whatsappButton = event.target.closest("[data-send-draft-whatsapp]");
   if (whatsappButton) {
-    sendDraftToWhatsApp(whatsappButton.dataset.sendDraftWhatsapp);
+    const draftId = whatsappButton.dataset.sendDraftWhatsapp;
+    void runUiAction({
+      key: `draft-whatsapp-${draftId}`,
+      button: whatsappButton,
+      pendingMessage: "מכניס את הטיוטה להזמנות ופותח WhatsApp…",
+      successMessage: "הטיוטה הוכנסה להזמנות והוסרה מהטיוטות.",
+      failureMessage: "הטיוטה לא הועברה. רענן ונסה שוב.",
+    }, () => sendDraftToWhatsApp(draftId));
     return;
   }
 
   const commitButton = event.target.closest("[data-commit-draft]");
   if (commitButton) {
-    commitDraftToOrders(commitButton.dataset.commitDraft);
+    const draftId = commitButton.dataset.commitDraft;
+    void runUiAction({
+      key: `draft-commit-${draftId}`,
+      button: commitButton,
+      pendingMessage: "מכניס את הטיוטה להזמנות…",
+      successMessage: "הטיוטה הוכנסה להזמנות והוסרה מהטיוטות.",
+      failureMessage: "הטיוטה לא הועברה. רענן ונסה שוב.",
+    }, () => commitDraftToOrders(draftId));
     return;
   }
 
@@ -15338,21 +15392,26 @@ function purgeDraftAutoReminders(options = { sync: true }) {
 
 function sendDraftToWhatsApp(draftId) {
   const draft = drafts.find((item) => item.id === draftId);
-  if (!draft) return;
+  if (!draft) return false;
   if (!normalizePhone(settings.whatsappNumber)) {
     const message = "צריך להגדיר מספר וואטסאפ קבוע לפני שליחת טיוטה.";
     dom.status.textContent = message;
     window.alert(message);
-    return;
+    return false;
   }
 
   const order = commitDraftToOrders(draftId, {
+    deferCloudSave: true,
     status: "הטיוטה הוכנסה להזמנות ונפתחה לשליחה בוואטסאפ.",
   });
-  if (!order) return;
+  if (!order) return false;
 
   const url = createWhatsAppUrl(order.items, order);
-  if (url) window.open(url, "_blank", "noopener,noreferrer");
+  if (!url) return false;
+  const recoveryEnvelopeId = queueCloudSave({ action: "draft-to-order", delay: 15_000 });
+  void checkpointOrderBeforeExternalNavigation(order, recoveryEnvelopeId, null, draftId);
+  window.open(url, "_blank", "noopener,noreferrer");
+  return order;
 }
 
 function commitDraftToOrders(draftId, options = {}) {
@@ -15390,10 +15449,9 @@ function commitDraftToOrders(draftId, options = {}) {
     id: `order-${Date.now()}`,
     createdAt,
     updatedAt: now.toISOString(),
-    reportDate: getOrderReportDateForDraft(
+    reportDate: getDraftCommitReportDateKey(
       createdAt,
-      futureStockOrder ? false : isOrderReportedTomorrow(draft),
-      futureStockOrder ? false : isOrderReportedToday(draft),
+      futureStockOrder ? "auto" : getDraftSchedulePreference(draft),
     ),
     items: draft.items.map((line) => ({
       ...line,
@@ -15417,7 +15475,9 @@ function commitDraftToOrders(draftId, options = {}) {
   saveDrafts({ sync: false });
   saveReservations({ sync: false });
   saveLastPrices();
-  queueCloudSave({ action: futureStockOrder ? "future-stock-to-order" : "draft-to-order" });
+  if (!options.deferCloudSave) {
+    queueCloudSave({ action: futureStockOrder ? "future-stock-to-order" : "draft-to-order" });
+  }
   render();
   if (options.activateTab !== false) setActiveTab(getOrderDestinationTab(order, now));
   dom.status.textContent = options.status || "הטיוטה הוכנסה להזמנות לפי שעת השמירה.";
@@ -15431,10 +15491,11 @@ function loadDraftToCart(draftId) {
 
   const customer = getOrderCustomer(draft);
   editingOrderId = "";
-  editingDraftId = "";
+  editingDraftId = draft.id;
   duplicatedOrderNeedsCustomer = false;
-  orderReportTomorrow = isFutureStockDraft(draft) ? false : isOrderReportedTomorrow(draft);
-  orderReportToday = isFutureStockDraft(draft) ? false : isOrderReportedToday(draft);
+  const schedulePreference = getDraftSchedulePreference(draft);
+  orderReportTomorrow = !isFutureStockDraft(draft) && schedulePreference === "tomorrow";
+  orderReportToday = !isFutureStockDraft(draft) && schedulePreference === "today";
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
@@ -15449,7 +15510,7 @@ function loadDraftToCart(draftId) {
   setActiveTab("cart");
   dom.status.textContent = isFutureStockDraft(draft)
     ? "הזמנת המלאי העתידי נטענה לסל. היא המקורית עדיין שמורה עד שתערוך, תמחק או תשמור אותה כהזמנה."
-    : "הטיוטה נטענה לסל. הטיוטה המקורית עדיין שמורה עד שתמחק אותה או תכניס להזמנות.";
+    : "הטיוטה נטענה לסל. שמירה או WhatsApp יכניסו אותה להזמנות ויסירו אותה מהטיוטות.";
 }
 
 function startEditingDraft(draftId) {
@@ -15464,11 +15525,12 @@ function startEditingDraft(draftId) {
 
   const customer = getOrderCustomer(draft);
   const futureStockOrder = isFutureStockDraft(draft);
+  const schedulePreference = getDraftSchedulePreference(draft);
   editingOrderId = "";
   editingDraftId = draft.id;
   duplicatedOrderNeedsCustomer = false;
-  orderReportTomorrow = futureStockOrder ? false : isOrderReportedTomorrow(draft);
-  orderReportToday = futureStockOrder ? false : isOrderReportedToday(draft);
+  orderReportTomorrow = !futureStockOrder && schedulePreference === "tomorrow";
+  orderReportToday = !futureStockOrder && schedulePreference === "today";
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";

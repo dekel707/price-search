@@ -30,6 +30,7 @@ export default async function handler(request, response) {
     const previousOrder = normalizePreviousOrder(body?.previousOrder);
     const order = normalizeCheckpointOrder(body?.order, { editing: Boolean(previousOrder) });
     const customer = normalizeCheckpointCustomer(body?.customer, order);
+    const sourceDraftId = normalizeSourceDraftId(body?.sourceDraftId);
 
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt += 1) {
       const current = await readPartnerMainState();
@@ -37,6 +38,25 @@ export default async function handler(request, response) {
       const liveOrder = liveOrders.find((entry) => String(entry?.id || "") === order.id);
       if (liveOrder) {
         if (JSON.stringify(liveOrder) === JSON.stringify(order)) {
+          if (sourceDraftId && hasSourceDraft(current.state, sourceDraftId)) {
+            const nextState = removeSourceDraft(current.state, sourceDraftId);
+            try {
+              const saved = await savePartnerMainState(current, nextState, { action: "draft-order-checkpoint" });
+              const stateVersion = saved.stateVersion || saved.current?.version || "";
+              response.setHeader("X-State-Version", stateVersion);
+              sendJson(response, 200, {
+                ok: true,
+                alreadySaved: true,
+                draftRemoved: true,
+                orderId: order.id,
+                stateVersion,
+              });
+              return;
+            } catch (error) {
+              if (error?.statusCode === 409 && attempt + 1 < MAX_SAVE_ATTEMPTS) continue;
+              throw error;
+            }
+          }
           response.setHeader("X-State-Version", current.version || "");
           sendJson(response, 200, { ok: true, alreadySaved: true, orderId: order.id, stateVersion: current.version || "" });
           return;
@@ -66,9 +86,12 @@ export default async function handler(request, response) {
 
       const recovery = mergeRecentMissingOrders(current.state || {}, attemptedState);
       if (!recovery.recovered) throw stateError("order_checkpoint_rejected", 400);
+      const checkpointState = sourceDraftId ? removeSourceDraft(recovery.state, sourceDraftId) : recovery.state;
 
       try {
-        const saved = await savePartnerMainState(current, recovery.state, { action: "order-checkpoint" });
+        const saved = await savePartnerMainState(current, checkpointState, {
+          action: sourceDraftId ? "draft-order-checkpoint" : "order-checkpoint",
+        });
         const stateVersion = saved.stateVersion || saved.current?.version || "";
         response.setHeader("X-State-Version", stateVersion);
         sendJson(response, 200, { ok: true, orderId: order.id, stateVersion });
@@ -84,6 +107,31 @@ export default async function handler(request, response) {
     console.error(error);
     sendJson(response, Number(error?.statusCode) || 500, { error: error?.message || "order_checkpoint_failed" });
   }
+}
+
+function normalizeSourceDraftId(value) {
+  const id = String(value || "").trim();
+  return id.startsWith("draft-") && id.length <= 160 ? id : "";
+}
+
+function hasSourceDraft(state, sourceDraftId) {
+  return (Array.isArray(state?.drafts) ? state.drafts : [])
+    .some((draft) => String(draft?.id || "") === sourceDraftId);
+}
+
+function removeSourceDraft(state, sourceDraftId) {
+  const next = structuredClone(state || {});
+  next.drafts = (Array.isArray(next.drafts) ? next.drafts : [])
+    .filter((draft) => String(draft?.id || "") !== sourceDraftId);
+  next.reminders = (Array.isArray(next.reminders) ? next.reminders : [])
+    .filter((reminder) => {
+      const reminderId = String(reminder?.id || "");
+      return String(reminder?.sourceId || "") !== sourceDraftId
+        && reminderId !== `draft-reminder-${sourceDraftId}`
+        && reminderId !== `future-stock-reminder-${sourceDraftId}`;
+    });
+  next.updatedAt = new Date().toISOString();
+  return next;
 }
 
 function normalizeCheckpointOrder(value, { editing = false } = {}) {
