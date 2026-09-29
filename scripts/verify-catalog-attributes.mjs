@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 117, `ציפינו ל-117 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 118, `ציפינו ל-118 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -65,5 +65,9 @@ const itechOven = catalog.items.IT60L;
 assert(itechOven.dimensionsCm?.widthCm === 59.5 && itechOven.dimensionsCm?.heightCm === 59.5 && itechOven.dimensionsCm?.depthCm === 49.4, "מידות IT-60L אינן תקינות");
 assert(itechOven.capacities?.ovenLiters === 60 && itechOven.performance?.programCount === 3 && itechOven.performance?.powerW === 3000, "מפרט IT-60L אינו תקין");
 assert(itechOven.barcodes?.includes("7290114725842"), "ברקוד IT-60L אינו תקין");
+const newFridge = catalog.items.FJNF570WE;
+assert(newFridge.dimensionsCm?.widthCm === 70 && newFridge.dimensionsCm?.heightCm === 178 && newFridge.dimensionsCm?.depthCm === 63, "מידות FJ-NF570WE אינן תקינות");
+assert(newFridge.capacities?.totalLiters === 404 && newFridge.capacities?.fridgeLiters === 315 && newFridge.capacities?.freezerLiters === 89, "נפחי FJ-NF570WE אינם תקינים");
+assert(newFridge.barcodes?.includes("7290114725811"), "ברקוד FJ-NF570WE אינו תקין");
 
 console.log(`תקין: ${products.length} מפרטים | ישיר: ${byMatch.exact_model} | וריאנט: ${byMatch.catalog_variant} | מחירון בלבד: ${byMatch.description_only}`);

@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 156,
-  "productCount": 133,
-  "matchedProducts": 119,
+  "totalPdfFiles": 157,
+  "productCount": 134,
+  "matchedProducts": 120,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -1348,6 +1348,20 @@
         {
           "url": "/img/FJ-NF560DX.pdf",
           "fileName": "FJ-NF560DX.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-NF570WE": {
+      "url": "/img/FJ-NF570WE.pdf",
+      "fileName": "FJ-NF570WE.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF570WE.pdf",
+          "fileName": "FJ-NF570WE.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3465,6 +3479,20 @@
         }
       ]
     },
+    "FJNF570WE": {
+      "url": "/img/FJ-NF570WE.pdf",
+      "fileName": "FJ-NF570WE.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF570WE.pdf",
+          "fileName": "FJ-NF570WE.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJNF590GDW": {
       "url": "/img/FJ-NF590GDW.pdf",
       "fileName": "FJ-NF590GDW.pdf",
@@ -4913,6 +4941,14 @@
       "url": "/img/FJ-NF560DX.pdf",
       "modelKeys": [
         "FJNF560DX"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-NF570WE.pdf",
+      "url": "/img/FJ-NF570WE.pdf",
+      "modelKeys": [
+        "FJNF570WE"
       ],
       "installation": false
     },

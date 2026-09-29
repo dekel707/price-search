@@ -1,6 +1,6 @@
 {
   "source": "מחירון יוני +אחוזים.xlsx",
-  "count": 133,
+  "count": 134,
   "products": [
     {
       "sku": "FJ-32UIL900",
@@ -491,6 +491,11 @@
       "sku": "FJ-NF560DX",
       "description": "מקרר 4 דלתות 505 ליטר NF  נירוסטה מושחרת",
       "price": 3090.0
+    },
+    {
+      "sku": "FJ-NF570WE",
+      "description": "מקרר מקפיא עליון 404 ליטר NO FROST אינוורטר לבן",
+      "price": 1390.0
     },
     {
       "sku": "FJ-NF590GDW",
