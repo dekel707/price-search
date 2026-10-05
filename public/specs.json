@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 157,
-  "productCount": 134,
-  "matchedProducts": 120,
+  "totalPdfFiles": 160,
+  "productCount": 137,
+  "matchedProducts": 123,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -561,6 +561,20 @@
         }
       ]
     },
+    "FJ-DF500L": {
+      "url": "/img/FJ-DF500L.pdf",
+      "fileName": "FJ-DF500L.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-DF500L.pdf",
+          "fileName": "FJ-DF500L.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJ-DHP909": {
       "url": "/img/FJ-DHP909.pdf",
       "fileName": "FJ-DHP909.pdf",
@@ -994,6 +1008,34 @@
         {
           "url": "/img/FJ-KS93WG.pdf",
           "fileName": "FJ-KS93WG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-MWRT88BK": {
+      "url": "/img/FJ-MWRT88BK.pdf",
+      "fileName": "FJ-MWRT88BK.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-MWRT88BK.pdf",
+          "fileName": "FJ-MWRT88BK.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-MWRT99W": {
+      "url": "/img/FJ-MWRT99W.pdf",
+      "fileName": "FJ-MWRT99W.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-MWRT99W.pdf",
+          "fileName": "FJ-MWRT99W.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -2415,6 +2457,20 @@
         }
       ]
     },
+    "FJDF500L": {
+      "url": "/img/FJ-DF500L.pdf",
+      "fileName": "FJ-DF500L.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-DF500L.pdf",
+          "fileName": "FJ-DF500L.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJDHP909": {
       "url": "/img/FJ-DHP909.pdf",
       "fileName": "FJ-DHP909.pdf",
@@ -3072,6 +3128,34 @@
         {
           "url": "/img/FJ-KS93WG.pdf",
           "fileName": "FJ-KS93WG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJMWRT88BK": {
+      "url": "/img/FJ-MWRT88BK.pdf",
+      "fileName": "FJ-MWRT88BK.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-MWRT88BK.pdf",
+          "fileName": "FJ-MWRT88BK.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJMWRT99W": {
+      "url": "/img/FJ-MWRT99W.pdf",
+      "fileName": "FJ-MWRT99W.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-MWRT99W.pdf",
+          "fileName": "FJ-MWRT99W.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -4368,6 +4452,14 @@
       "installation": false
     },
     {
+      "fileName": "FJ-DF500L.pdf",
+      "url": "/img/FJ-DF500L.pdf",
+      "modelKeys": [
+        "FJDF500L"
+      ],
+      "installation": false
+    },
+    {
       "fileName": "FJ-DHP909.pdf",
       "url": "/img/FJ-DHP909.pdf",
       "modelKeys": [
@@ -4733,6 +4825,22 @@
       "url": "/img/FJ-KS93WG.pdf",
       "modelKeys": [
         "FJKS93WG"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-MWRT88BK.pdf",
+      "url": "/img/FJ-MWRT88BK.pdf",
+      "modelKeys": [
+        "FJMWRT88BK"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-MWRT99W.pdf",
+      "url": "/img/FJ-MWRT99W.pdf",
+      "modelKeys": [
+        "FJMWRT99W"
       ],
       "installation": false
     },

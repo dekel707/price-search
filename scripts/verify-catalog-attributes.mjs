@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 118, `ציפינו ל-118 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 121, `ציפינו ל-121 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -50,6 +50,17 @@ assert(fridge.dimensionsCm?.widthCm === 92 && fridge.dimensionsCm?.heightCm === 
 assert(fridge.capacities?.totalLiters === 600 && fridge.capacities?.freezerLiters === 171, "נפח FJ-NF820DX אינו תקין");
 const microwave = catalog.items.FJMW25LB;
 assert(microwave.performance?.powerW === 900 && microwave.capacities?.totalLiters === 25, "מפרט FJ-MW25LB אינו תקין");
+const retroMicrowaveBlack = catalog.items.FJMWRT88BK;
+assert(retroMicrowaveBlack.capacities?.ovenLiters === 55 && retroMicrowaveBlack.performance?.microwaveOutputW === 900 && retroMicrowaveBlack.performance?.combinedPowerW === 3300, "מפרט FJ-MWRT88BK אינו תקין");
+assert(retroMicrowaveBlack.dimensionsCm?.widthCm === 59.5 && retroMicrowaveBlack.dimensionsCm?.heightCm === 45.6 && retroMicrowaveBlack.dimensionsCm?.depthCm === 56.8, "מידות FJ-MWRT88BK אינן תקינות");
+assert(retroMicrowaveBlack.barcodes?.includes("7290114726122"), "ברקוד FJ-MWRT88BK אינו תקין");
+const retroMicrowaveCream = catalog.items.FJMWRT99W;
+assert(retroMicrowaveCream.capacities?.ovenLiters === 55 && retroMicrowaveCream.performance?.microwaveOutputW === 900 && retroMicrowaveCream.performance?.combinedPowerW === 3300, "מפרט FJ-MWRT99W אינו תקין");
+assert(retroMicrowaveCream.colors?.includes("שמנת") && retroMicrowaveCream.barcodes?.includes("7290114726139"), "נתוני FJ-MWRT99W אינם תקינים");
+const convertibleFreezer = catalog.items.FJDF500L;
+assert(convertibleFreezer.capacities?.totalLiters === 508 && convertibleFreezer.performance?.energyRating === "E", "מפרט FJ-DF500L אינו תקין");
+assert(convertibleFreezer.dimensionsCm?.widthCm === 153 && convertibleFreezer.dimensionsCm?.heightCm === 86 && convertibleFreezer.dimensionsCm?.depthCm === 74, "מידות FJ-DF500L אינן תקינות");
+assert(convertibleFreezer.barcodes?.includes("7290114725996"), "ברקוד FJ-DF500L אינו תקין");
 const tv = catalog.items.FJ50UILQ950;
 assert(tv.performance?.screenSizeInches === 50 && tv.displayDimensionsMm?.withoutStand?.widthMm === 1112, "מפרט FJ-50UILQ950 אינו תקין");
 const newTv = catalog.items.FJ65UILQ950;

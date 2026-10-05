@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-29",
+  "generatedAt": "2026-10-05",
   "source": {
     "document": "FUJICOMCatalog_2026.pdf",
     "productPages": [
@@ -13,12 +13,15 @@
       "FJ-CHBI52.pdf",
       "FJ-65UILQ950.pdf",
       "FJ-NF570WE.pdf",
-      "IT-60L.pdf"
+      "IT-60L.pdf",
+      "FJ-MWRT88BK.pdf",
+      "FJ-MWRT99W.pdf",
+      "FJ-DF500L.pdf"
     ]
   },
   "coverage": {
-    "products": 134,
-    "exactCatalogModels": 118,
+    "products": 137,
+    "exactCatalogModels": 121,
     "variantCatalogModels": 3,
     "descriptionOnlyModels": 13
   },
@@ -896,6 +899,144 @@
       ],
       "searchSummary": "FJ-MW25LB | מיקרוגל דיגיטלי 25 ליטר שחור FJ-MW25LB | מיקרוגל | widthCm:47 ס\"מ heightCm:28 ס\"מ depthCm:38 ס\"מ | totalLiters:25 | שחור",
       "searchText": "FJ-MW25LB מיקרוגל דיגיטלי 25 ליטר שחור FJ-MW25LB מיקרוגל widthCm:47 ס\"מ heightCm:28 ס\"מ depthCm:38 ס\"מ totalLiters:25 שחור דגם FJ-MW25LB ברקוד 7290114724166 • עוצמת המיקרוגל 900W תכונות • קיבולת: 25 ליטר • 5 דרגות חימום • הפשרה לפי משקל וזמן • 8 תוכניות אוטומטיות • התראה בסיום פעולה • צג דיגיטלי מבנה • נעילה בטיחותית מפני ילדים מיוחד • צלחת בקוטר 28.8 ס\"מ גובה: 28 ס\"מ, רוחב: 47 ס\"מ, עומק: 38 ס\"מ מידות שחור גימור"
+    },
+    "FJMWRT88BK": {
+      "schemaVersion": 1,
+      "source": {
+        "document": "FJ-MWRT88BK.pdf",
+        "match": "exact_model",
+        "pages": [
+          1
+        ]
+      },
+      "identity": {
+        "model": "FJ-MWRT88BK"
+      },
+      "classification": {
+        "category": "תנור"
+      },
+      "barcodes": [
+        "7290114726122"
+      ],
+      "dimensionsCm": {
+        "widthCm": 59.5,
+        "heightCm": 45.6,
+        "depthCm": 56.8
+      },
+      "capacities": {
+        "ovenLiters": 55
+      },
+      "performance": {
+        "programCount": 9,
+        "microwaveOutputW": 900,
+        "microwaveInputW": 1750,
+        "grillPowerW": 2550,
+        "combinedPowerW": 3300,
+        "temperatureMinC": 50,
+        "temperatureMaxC": 220
+      },
+      "colors": [
+        "שחור מט"
+      ],
+      "features": [
+        "מיקרו משולב תנור בנוי",
+        "9 תוכניות",
+        "טווח טמפרטורה 50-220 מעלות",
+        "צג מגע",
+        "2 כפתורים מכניים",
+        "דלת בעלת 2 שכבות זכוכית מחוסמת",
+        "תאורה",
+        "נעילת ילדים",
+        "רשת ותבנית"
+      ],
+      "sourceFacts": [
+        "דגם FJ-MWRT88BK",
+        "ברקוד 7290114726122",
+        "נפח תא אפייה 55 ליטר",
+        "9 תוכניות",
+        "עוצמת מיקרוגל 900W",
+        "הספק כניסה למיקרוגל 1750W",
+        "הספק גריל מרבי 2550W",
+        "הספק משולב מרבי 3300W",
+        "טווח טמפרטורה 50-220 מעלות",
+        "צג מגע ושני כפתורים מכניים",
+        "דלת בעלת 2 שכבות זכוכית מחוסמת",
+        "תאורה ונעילת ילדים",
+        "גובה 45.6 ס\"מ, רוחב 59.5 ס\"מ, עומק 56.8 ס\"מ",
+        "רשת ותבנית",
+        "גימור שחור מט"
+      ],
+      "searchSummary": "FJ-MWRT88BK | מיקרו משולב תנור בנוי 55 ליטר 45 ס\"מ כפרי שחור מט | תנור | widthCm:59.5 ס\"מ heightCm:45.6 ס\"מ depthCm:56.8 ס\"מ | ovenLiters:55 | שחור מט",
+      "searchText": "FJ-MWRT88BK מיקרו משולב תנור בנוי 55 ליטר 45 ס\"מ כפרי שחור מט תנור widthCm:59.5 ס\"מ heightCm:45.6 ס\"מ depthCm:56.8 ס\"מ ovenLiters:55 שחור מט ברקוד 7290114726122 9 תוכניות עוצמת מיקרוגל 900W הספק כניסה 1750W גריל 2550W הספק משולב 3300W טווח טמפרטורה 50-220 מעלות צג מגע 2 כפתורים מכניים דלת 2 שכבות זכוכית מחוסמת תאורה נעילת ילדים רשת תבנית"
+    },
+    "FJMWRT99W": {
+      "schemaVersion": 1,
+      "source": {
+        "document": "FJ-MWRT99W.pdf",
+        "match": "exact_model",
+        "pages": [
+          1
+        ]
+      },
+      "identity": {
+        "model": "FJ-MWRT99W"
+      },
+      "classification": {
+        "category": "תנור"
+      },
+      "barcodes": [
+        "7290114726139"
+      ],
+      "dimensionsCm": {
+        "widthCm": 59.5,
+        "heightCm": 45.6,
+        "depthCm": 56.8
+      },
+      "capacities": {
+        "ovenLiters": 55
+      },
+      "performance": {
+        "programCount": 9,
+        "microwaveOutputW": 900,
+        "microwaveInputW": 1750,
+        "grillPowerW": 2550,
+        "combinedPowerW": 3300,
+        "temperatureMinC": 50,
+        "temperatureMaxC": 220
+      },
+      "colors": [
+        "שמנת"
+      ],
+      "features": [
+        "מיקרו משולב תנור בנוי",
+        "9 תוכניות",
+        "טווח טמפרטורה 50-220 מעלות",
+        "צג מגע",
+        "2 כפתורים מכניים",
+        "דלת בעלת 2 שכבות זכוכית מחוסמת",
+        "תאורה",
+        "נעילת ילדים",
+        "רשת ותבנית"
+      ],
+      "sourceFacts": [
+        "דגם FJ-MWRT99W",
+        "ברקוד 7290114726139",
+        "נפח תא אפייה 55 ליטר",
+        "9 תוכניות",
+        "עוצמת מיקרוגל 900W",
+        "הספק כניסה למיקרוגל 1750W",
+        "הספק גריל מרבי 2550W",
+        "הספק משולב מרבי 3300W",
+        "טווח טמפרטורה 50-220 מעלות",
+        "צג מגע ושני כפתורים מכניים",
+        "דלת בעלת 2 שכבות זכוכית מחוסמת",
+        "תאורה ונעילת ילדים",
+        "גובה 45.6 ס\"מ, רוחב 59.5 ס\"מ, עומק 56.8 ס\"מ",
+        "רשת ותבנית",
+        "גימור שמנת"
+      ],
+      "searchSummary": "FJ-MWRT99W | מיקרו משולב תנור בנוי 55 ליטר 45 ס\"מ כפרי שמנת | תנור | widthCm:59.5 ס\"מ heightCm:45.6 ס\"מ depthCm:56.8 ס\"מ | ovenLiters:55 | שמנת",
+      "searchText": "FJ-MWRT99W מיקרו משולב תנור בנוי 55 ליטר 45 ס\"מ כפרי שמנת תנור widthCm:59.5 ס\"מ heightCm:45.6 ס\"מ depthCm:56.8 ס\"מ ovenLiters:55 שמנת ברקוד 7290114726139 9 תוכניות עוצמת מיקרוגל 900W הספק כניסה 1750W גריל 2550W הספק משולב 3300W טווח טמפרטורה 50-220 מעלות צג מגע 2 כפתורים מכניים דלת 2 שכבות זכוכית מחוסמת תאורה נעילת ילדים רשת תבנית"
     },
     "FJB957E": {
       "schemaVersion": 1,
@@ -3299,6 +3440,65 @@
       ],
       "searchSummary": "FJ-DF46L מקרר קוביה 46 ליטר לבן",
       "searchText": "FJ-DF46L מקרר קוביה 46 ליטר לבן"
+    },
+    "FJDF500L": {
+      "schemaVersion": 1,
+      "source": {
+        "document": "FJ-DF500L.pdf",
+        "match": "exact_model",
+        "pages": [
+          1
+        ]
+      },
+      "identity": {
+        "model": "FJ-DF500L"
+      },
+      "classification": {
+        "category": "מקפיא"
+      },
+      "barcodes": [
+        "7290114725996"
+      ],
+      "dimensionsCm": {
+        "widthCm": 153,
+        "heightCm": 86,
+        "depthCm": 74
+      },
+      "capacities": {
+        "totalLiters": 508
+      },
+      "performance": {
+        "energyRating": "E"
+      },
+      "colors": [
+        "לבן"
+      ],
+      "features": [
+        "מקפיא/מקרר תעשייתי שוכב",
+        "ניתן להמרה בין מצב מקפיא למצב מקרר",
+        "DE-FROST",
+        "מנוע אינוורטר",
+        "מותאם לאקלים הישראלי",
+        "סלסלת רשת לאחסון",
+        "גלגלים",
+        "רגליות לייצוב"
+      ],
+      "sourceFacts": [
+        "דגם FJ-DF500L",
+        "ברקוד 7290114725996",
+        "נפח כללי 508 ליטר נטו",
+        "ניתן להמרה בין מצב מקפיא למצב מקרר באמצעות בורר קירור",
+        "טכנולוגיית קירור DE-FROST",
+        "מנוע אינוורטר",
+        "דירוג אנרגטי E",
+        "מותאם לאקלים הישראלי",
+        "רוחב 153 ס\"מ, עומק 74 ס\"מ, גובה 86 ס\"מ",
+        "סלסלת רשת לאחסון",
+        "גלגלים ורגליות לייצוב",
+        "גימור לבן"
+      ],
+      "searchSummary": "FJ-DF500L | מקפיא/מקרר תעשייתי שוכב 508 ליטר DE-FROST אינוורטר לבן | מקפיא | widthCm:153 ס\"מ heightCm:86 ס\"מ depthCm:74 ס\"מ | totalLiters:508 | לבן",
+      "searchText": "FJ-DF500L מקפיא מקרר תעשייתי שוכב 508 ליטר DE-FROST אינוורטר לבן מקפיא widthCm:153 ס\"מ heightCm:86 ס\"מ depthCm:74 ס\"מ totalLiters:508 לבן ברקוד 7290114725996 ניתן להמרה בין מצב מקפיא למצב מקרר בורר קירור דירוג אנרגטי E מותאם לאקלים הישראלי סלסלת רשת גלגלים רגליות לייצוב"
     },
     "FJDHP909": {
       "schemaVersion": 1,

@@ -1,6 +1,6 @@
 {
   "source": "מחירון יוני +אחוזים.xlsx",
-  "count": 134,
+  "count": 137,
   "products": [
     {
       "sku": "FJ-32UIL900",
@@ -46,6 +46,16 @@
       "sku": "FJ-MW25LB",
       "description": "מיקרוגל דיגיטלי 25 ליטר שחור FJ-MW25LB",
       "price": 352.99
+    },
+    {
+      "sku": "FJ-MWRT88BK",
+      "description": "מיקרו משולב תנור בנוי 55 ליטר 45 ס\"מ כפרי שחור מט",
+      "price": 1990.0
+    },
+    {
+      "sku": "FJ-MWRT99W",
+      "description": "מיקרו משולב תנור בנוי 55 ליטר 45 ס\"מ כפרי שמנת",
+      "price": 1990.0
     },
     {
       "sku": "FJ-B957E",
@@ -201,6 +211,11 @@
       "sku": "FJ-DF46L",
       "description": "מקרר קוביה  46 ליטר  לבן",
       "price": 375.0
+    },
+    {
+      "sku": "FJ-DF500L",
+      "description": "מקפיא/מקרר תעשייתי שוכב 508 ליטר DE-FROST אינוורטר לבן",
+      "price": 1450.0
     },
     {
       "sku": "FJ-DHP909",
