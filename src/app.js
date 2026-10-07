@@ -71,6 +71,13 @@ const SCHEDULED_REMINDERS_ENDPOINT = "/api/state?scope=scheduled-reminders";
 const SPEC_MANIFEST_ENDPOINT = "/specs.json";
 const CATALOG_ATTRIBUTES_ENDPOINT = "/api/catalog-specifications";
 const PRICE_LIST_DOCUMENTS = {
+  "2026": {
+    title: "מחירון 2026",
+    files: {
+      pdf: "/price-lists/price-list-2026.pdf",
+      xlsx: "/price-lists/price-list-2026.xlsx",
+    },
+  },
   "general-26": {
     title: "מחירון סוחרים כללי 26",
     files: {
