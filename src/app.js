@@ -8838,7 +8838,13 @@ function getCollectionStats(items) {
 
 function getCollectionOpenAmount(item) {
   if (item.months?.length) {
-    return roundMoney(item.months.reduce((sum, month) => sum + getCollectionMonthOpenAmount(month), 0));
+    const monthOpenAmount = roundMoney(item.months.reduce((sum, month) => sum + getCollectionMonthOpenAmount(month), 0));
+    const reportBalance = Math.max(0, parsePrice(item.amount) ?? monthOpenAmount);
+    const paidAmount = roundMoney(item.months.reduce((sum, month) => sum + getCollectionMonthPaidAmount(month), 0));
+    // Credits can sit in a different transaction month from the invoices they
+    // offset. The report summary is the authoritative customer balance, so
+    // month cards must never inflate the open total above that balance.
+    return roundMoney(Math.min(monthOpenAmount, Math.max(0, reportBalance - paidAmount)));
   }
   return roundMoney(Math.max(0, (parsePrice(item.amount) ?? 0) - getCollectionEntryPaidAmount(item)));
 }

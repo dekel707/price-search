@@ -152,7 +152,7 @@ async function extractCollectionReport(data) {
         invoices: row.invoices.sort(compareInvoices),
       };
     })
-    .filter((row) => row.customerName && row.invoices.length);
+    .filter((row) => row.customerName && row.invoices.length && row.amount > 0);
 
   return {
     pageCount: document.numPages,
@@ -337,8 +337,12 @@ function parseInvoiceLine(items) {
   const invoiceNumber = cleanString(invoiceItem.str);
   const invoiceDate = parseReportDate(findNearestText(items, 339, isReportDate));
   const dueDate = parseReportDate(findNearestText(items, 539, isReportDate));
-  const amount = findNearestMoney(items, 187, 32);
-  const cumulative = findNearestMoney(items, 130, 42);
+  // The report places the transaction amount around x=230 and the running
+  // balance around x=180. Keeping these columns distinct is critical: using
+  // the running balance as the transaction amount inflates monthly aging
+  // totals every time a PDF is imported.
+  const amount = findNearestMoney(items, 230, 28);
+  const cumulative = findNearestMoney(items, 180, 28);
   if (!invoiceDate || amount === null) return null;
 
   const delayText = findNearestText(items, 514, (value) => /^\d+$/.test(cleanString(value)));
@@ -420,15 +424,10 @@ function isAccountSummaryText(value) {
 }
 
 function extractSummaryAmount(items, summaryX) {
-  const candidates = items
-    .filter((item) => item.x < summaryX - 40)
-    .flatMap((item) =>
-      [...item.str.matchAll(/-?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})|-?\d+(?:\.\d{1,2})?/g)].map((match) => parseMoney(match[0])),
-    )
-    .filter((value) => value !== null && Math.abs(value) > 0);
-
-  if (!candidates.length) return null;
-  return candidates.sort((a, b) => Math.abs(b) - Math.abs(a))[0];
+  // Summary rows repeat the total in the same transaction-amount column.
+  // Read that column directly so a legitimate 0.00 balance is not replaced
+  // with a nearby transaction, account number or another numeric value.
+  return findNearestMoney(items.filter((item) => item.x < summaryX - 40), 230, 28);
 }
 
 function cleanCustomerName(value) {

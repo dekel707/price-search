@@ -24,5 +24,9 @@ assert.match(collectionImport, /const third = await extractCollectionReport\(dat
 assert.match(collectionImport, /createReportSignature\(third\) !== signature/, "the third aging extraction must match the first");
 assert.match(collectionImport, /verifiedPasses: 3/, "the API must report triple verification");
 assert.match(app, /Number\(result\.verifiedPasses\) >= 3/, "the UI must only call the aging report verified after all three checks");
+assert.match(collectionImport, /const amount = findNearestMoney\(items, 230, 28\);/, "aging rows must read the transaction amount column");
+assert.match(collectionImport, /const cumulative = findNearestMoney\(items, 180, 28\);/, "aging rows must keep the running balance in its separate column");
+assert.match(collectionImport, /row\.amount > 0/, "zero balances and customer credits must not be imported as open debts");
+assert.match(app, /month cards must never inflate the open total above that balance/, "aging totals must be capped by the authoritative report balance");
 
 console.log("Reservation and aging report triple-verification checks passed.");
