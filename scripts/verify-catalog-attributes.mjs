@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 121, `ציפינו ל-121 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 125, `ציפינו ל-125 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -80,5 +80,18 @@ const newFridge = catalog.items.FJNF570WE;
 assert(newFridge.dimensionsCm?.widthCm === 70 && newFridge.dimensionsCm?.heightCm === 178 && newFridge.dimensionsCm?.depthCm === 63, "מידות FJ-NF570WE אינן תקינות");
 assert(newFridge.capacities?.totalLiters === 404 && newFridge.capacities?.fridgeLiters === 315 && newFridge.capacities?.freezerLiters === 89, "נפחי FJ-NF570WE אינם תקינים");
 assert(newFridge.barcodes?.includes("7290114725811"), "ברקוד FJ-NF570WE אינו תקין");
+const creamFridge475 = catalog.items.FJNF555GG;
+assert(creamFridge475.capacities?.totalLiters === 475 && creamFridge475.dimensionsCm?.heightCm === 183, "מפרט FJ-NF555GG אינו תקין");
+assert(creamFridge475.barcodes?.includes("7290114726061") && creamFridge475.colors?.includes("שמנת"), "נתוני FJ-NF555GG אינם תקינים");
+const topFreezerWhite = catalog.items.FJNF637W;
+assert(topFreezerWhite.capacities?.totalLiters === 615 && topFreezerWhite.capacities?.fridgeLiters === 469 && topFreezerWhite.capacities?.freezerLiters === 146, "נפחי FJ-NF637W אינם תקינים");
+assert(topFreezerWhite.dimensionsCm?.widthCm === 83 && topFreezerWhite.dimensionsCm?.heightCm === 187 && topFreezerWhite.dimensionsCm?.depthCm === 70, "מידות FJ-NF637W אינן תקינות");
+assert(topFreezerWhite.barcodes?.includes("7290114725828"), "ברקוד FJ-NF637W אינו תקין");
+const topFreezerSteel = catalog.items.FJNF640X;
+assert(topFreezerSteel.capacities?.totalLiters === 615 && topFreezerSteel.colors?.includes("נירוסטה"), "מפרט FJ-NF640X אינו תקין");
+assert(topFreezerSteel.barcodes?.includes("7290114725835"), "ברקוד FJ-NF640X אינו תקין");
+const creamFridge539 = catalog.items.FJNF666GG;
+assert(creamFridge539.capacities?.totalLiters === 539 && creamFridge539.dimensionsCm?.heightCm === 190, "מפרט FJ-NF666GG אינו תקין");
+assert(creamFridge539.barcodes?.includes("7290114726078") && creamFridge539.colors?.includes("שמנת"), "נתוני FJ-NF666GG אינם תקינים");
 
 console.log(`תקין: ${products.length} מפרטים | ישיר: ${byMatch.exact_model} | וריאנט: ${byMatch.catalog_variant} | מחירון בלבד: ${byMatch.description_only}`);

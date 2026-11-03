@@ -1,6 +1,6 @@
 {
   "source": "מחירון יוני +אחוזים.xlsx",
-  "count": 137,
+  "count": 141,
   "products": [
     {
       "sku": "FJ-32UIL900",
@@ -503,6 +503,11 @@
       "price": 1690.0
     },
     {
+      "sku": "FJ-NF555GG",
+      "description": "מקרר 4 דלתות מקפיא תחתון 475 ליטר NO-FROST זכוכית שמנת",
+      "price": 2300.0
+    },
+    {
       "sku": "FJ-NF560DX",
       "description": "מקרר 4 דלתות 505 ליטר NF  נירוסטה מושחרת",
       "price": 3090.0
@@ -528,6 +533,16 @@
       "price": 2490.0
     },
     {
+      "sku": "FJ-NF637W",
+      "description": "מקרר מקפיא עליון 615 ליטר NO-FROST אינוורטר לבן",
+      "price": 1990.0
+    },
+    {
+      "sku": "FJ-NF640X",
+      "description": "מקרר מקפיא עליון 615 ליטר NO-FROST אינוורטר נירוסטה",
+      "price": 2090.0
+    },
+    {
       "sku": "FJ-NF645W",
       "description": "מקרר מקפיא עליון  497 ליטר NF -  לבן",
       "price": 1890.0
@@ -536,6 +551,11 @@
       "sku": "FJ-NF655BGE",
       "description": "מקרר מקפיא תחתון 588 ליטר NO-FROST שמנת",
       "price": 2890.0
+    },
+    {
+      "sku": "FJ-NF666GG",
+      "description": "מקרר 4 דלתות מקפיא תחתון 539 ליטר NO-FROST זכוכית שמנת",
+      "price": 2650.0
     },
     {
       "sku": "FJ-NF676LBM",

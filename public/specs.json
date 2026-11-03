@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 160,
-  "productCount": 137,
-  "matchedProducts": 123,
+  "totalPdfFiles": 164,
+  "productCount": 141,
+  "matchedProducts": 127,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -1381,6 +1381,20 @@
         }
       ]
     },
+    "FJ-NF555GG": {
+      "url": "/img/FJ-NF555GG.pdf",
+      "fileName": "FJ-NF555GG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF555GG.pdf",
+          "fileName": "FJ-NF555GG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJ-NF560DX": {
       "url": "/img/FJ-NF560DX.pdf",
       "fileName": "FJ-NF560DX.pdf",
@@ -1451,6 +1465,34 @@
         }
       ]
     },
+    "FJ-NF637W": {
+      "url": "/img/FJ-NF637W.pdf",
+      "fileName": "FJ-NF637W.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF637W.pdf",
+          "fileName": "FJ-NF637W.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-NF640X": {
+      "url": "/img/FJ-NF640X.pdf",
+      "fileName": "FJ-NF640X.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF640X.pdf",
+          "fileName": "FJ-NF640X.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJ-NF645W": {
       "url": "/img/FJ-NF645W.pdf",
       "fileName": "FJ-NF645W.pdf",
@@ -1474,6 +1516,20 @@
         {
           "url": "/img/FJ-NF655BGE.pdf",
           "fileName": "FJ-NF655BGE.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-NF666GG": {
+      "url": "/img/FJ-NF666GG.pdf",
+      "fileName": "FJ-NF666GG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF666GG.pdf",
+          "fileName": "FJ-NF666GG.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3549,6 +3605,20 @@
         }
       ]
     },
+    "FJNF555GG": {
+      "url": "/img/FJ-NF555GG.pdf",
+      "fileName": "FJ-NF555GG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF555GG.pdf",
+          "fileName": "FJ-NF555GG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJNF560DX": {
       "url": "/img/FJ-NF560DX.pdf",
       "fileName": "FJ-NF560DX.pdf",
@@ -3619,6 +3689,34 @@
         }
       ]
     },
+    "FJNF637W": {
+      "url": "/img/FJ-NF637W.pdf",
+      "fileName": "FJ-NF637W.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF637W.pdf",
+          "fileName": "FJ-NF637W.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJNF640X": {
+      "url": "/img/FJ-NF640X.pdf",
+      "fileName": "FJ-NF640X.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF640X.pdf",
+          "fileName": "FJ-NF640X.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJNF645W": {
       "url": "/img/FJ-NF645W.pdf",
       "fileName": "FJ-NF645W.pdf",
@@ -3642,6 +3740,20 @@
         {
           "url": "/img/FJ-NF655BGE.pdf",
           "fileName": "FJ-NF655BGE.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJNF666GG": {
+      "url": "/img/FJ-NF666GG.pdf",
+      "fileName": "FJ-NF666GG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF666GG.pdf",
+          "fileName": "FJ-NF666GG.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -5045,6 +5157,14 @@
       "installation": false
     },
     {
+      "fileName": "FJ-NF555GG.pdf",
+      "url": "/img/FJ-NF555GG.pdf",
+      "modelKeys": [
+        "FJNF555GG"
+      ],
+      "installation": false
+    },
+    {
       "fileName": "FJ-NF560DX.pdf",
       "url": "/img/FJ-NF560DX.pdf",
       "modelKeys": [
@@ -5085,6 +5205,22 @@
       "installation": false
     },
     {
+      "fileName": "FJ-NF637W.pdf",
+      "url": "/img/FJ-NF637W.pdf",
+      "modelKeys": [
+        "FJNF637W"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-NF640X.pdf",
+      "url": "/img/FJ-NF640X.pdf",
+      "modelKeys": [
+        "FJNF640X"
+      ],
+      "installation": false
+    },
+    {
       "fileName": "FJ-NF645W.pdf",
       "url": "/img/FJ-NF645W.pdf",
       "modelKeys": [
@@ -5097,6 +5233,14 @@
       "url": "/img/FJ-NF655BGE.pdf",
       "modelKeys": [
         "FJNF655BGE"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-NF666GG.pdf",
+      "url": "/img/FJ-NF666GG.pdf",
+      "modelKeys": [
+        "FJNF666GG"
       ],
       "installation": false
     },
