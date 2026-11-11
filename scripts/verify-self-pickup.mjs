@@ -18,5 +18,7 @@ assert.match(app, /return value === "pickup" \? "pickup" : "delivery";/u, "Missi
 assert.match(app, /אופן אספקה: איסוף עצמי מהמחסן/u, "WhatsApp and order details must clearly mention self-pickup.");
 assert.match(app, /orderSelfPickup = isSelfPickupOrder\(order\);/u, "Editing an order must restore its fulfillment mode.");
 assert.match(css, /\.order-fulfillment-toggle input:checked \+ span/u, "The pickup control must have a clear selected state.");
+assert.match(css, /\.report-date-toggle input:checked \+ span/u, "Cart scheduling choices must use the same clear selected state.");
+assert.match(css, /\.report-date-toggle input:checked \+ span::before/u, "Cart scheduling choices must show an explicit checked indicator.");
 
-console.log("Self-pickup default, persistence, editing, order-card and WhatsApp checks passed.");
+console.log("Self-pickup and cart scheduling selection-control checks passed.");

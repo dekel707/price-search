@@ -1783,15 +1783,18 @@ h2 {
 }
 
 .report-date-toggle {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid rgba(125, 211, 252, 0.28);
-  border-radius: 8px;
-  background: rgba(12, 28, 28, 0.72);
+  --selection-rgb: 45, 212, 191;
+  position: relative;
+  display: block;
   cursor: pointer;
+}
+
+.report-date-toggle.tomorrow-toggle {
+  --selection-rgb: 239, 163, 72;
+}
+
+.report-date-toggle.draft-save-toggle {
+  --selection-rgb: 74, 222, 128;
 }
 
 .order-fulfillment-toggle {
@@ -1860,21 +1863,25 @@ h2 {
   transform: scale(0.995);
 }
 
-.draft-save-toggle {
-  border-color: rgba(74, 222, 128, 0.28);
-  background: rgba(74, 222, 128, 0.08);
-}
-
 .report-date-toggle input {
-  width: 20px;
-  height: 20px;
-  accent-color: #20c7a8;
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .report-date-toggle span {
   display: grid;
   gap: 3px;
   min-width: 0;
+  min-height: 58px;
+  align-content: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(11, 31, 45, 0.9), rgba(15, 43, 50, 0.72));
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .report-date-toggle strong {
@@ -1885,6 +1892,40 @@ h2 {
 .report-date-toggle small {
   color: #91aaa3;
   line-height: 1.35;
+}
+
+.report-date-toggle input:checked + span {
+  border-color: rgba(var(--selection-rgb), 0.82);
+  background: linear-gradient(135deg, rgba(var(--selection-rgb), 0.32), rgba(var(--selection-rgb), 0.1));
+  box-shadow: 0 0 0 1px rgba(var(--selection-rgb), 0.16), 0 8px 24px rgba(var(--selection-rgb), 0.14);
+}
+
+.report-date-toggle input:checked + span::before {
+  content: "✓ מסומן";
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(var(--selection-rgb), 0.18);
+  color: rgb(var(--selection-rgb));
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.report-date-toggle input:checked + span strong {
+  color: rgb(var(--selection-rgb));
+}
+
+.report-date-toggle input:focus-visible + span {
+  box-shadow: 0 0 0 3px rgba(var(--selection-rgb), 0.22);
+}
+
+.report-date-toggle:active span {
+  transform: scale(0.995);
+}
+
+.report-date-toggle input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.52;
 }
 
 .reservation-purchase-cart .order-type-control input:checked + span {
