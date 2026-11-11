@@ -1794,6 +1794,72 @@ h2 {
   cursor: pointer;
 }
 
+.order-fulfillment-toggle {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.order-fulfillment-toggle[hidden] {
+  display: none;
+}
+
+.order-fulfillment-toggle input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.order-fulfillment-toggle span {
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  align-content: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(11, 31, 45, 0.9), rgba(15, 43, 50, 0.72));
+  color: #eef7f3;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.order-fulfillment-toggle strong {
+  font-size: 0.94rem;
+}
+
+.order-fulfillment-toggle small {
+  color: #91aaa3;
+  line-height: 1.35;
+}
+
+.order-fulfillment-toggle input:checked + span {
+  border-color: rgba(45, 212, 191, 0.82);
+  background: linear-gradient(135deg, rgba(13, 110, 101, 0.58), rgba(20, 184, 166, 0.18));
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.18), 0 8px 24px rgba(13, 148, 136, 0.16);
+  color: #b8fff1;
+}
+
+.order-fulfillment-toggle input:checked + span::before {
+  content: "✓ מסומן";
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.18);
+  color: #99f6e4;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.order-fulfillment-toggle input:focus-visible + span {
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.22);
+}
+
+.order-fulfillment-toggle:active span {
+  transform: scale(0.995);
+}
+
 .draft-save-toggle {
   border-color: rgba(74, 222, 128, 0.28);
   background: rgba(74, 222, 128, 0.08);
@@ -3990,6 +4056,17 @@ h2 {
   font-weight: 900;
 }
 
+.order-fulfillment-badge {
+  width: fit-content;
+  padding: 4px 8px;
+  border: 1px solid rgba(45, 212, 191, 0.58);
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.14);
+  color: #99f6e4 !important;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
 .order-source-badge {
   width: fit-content;
   padding: 4px 7px;
@@ -4007,6 +4084,10 @@ h2 {
 
 .order-details-type {
   color: #ffe19a;
+}
+
+.order-details-fulfillment {
+  color: #99f6e4 !important;
 }
 
 .order-details-meta {

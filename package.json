@@ -7,6 +7,7 @@
     "generate:specs": "node scripts/generate-spec-manifest.mjs",
     "test:order-safety": "node scripts/verify-order-safety.mjs",
     "test:whatsapp-order-save": "node scripts/verify-whatsapp-order-save.mjs",
+    "test:self-pickup": "node scripts/verify-self-pickup.mjs",
     "test:order-checkpoint": "node scripts/verify-order-checkpoint.mjs",
     "test:order-list-visibility": "node scripts/verify-order-list-visibility.mjs",
     "test:action-feedback": "node scripts/verify-action-feedback.mjs",

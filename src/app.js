@@ -34,6 +34,7 @@ const COLLECTIONS_KEY = "price-search-collections-v1";
 const PROMOTIONS_KEY = "price-search-promotions-v1";
 const ACTIVE_TAB_KEY = "price-search-active-tab-v1";
 const ORDER_TYPE_KEY = "price-search-order-type-v1";
+const ORDER_SELF_PICKUP_KEY = "price-search-order-self-pickup-v1";
 const ORDER_REPORT_TOMORROW_KEY = "price-search-order-report-tomorrow-v1";
 const ORDER_REPORT_TODAY_KEY = "price-search-order-report-today-v1";
 const ORDER_TOMBSTONES_KEY = "price-search-order-tombstones-v1";
@@ -293,6 +294,8 @@ const dom = {
   cartPanel: document.querySelector(".cart-panel"),
   cartTitle: document.querySelector("#cartTitle"),
   orderTypeInputs: [...document.querySelectorAll('[name="orderType"]')],
+  selfPickupControl: document.querySelector("#selfPickupControl"),
+  selfPickup: document.querySelector("#selfPickup"),
   reportTomorrow: document.querySelector("#reportTomorrow"),
   reportToday: document.querySelector("#reportToday"),
   cartCustomerDialog: document.querySelector("#cartCustomerDialog"),
@@ -581,6 +584,7 @@ let monthlySalesExcludeVat = false;
 let editingOrderId = "";
 let editingDraftId = "";
 let duplicatedOrderNeedsCustomer = false;
+let orderSelfPickup = false;
 let orderReportTomorrow = false;
 let orderReportToday = false;
 let categoryProductViewMode = "all";
@@ -678,6 +682,8 @@ async function startApp() {
     saveReminders({ sync: false });
   }
   orderType = normalizeOrderType(readJson(ORDER_TYPE_KEY));
+  orderSelfPickup = Boolean(cart.length && readJson(ORDER_SELF_PICKUP_KEY));
+  if (orderType === "reservation") orderSelfPickup = false;
   orderReportTomorrow = Boolean(readJson(ORDER_REPORT_TOMORROW_KEY));
   orderReportToday = Boolean(readJson(ORDER_REPORT_TODAY_KEY));
   if (orderReportToday) orderReportTomorrow = false;
@@ -1139,6 +1145,14 @@ function bindEvents() {
     input.addEventListener("change", () => {
       if (input.checked) setOrderType(input.value);
     });
+  });
+  dom.selfPickup.addEventListener("change", () => {
+    orderSelfPickup = dom.selfPickup.checked;
+    saveOrderSelfPickup();
+    renderCartSummary();
+    dom.status.textContent = orderSelfPickup
+      ? "ההזמנה סומנה לאיסוף עצמי. הסימון יופיע בהזמנה וב‑WhatsApp."
+      : "ההזמנה חזרה לאספקה הרגילה.";
   });
   dom.cartCustomerForm.addEventListener("submit", confirmCartCustomer);
   dom.cartCustomerInput.addEventListener("input", () => {
@@ -12528,12 +12542,14 @@ function removeCartLine(lineKey) {
     editingOrderId = "";
     editingDraftId = "";
     duplicatedOrderNeedsCustomer = false;
+    orderSelfPickup = false;
     orderReportTomorrow = false;
     orderReportToday = false;
     dom.saveAsDraft.checked = false;
     clearDraftCustomer();
     setOrderType("delivery", { render: false });
     saveOrderReportTomorrow();
+    saveOrderSelfPickup();
     saveSettings();
   }
   saveCart();
@@ -12555,6 +12571,7 @@ function clearCart() {
   editingOrderId = "";
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
+  orderSelfPickup = false;
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
@@ -12562,6 +12579,7 @@ function clearCart() {
   setOrderType("delivery", { render: false });
   saveCart();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   saveSettings();
   render();
   dom.status.textContent = wasEditingDraft ? "עריכת הטיוטה בוטלה." : wasEditingOrder ? "עריכת ההזמנה בוטלה." : "הסל נוקה.";
@@ -12577,6 +12595,10 @@ function setOrderType(value, options = { render: true }) {
     return;
   }
   orderType = nextType;
+  if (orderType === "reservation" && orderSelfPickup) {
+    orderSelfPickup = false;
+    saveOrderSelfPickup();
+  }
   if (orderType === "reservation" && cart.some((line) => line.fromReservation)) {
     const paidLineBySku = new Map(cart.filter((line) => !line.fromReservation).map((line) => [line.skuKey, line]));
     cart = mergeCartLines(
@@ -12665,6 +12687,7 @@ function saveDraftOrder(options = {}) {
     customerCode: customer?.code || "",
     customerPhone: customer?.phone || "",
     orderType,
+    fulfillmentType: futureStockOrder ? "delivery" : getCurrentFulfillmentType(),
     futureStockOrder,
     futureStockDate: futureStockOrder ? futureStockDate : "",
     draftReminderDate: originalDraft?.draftReminderDate || "",
@@ -12683,6 +12706,7 @@ function saveDraftOrder(options = {}) {
   editingOrderId = "";
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
+  orderSelfPickup = false;
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
@@ -12692,6 +12716,7 @@ function saveDraftOrder(options = {}) {
   saveCart();
   saveSettings();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   if (!options.deferCloudSave) {
     queueCloudSave({ action: futureStockOrder ? "future-stock-edit" : originalDraft ? "draft-edit" : "draft-create" });
   }
@@ -12756,6 +12781,7 @@ function saveOrder(options = {}) {
     customerCode: customer?.code || "",
     customerPhone: customer?.phone || "",
     orderType,
+    fulfillmentType: getCurrentFulfillmentType(),
     items: cart.map((line) => ({
       ...line,
       lineTotal: getCartLineTotal(line),
@@ -12783,6 +12809,7 @@ function saveOrder(options = {}) {
   editingOrderId = "";
   editingDraftId = "";
   duplicatedOrderNeedsCustomer = false;
+  orderSelfPickup = false;
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
@@ -12795,6 +12822,7 @@ function saveOrder(options = {}) {
   saveCart();
   saveSettings();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   render();
   if (!options.deferCloudSave) {
     queueCloudSave({ action: originalOrder ? "order-edit" : sourceDraft ? "draft-to-order" : "order-create" });
@@ -13111,6 +13139,10 @@ function renderCart() {
     input.checked = input.value === orderType;
     input.disabled = editingFutureStockOrder;
   });
+  const selfPickupAvailable = !isReservationPurchase && !editingFutureStockOrder;
+  dom.selfPickupControl.hidden = !selfPickupAvailable;
+  dom.selfPickup.checked = selfPickupAvailable && orderSelfPickup;
+  dom.selfPickup.disabled = !selfPickupAvailable;
   dom.reportTomorrow.checked = orderReportTomorrow;
   dom.reportToday.checked = orderReportToday;
   dom.reportTomorrow.disabled = editingFutureStockOrder;
@@ -14495,6 +14527,9 @@ function renderOrderCard(order, options = {}) {
   const eitanSourceLabel = isEitanPartnerOrder(order)
     ? '<span class="order-source-badge eitan">הזמנת איתן</span>'
     : "";
+  const selfPickupLabel = isSelfPickupOrder(order)
+    ? '<span class="order-fulfillment-badge">איסוף עצמי</span>'
+    : "";
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const reservationUsage = getOrderReservationUsage(order);
   const summary = order.items
@@ -14520,6 +14555,7 @@ function renderOrderCard(order, options = {}) {
     ${reservationUsage ? `<span class="order-reservation-badge ${reservationUsage.partial ? "partial" : "full"}">${getOrderActionIcon("package")}<span>${reservationUsage.label}</span></span>` : ""}
     ${customerLine}
     ${reportLabel ? `<span class="order-report-badge">${escapeHtml(reportLabel)}</span>` : ""}
+    ${selfPickupLabel}
     ${eitanSourceLabel}
     <div class="order-card-totals"><span>${escapeHtml(itemCount.toLocaleString("he-IL"))} יח׳</span><b>${escapeHtml(formatPrice(order.total))}</b></div>
     <small class="order-card-summary">${escapeHtml(summary)}</small>
@@ -14636,6 +14672,13 @@ function createOrderTextDetails(order, options = {}) {
     details.append(type);
   }
 
+  if (isSelfPickupOrder(order)) {
+    const fulfillment = document.createElement("strong");
+    fulfillment.className = "order-details-fulfillment";
+    fulfillment.textContent = "אופן אספקה: איסוף עצמי מהמחסן";
+    details.append(fulfillment);
+  }
+
   order.items.forEach((item) => {
     const line = document.createElement("p");
     const orderLine = document.createElement("span");
@@ -14750,6 +14793,10 @@ function createOrderMessage(items, order = null) {
   const title = reservationPurchase ? "הזמנה לשריון" : "הזמנה";
   lines.push(customerName ? `${title} - ${customerName}` : title);
   lines.push("");
+  if (!reservationPurchase && (order ? isSelfPickupOrder(order) : orderSelfPickup)) {
+    lines.push("אופן אספקה: איסוף עצמי מהמחסן");
+    lines.push("");
+  }
   [...items].sort((a, b) => Number(isReservationOrderItem(b)) - Number(isReservationOrderItem(a))).forEach((item) => {
     lines.push(formatOrderLine(item));
   });
@@ -15509,6 +15556,7 @@ function loadDraftToCart(draftId) {
   const schedulePreference = getDraftSchedulePreference(draft);
   orderReportTomorrow = !isFutureStockDraft(draft) && schedulePreference === "tomorrow";
   orderReportToday = !isFutureStockDraft(draft) && schedulePreference === "today";
+  orderSelfPickup = !isFutureStockDraft(draft) && isSelfPickupOrder(draft);
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
@@ -15518,6 +15566,7 @@ function loadDraftToCart(draftId) {
   setOrderType(draft.orderType, { render: false });
   saveSettings();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   saveCart();
   render();
   setActiveTab("cart");
@@ -15544,6 +15593,7 @@ function startEditingDraft(draftId) {
   duplicatedOrderNeedsCustomer = false;
   orderReportTomorrow = !futureStockOrder && schedulePreference === "tomorrow";
   orderReportToday = !futureStockOrder && schedulePreference === "today";
+  orderSelfPickup = !futureStockOrder && isSelfPickupOrder(draft);
   cart = mergeCartLines(draft.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || draft.customerId || "";
   settings.customerName = customer?.name || draft.customerName || "";
@@ -15553,6 +15603,7 @@ function startEditingDraft(draftId) {
   setOrderType(draft.orderType, { render: false });
   saveSettings();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   saveCart();
   render();
   setActiveTab("cart");
@@ -15575,6 +15626,7 @@ function deleteDraft(draftId) {
     cart = [];
     editingDraftId = "";
     duplicatedOrderNeedsCustomer = false;
+    orderSelfPickup = false;
     orderReportTomorrow = false;
     orderReportToday = false;
     dom.saveAsDraft.checked = false;
@@ -15583,6 +15635,7 @@ function deleteDraft(draftId) {
     saveCart();
     saveSettings();
     saveOrderReportTomorrow();
+    saveOrderSelfPickup();
   }
   saveDrafts();
   render();
@@ -15601,6 +15654,7 @@ function startEditingOrder(orderId) {
   const rescheduleCompletedOrder = isOrderCompleted(order);
   orderReportTomorrow = rescheduleCompletedOrder ? false : isOrderReportedTomorrow(order);
   orderReportToday = rescheduleCompletedOrder ? false : isOrderReportedToday(order);
+  orderSelfPickup = isSelfPickupOrder(order);
   cart = mergeCartLines(order.items.map((item) => ({ ...item })));
   settings.customerId = customer?.id || order.customerId || "";
   settings.customerName = customer?.name || order.customerName || "";
@@ -15610,6 +15664,7 @@ function startEditingOrder(orderId) {
   setOrderType(order.orderType, { render: false });
   saveSettings();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   saveCart();
   render();
   setActiveTab("cart");
@@ -15623,6 +15678,7 @@ function duplicateOrderToCart(orderId) {
 
   editingOrderId = "";
   editingDraftId = "";
+  orderSelfPickup = false;
   orderReportTomorrow = false;
   orderReportToday = false;
   dom.saveAsDraft.checked = false;
@@ -15652,6 +15708,7 @@ function duplicateOrderToCart(orderId) {
   setOrderType(order.orderType, { render: false });
   saveSettings();
   saveOrderReportTomorrow();
+  saveOrderSelfPickup();
   saveCart();
   render();
   setActiveTab("cart");
@@ -15710,6 +15767,10 @@ function saveSettings(options = { sync: false }) {
 function saveOrderReportTomorrow() {
   localStorage.setItem(ORDER_REPORT_TOMORROW_KEY, JSON.stringify(orderReportTomorrow));
   localStorage.setItem(ORDER_REPORT_TODAY_KEY, JSON.stringify(orderReportToday));
+}
+
+function saveOrderSelfPickup() {
+  localStorage.setItem(ORDER_SELF_PICKUP_KEY, JSON.stringify(orderSelfPickup));
 }
 
 function saveProductData() {
@@ -16185,6 +16246,7 @@ function normalizeOrders(value) {
       customerCode: cleanString(order.customerCode),
       customerPhone: cleanString(order.customerPhone),
       orderType: normalizeOrderType(order.orderType),
+      fulfillmentType: normalizeFulfillmentType(order.fulfillmentType),
       futureStockOrder: Boolean(order.futureStockOrder),
       futureStockDate: normalizeDateInput(order.futureStockDate),
       draftReminderDate: normalizeDateInput(order.draftReminderDate),
@@ -16752,6 +16814,18 @@ function normalizeBonusType(value) {
 
 function normalizeOrderType(value) {
   return value === "reservation" ? "reservation" : "delivery";
+}
+
+function normalizeFulfillmentType(value) {
+  return value === "pickup" ? "pickup" : "delivery";
+}
+
+function getCurrentFulfillmentType() {
+  return orderSelfPickup ? "pickup" : "delivery";
+}
+
+function isSelfPickupOrder(order) {
+  return normalizeFulfillmentType(order?.fulfillmentType) === "pickup";
 }
 
 function normalizeHeader(value) {
