@@ -1,9 +1,9 @@
 {
   "version": 1,
   "source": "/img",
-  "totalPdfFiles": 164,
-  "productCount": 141,
-  "matchedProducts": 127,
+  "totalPdfFiles": 166,
+  "productCount": 143,
+  "matchedProducts": 129,
   "unmatchedProducts": [
     "FJ-MW20LW",
     "FJ-MW25LB",
@@ -1423,6 +1423,20 @@
         }
       ]
     },
+    "FJ-NF582BKG": {
+      "url": "/img/FJ-NF582BKG.pdf",
+      "fileName": "FJ-NF582BKG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF582BKG.pdf",
+          "fileName": "FJ-NF582BKG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJ-NF590GDW": {
       "url": "/img/FJ-NF590GDW.pdf",
       "fileName": "FJ-NF590GDW.pdf",
@@ -1432,6 +1446,20 @@
         {
           "url": "/img/FJ-NF590GDW.pdf",
           "fileName": "FJ-NF590GDW.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJ-NF597WG": {
+      "url": "/img/FJ-NF597WG.pdf",
+      "fileName": "FJ-NF597WG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF597WG.pdf",
+          "fileName": "FJ-NF597WG.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -3647,6 +3675,20 @@
         }
       ]
     },
+    "FJNF582BKG": {
+      "url": "/img/FJ-NF582BKG.pdf",
+      "fileName": "FJ-NF582BKG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF582BKG.pdf",
+          "fileName": "FJ-NF582BKG.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
     "FJNF590GDW": {
       "url": "/img/FJ-NF590GDW.pdf",
       "fileName": "FJ-NF590GDW.pdf",
@@ -3656,6 +3698,20 @@
         {
           "url": "/img/FJ-NF590GDW.pdf",
           "fileName": "FJ-NF590GDW.pdf",
+          "label": "מפרט PDF",
+          "installation": false
+        }
+      ]
+    },
+    "FJNF597WG": {
+      "url": "/img/FJ-NF597WG.pdf",
+      "fileName": "FJ-NF597WG.pdf",
+      "label": "מפרט PDF",
+      "installation": false,
+      "files": [
+        {
+          "url": "/img/FJ-NF597WG.pdf",
+          "fileName": "FJ-NF597WG.pdf",
           "label": "מפרט PDF",
           "installation": false
         }
@@ -5181,10 +5237,26 @@
       "installation": false
     },
     {
+      "fileName": "FJ-NF582BKG.pdf",
+      "url": "/img/FJ-NF582BKG.pdf",
+      "modelKeys": [
+        "FJNF582BKG"
+      ],
+      "installation": false
+    },
+    {
       "fileName": "FJ-NF590GDW.pdf",
       "url": "/img/FJ-NF590GDW.pdf",
       "modelKeys": [
         "FJNF590GDW"
+      ],
+      "installation": false
+    },
+    {
+      "fileName": "FJ-NF597WG.pdf",
+      "url": "/img/FJ-NF597WG.pdf",
+      "modelKeys": [
+        "FJNF597WG"
       ],
       "installation": false
     },

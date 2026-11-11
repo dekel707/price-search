@@ -41,7 +41,7 @@ const byMatch = Object.values(catalog.items).reduce((result, item) => {
   result[match] = (result[match] || 0) + 1;
   return result;
 }, {});
-assert(byMatch.exact_model === 125, `ציפינו ל-125 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
+assert(byMatch.exact_model === 127, `ציפינו ל-127 התאמות ישירות, נמצאו ${byMatch.exact_model || 0}`);
 assert(byMatch.catalog_variant === 3, `ציפינו ל-3 התאמות וריאנט, נמצאו ${byMatch.catalog_variant || 0}`);
 assert(byMatch.description_only === 13, `ציפינו ל-13 דגמים ללא התאמה ישירה, נמצאו ${byMatch.description_only || 0}`);
 
@@ -93,5 +93,13 @@ assert(topFreezerSteel.barcodes?.includes("7290114725835"), "ברקוד FJ-NF640
 const creamFridge539 = catalog.items.FJNF666GG;
 assert(creamFridge539.capacities?.totalLiters === 539 && creamFridge539.dimensionsCm?.heightCm === 190, "מפרט FJ-NF666GG אינו תקין");
 assert(creamFridge539.barcodes?.includes("7290114726078") && creamFridge539.colors?.includes("שמנת"), "נתוני FJ-NF666GG אינם תקינים");
+const glassFridgeBlack = catalog.items.FJNF582BKG;
+assert(glassFridgeBlack.capacities?.totalLiters === 444 && glassFridgeBlack.capacities?.fridgeLiters === 321 && glassFridgeBlack.capacities?.freezerLiters === 123, "נפחי FJ-NF582BKG אינם תקינים");
+assert(glassFridgeBlack.dimensionsCm?.widthCm === 70 && glassFridgeBlack.dimensionsCm?.heightCm === 186 && glassFridgeBlack.dimensionsCm?.depthCm === 67, "מידות FJ-NF582BKG אינן תקינות");
+assert(glassFridgeBlack.barcodes?.includes("7290114726023") && glassFridgeBlack.colors?.includes("שחור"), "נתוני FJ-NF582BKG אינם תקינים");
+const glassFridgeWhite = catalog.items.FJNF597WG;
+assert(glassFridgeWhite.capacities?.totalLiters === 444 && glassFridgeWhite.capacities?.fridgeLiters === 321 && glassFridgeWhite.capacities?.freezerLiters === 123, "נפחי FJ-NF597WG אינם תקינים");
+assert(glassFridgeWhite.dimensionsCm?.widthCm === 70 && glassFridgeWhite.dimensionsCm?.heightCm === 186 && glassFridgeWhite.dimensionsCm?.depthCm === 67, "מידות FJ-NF597WG אינן תקינות");
+assert(glassFridgeWhite.barcodes?.includes("7290114726016") && glassFridgeWhite.colors?.includes("לבן"), "נתוני FJ-NF597WG אינם תקינים");
 
 console.log(`תקין: ${products.length} מפרטים | ישיר: ${byMatch.exact_model} | וריאנט: ${byMatch.catalog_variant} | מחירון בלבד: ${byMatch.description_only}`);
